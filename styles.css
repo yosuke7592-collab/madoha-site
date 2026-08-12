@@ -236,3 +236,96 @@ blockquote{margin:0;font-size:clamp(2.55rem,5.2vw,5.1rem);line-height:1.09;lette
     gap:28px;
   }
 }
+
+
+/* v8: Japanese typography + desktop hero refinement */
+body{
+  font-family:
+    "Hiragino Kaku Gothic ProN",
+    "Hiragino Sans",
+    "Yu Gothic UI",
+    "Yu Gothic",
+    "Noto Sans JP",
+    Meiryo,
+    sans-serif;
+  font-feature-settings:"palt" 1;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+
+.desktop-title{display:inline}
+.mobile-title{display:none}
+
+@media (min-width: 861px){
+  .hero-layout{
+    grid-template-columns:minmax(0,1.28fr) minmax(390px,.72fr);
+    gap:72px;
+  }
+
+  .hero-copy{
+    max-width:none;
+  }
+
+  .hero-title{
+    font-size:clamp(3.65rem,5.45vw,5.85rem);
+    line-height:1.01;
+    letter-spacing:-.047em;
+    font-weight:700;
+    max-width:none;
+    margin-bottom:30px;
+  }
+
+  .hero-title .desktop-title{
+    white-space:nowrap;
+  }
+
+  .hero-title .desktop-title br{
+    display:block;
+  }
+
+  .lead{
+    max-width:760px;
+    font-size:1rem;
+    line-height:1.95;
+  }
+}
+
+@media (max-width:860px){
+  .desktop-title{display:none}
+  .mobile-title{display:inline}
+  .hero-title{
+    font-size:clamp(3.15rem,14vw,5.2rem);
+    line-height:.98;
+    letter-spacing:-.05em;
+    font-weight:700;
+  }
+}
+
+
+/* v9: address moved inside main header */
+.address-bar{display:none!important}
+
+.brand-cluster{
+  display:flex;
+  align-items:center;
+  gap:18px;
+  min-width:0;
+}
+.header-address{
+  font-size:.63rem;
+  line-height:1.25;
+  letter-spacing:.03em;
+  color:#7a8390;
+  white-space:nowrap;
+  font-weight:500;
+}
+
+@media (max-width: 1050px){
+  .header-address{
+    display:none;
+  }
+}
+
+@media (max-width:860px){
+  .brand-cluster{gap:0}
+}
