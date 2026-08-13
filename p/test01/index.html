@@ -1,1 +1,48 @@
-test
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Webサイト リニューアルイメージ | MADOHA</title>
+  <style>
+    :root{--bg:#f5f5f2;--ink:#111827;--muted:#6b7280;--line:#dedfd9;--card:#fff;--accent:#0e1b2e}
+    *{box-sizing:border-box} html{scroll-behavior:smooth} body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic UI","Yu Gothic",Meiryo,sans-serif}
+    .wrap{width:min(1240px,calc(100% - 32px));margin:auto}
+    header{padding:28px 0 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
+    .brand{font-size:18px;letter-spacing:.32em;font-weight:700}.tag{font-size:12px;color:var(--muted)}
+    main{padding:48px 0 72px}.eyebrow{font-size:12px;letter-spacing:.18em;color:var(--muted);margin-bottom:12px}
+    h1{font-size:clamp(30px,5vw,58px);line-height:1.12;margin:0 0 16px;letter-spacing:-.03em}.lead{font-size:clamp(15px,2vw,19px);line-height:1.9;color:#374151;margin:0 0 34px}
+    .proposal{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:12px;box-shadow:0 16px 50px rgba(17,24,39,.08)}
+    .proposal img{width:100%;height:auto;display:block;border-radius:12px}
+    .note{margin:18px 4px 0;color:var(--muted);font-size:12px;line-height:1.7}
+    .cta{margin-top:40px;background:var(--accent);color:#fff;border-radius:18px;padding:30px;display:flex;gap:24px;align-items:center;justify-content:space-between}
+    .cta h2{margin:0 0 8px;font-size:clamp(20px,3vw,30px)}.cta p{margin:0;color:#dbe1ea;line-height:1.8}
+    .cta a{flex:0 0 auto;text-decoration:none;background:#fff;color:var(--accent);font-weight:700;padding:14px 20px;border-radius:999px}
+    footer{padding:22px 0 36px;border-top:1px solid var(--line);color:var(--muted);font-size:11px;display:flex;justify-content:space-between;gap:16px}
+    @media(max-width:720px){.wrap{width:min(100% - 20px,1240px)}header{padding-top:20px}.tag{display:none}main{padding-top:34px}.proposal{padding:6px;border-radius:14px}.proposal img{border-radius:10px}.cta{padding:22px;display:block}.cta a{display:inline-block;margin-top:18px}footer{display:block;line-height:1.8}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header><div class="brand">MADOHA</div><div class="tag">WEB REDESIGN CONCEPT</div></header>
+    <main>
+      <div class="eyebrow">PRIVATE PROPOSAL / CONCEPT IMAGE</div>
+      <h1>日成塗装様<br>Webサイト リニューアルイメージ</h1>
+      <p class="lead">現在公開されているWebサイトの内容をもとに、PC・スマートフォンでの見え方をリニューアルした場合のイメージを作成しました。</p>
+      <section class="proposal"><img src="/assets/nissei-proposal.png" alt="日成塗装様 Webサイト リニューアルイメージ"></section>
+      <p class="note">※ 本ページはMADOHAによる自主的なデザイン提案です。掲載内容は完成サイトや正式な仕様を示すものではありません。実制作時は、既存素材・原稿・運用環境等を確認のうえ設計します。</p>
+      <section class="cta">
+        <div><h2>この方向性について、少し話を聞いてみる</h2><p>現在のWeb管理会社を変更せず、改善設計のみご相談いただくことも可能です。</p></div>
+        <a href="mailto:contact@madoha.jp?subject=Web%E3%82%B5%E3%82%A4%E3%83%88%E6%94%B9%E5%96%84%E6%A1%88%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6">MADOHAへ相談する</a>
+      </section>
+    </main>
+    <footer><span>MADOHA</span><span>このURLはご提案先向けに発行した専用ページです。</span></footer>
+  </div>
+  <script>
+    // Cloudflare Worker 配下では /api/view への送信で閲覧を記録。
+    // 静的プレビュー時は失敗しても画面表示に影響しません。
+    fetch('/api/view', {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({path:location.pathname, referrer:document.referrer || null})}).catch(()=>{});
+  </script>
+</body>
+</html>
