@@ -8,7 +8,10 @@ function targetIn(record, subjectId) { return record.companies.find(company => c
 function targetCitation(record, subject) {
   const names = [subject.canonicalName, subject.displayName, ...(subject.aliases || [])].filter(Boolean);
   return record.citations.some(citation =>
-    names.some(name => citation.title.includes(name)) || (subject.officialDomains || []).some(domain => citation.domain === domain || citation.domain.endsWith(`.${domain}`))
+    names.some(name => String(citation.title || '').includes(name)) || (subject.officialDomains || []).some(domain => {
+      const citationDomain = String(citation.domain || '');
+      return citationDomain === domain || citationDomain.endsWith(`.${domain}`);
+    })
   );
 }
 
@@ -85,7 +88,7 @@ export function aggregateResultData(records, market, subject) {
   return {
     schemaVersion: '1.0',
     dataset: {
-      status: records.some(record => record.status !== 'success') ? 'partial' : 'measured',
+      status: records.length > 0 && records.every(record => record.status === 'success') ? 'measured' : 'partial',
       measuredAt: records.map(record => record.measuredAt).sort().at(-1) || null,
       measurementRunId: records[0]?.runId || null, scoringVersion: '0.1', stabilityVersion: '0.1',
       recommendationRuleVersion: RECOMMENDATION_RULE_VERSION, sourceClassificationVersion: SOURCE_CLASSIFICATION_VERSION,

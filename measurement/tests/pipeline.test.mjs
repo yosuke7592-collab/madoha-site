@@ -73,7 +73,16 @@ test('fixture aggregation calculates scores and excludes failed records', async 
   const { records, resultData } = output;
   assert.equal(records.length, 18);
   assert.equal(records.filter(item => item.status === 'success').length, 16);
+  assert.equal(records.filter(item => item.status === 'partial').length, 1);
+  assert.equal(records.filter(item => item.status === 'failed').length, 1);
   assert.equal(resultData.dataset.scoringVersion, '0.1');
+  assert.equal(resultData.dataset.scoreComponents.appearance.value, 24.38);
+  assert.equal(resultData.dataset.scoreComponents.recommendation.value, 16.88);
+  assert.equal(resultData.dataset.scoreComponents.relativePosition.value, 24.29);
+  assert.equal(resultData.dataset.scoreComponents.citationEvidence.value, 11.54);
+  assert.deepEqual(resultData.dataset.scoreCompleteness, { measured: 100, total: 100 });
+  assert.equal(resultData.scores.visibility, 77);
+  assert.equal(resultData.scores.stability, 72);
   assert.equal(resultData.scores.accuracy, null);
   assert.equal(resultData.scores.accuracyStatus, 'not_measured');
   assert.equal(resultData.informationIssues.length, 0);
@@ -81,8 +90,22 @@ test('fixture aggregation calculates scores and excludes failed records', async 
   assert.ok(resultData.scores.stability !== null);
   assert.deepEqual(resultData.scores.modelCoverage, { detected: 1, total: 1, status: 'measured' });
   const failedOnly = aggregateResultData(records.filter(item => item.status === 'failed'), MARKET, SUBJECT);
+  assert.equal(failedOnly.dataset.status, 'partial');
   assert.equal(failedOnly.scores.modelCoverage.status, 'not_measured');
   assert.equal(failedOnly.dataset.scoreComponents.relativePosition.status, 'not_measured');
+
+  const withoutPositions = records.map(record => ({
+    ...record,
+    companies: record.companies.map(company => ({ ...company, relativePosition: null }))
+  }));
+  const positionNotMeasured = aggregateResultData(withoutPositions, MARKET, SUBJECT);
+  assert.equal(positionNotMeasured.dataset.scoreComponents.relativePosition.status, 'not_measured');
+  assert.deepEqual(positionNotMeasured.dataset.scoreCompleteness, { measured: 75, total: 100 });
+  assert.equal(positionNotMeasured.scores.visibility, 53);
+
+  const empty = aggregateResultData([], MARKET, SUBJECT);
+  assert.equal(empty.dataset.status, 'partial');
+  assert.deepEqual(empty.dataset.scoreCompleteness, { measured: 0, total: 100 });
 });
 
 test('guardrails allow 18 and block request, repetition, cost, and live violations', () => {
