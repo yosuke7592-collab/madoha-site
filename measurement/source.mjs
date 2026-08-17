@@ -1,11 +1,22 @@
 const TRACKING_KEYS = /^(utm_.+|fbclid|gclid|yclid)$/i;
 const KNOWN = {
   google: ['google.com', 'google.co.jp'],
-  comparison: ['comparison.example', 'hikaku.example'],
-  reviews: ['reviews.example', 'kuchikomi.example'],
+  comparison: [
+    'comparison.example', 'hikaku.example', 'nuri-kae.jp', 'biz.ne.jp', 'meetsmore.com',
+    'rehome-navi.com', 'reform-guide.jp', 'gaihekitosou-hotline.com',
+    'tokyo-gaihekitosou-guide.com', 'gaiheki-madoguchi.com', 'town-life.jp',
+    'gaiheki-partners.jp', 'nurimatch.jp', 'curama.jp', 'myhome.nifty.com', 'paipro.jp'
+  ],
+  reviews: ['reviews.example', 'kuchikomi.example', 'g-collect.net', 'outerwallrepair-assist.com', 'paint-exteriorwall.net', 'yanery.com', 'gaiheki-hyouban.com'],
   industry_media: ['industry.example'],
   sns: ['x.com', 'twitter.com', 'facebook.com', 'instagram.com', 'youtube.com', 'youtu.be', 'tiktok.com']
 };
+
+const PAGE_RULES = [
+  // These are contractor/company domains. Only their saved comparison-article sections are classified as comparison.
+  { domain: 'toso-group.co.jp', pathPrefix: '/gaiheki/', sourceType: 'comparison' },
+  { domain: 'renovemo.co.jp', pathPrefix: '/media/', sourceType: 'comparison' }
+];
 
 export function canonicalizeUrl(value) {
   try {
@@ -30,10 +41,13 @@ export function classifySource(url, registry = []) {
   const domain = new URL(canonicalUrl).hostname;
   const official = registry.some(company => (company.officialDomains || []).some(item => domainMatches(domain, item)));
   if (official) return { canonicalUrl, domain, sourceType: 'official' };
+  const pathRule = PAGE_RULES.find(rule => domainMatches(domain, rule.domain) && new URL(canonicalUrl).pathname.startsWith(rule.pathPrefix));
+  if (pathRule) return { canonicalUrl, domain, sourceType: pathRule.sourceType };
   for (const [sourceType, domains] of Object.entries(KNOWN)) {
     if (domains.some(item => domainMatches(domain, item))) return { canonicalUrl, domain, sourceType };
   }
   return { canonicalUrl, domain, sourceType: 'other' };
 }
 
-export const SOURCE_CLASSIFICATION_VERSION = '0.1';
+// note.com remains `other` in v0.2 because corporate and individual authorship is mixed.
+export const SOURCE_CLASSIFICATION_VERSION = '0.2';

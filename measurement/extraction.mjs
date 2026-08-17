@@ -31,12 +31,21 @@ export function detectRelativePosition(answerText, rawName) {
   return null;
 }
 
-export function extractCompanies(answerText, registry, citations = []) {
+function citationAssociations(company, citations) {
+  const names = [company.canonicalName, company.displayName, ...(company.aliases || [])].filter(Boolean);
+  return citations.filter(citation =>
+    names.some(name => String(citation.title || '').includes(name)) ||
+    (company.officialDomains || []).some(domain => citation.domain === domain || citation.domain.endsWith(`.${domain}`))
+  ).length;
+}
+
+export function extractCompanies(answerText, registry, citations = [], options = {}) {
   const text = String(answerText || '');
   const normalizedText = normalizeCompanyName(text);
   const found = [];
   for (const company of registry) {
-    const candidates = [company.canonicalName, ...(company.aliases || [])].filter(Boolean);
+    const candidates = [...new Set([company.canonicalName, ...(company.aliases || [])].filter(Boolean))]
+      .sort((a, b) => b.length - a.length);
     const rawName = candidates.find(name => text.includes(name));
     const normalizedMatch = candidates.find(name => normalizedText.includes(normalizeCompanyName(name)));
     if (!rawName && !normalizedMatch) continue;
@@ -47,17 +56,21 @@ export function extractCompanies(answerText, registry, citations = []) {
     found.push({
       rawName: matched, normalizedCompanyId: company.id, appeared: true,
       recommended: detectRecommendation(text, matched), relativePosition: detectRelativePosition(text, matched),
-      mentionCount: Math.max(1, occurrenceCount(text, matched)), matchMethod: method, matchConfidence: method === 'normalized_name' ? 0.9 : 1
+      mentionCount: Math.max(1, occurrenceCount(text, matched)), matchMethod: method, matchConfidence: method === 'normalized_name' ? 0.9 : 1,
+      citationAssociations: citationAssociations(company, citations)
     });
   }
-  for (const company of registry) {
-    if (found.some(item => item.normalizedCompanyId === company.id)) continue;
-    const citationMatch = citations.some(citation => (company.officialDomains || []).some(domain => citation.domain === domain || citation.domain.endsWith(`.${domain}`)));
-    if (!citationMatch) continue;
-    found.push({
-      rawName: company.displayName || company.canonicalName, normalizedCompanyId: company.id, appeared: true,
-      recommended: false, relativePosition: null, mentionCount: 0, matchMethod: 'official_domain', matchConfidence: 0.8
-    });
+  if (options.includeCitationOnly !== false) {
+    for (const company of registry) {
+      if (found.some(item => item.normalizedCompanyId === company.id)) continue;
+      const citationMatch = citations.some(citation => (company.officialDomains || []).some(domain => citation.domain === domain || citation.domain.endsWith(`.${domain}`)));
+      if (!citationMatch) continue;
+      found.push({
+        rawName: company.displayName || company.canonicalName, normalizedCompanyId: company.id, appeared: true,
+        recommended: false, relativePosition: null, mentionCount: 0, matchMethod: 'official_domain', matchConfidence: 0.8,
+        citationAssociations: citationAssociations(company, citations)
+      });
+    }
   }
   const knownNames = new Set(found.map(item => normalizeCompanyName(item.rawName)));
   for (const line of text.split(/\r?\n/u)) {
