@@ -1,5 +1,3 @@
-import { LIVE_DISABLED_MESSAGE } from './provider.mjs';
-
 export const GUARDRAILS = Object.freeze({
   MAX_MARKETS_PER_RUN: 1, MAX_QUERIES_PER_RUN: 6, MAX_REPETITIONS: 3, MAX_PROVIDER_COUNT: 1,
   MAX_REQUESTS_PER_RUN: 18, MAX_RETRIES_PER_REQUEST: 1, MAX_RUNS_PER_DAY: 2,
@@ -9,7 +7,6 @@ export const GUARDRAILS = Object.freeze({
 
 export function assertGuardrails(plan, estimate, usage = { runsToday: 0, dailyUsd: 0, monthlyUsd: 0 }) {
   const failures = [];
-  if (plan.mode === 'live') failures.push(LIVE_DISABLED_MESSAGE);
   if (plan.marketCount > GUARDRAILS.MAX_MARKETS_PER_RUN) failures.push('Market limit exceeded.');
   if (plan.queries.length > GUARDRAILS.MAX_QUERIES_PER_RUN) failures.push('Query limit exceeded.');
   if (plan.repetitions > GUARDRAILS.MAX_REPETITIONS) failures.push('Repetition limit exceeded.');
