@@ -23,6 +23,10 @@ test('source classifier v0.2 covers official, comparison, review, social decisio
   assert.equal(SOURCE_CLASSIFICATION_VERSION, '0.2');
   assert.equal(classifySource('https://www.setagayahome.co.jp/case', COMPANY_REGISTRY).sourceType, 'official');
   assert.equal(classifySource('https://nuri-kae.jp/area/x', COMPANY_REGISTRY).sourceType, 'comparison');
+  assert.equal(classifySource('https://toso-group.co.jp/gaiheki/setagaya-exterior-coating/', COMPANY_REGISTRY).sourceType, 'comparison');
+  assert.equal(classifySource('https://toso-group.co.jp/wall-painting/', COMPANY_REGISTRY).sourceType, 'other');
+  assert.equal(classifySource('https://renovemo.co.jp/media/gaiheki-setagaya/', COMPANY_REGISTRY).sourceType, 'comparison');
+  assert.equal(classifySource('https://renovemo.co.jp/company/', COMPANY_REGISTRY).sourceType, 'other');
   assert.equal(classifySource('https://yanery.com/review', COMPANY_REGISTRY).sourceType, 'reviews');
   assert.equal(classifySource('https://instagram.com/example', COMPANY_REGISTRY).sourceType, 'sns');
   assert.equal(classifySource('https://note.com/example', COMPANY_REGISTRY).sourceType, 'other');
