@@ -1,0 +1,103 @@
+{
+  "schemaVersion": "1.0",
+  "dataset": {
+    "status": "measured",
+    "measuredAt": "2026-08-17T16:36:05.957Z",
+    "measurementRunId": "live-run-2026-08-17T16-34-02-103Z",
+    "providerScope": "Perplexity Sonar",
+    "scoringVersion": "0.1",
+    "sourceClassificationVersion": "0.2",
+    "scoreCompleteness": { "measured": 75, "total": 100 },
+    "scoreComponents": {
+      "appearance": { "value": 17.65, "max": 30, "status": "measured" },
+      "recommendation": { "value": 8.82, "max": 30, "status": "measured" },
+      "relativePosition": { "value": null, "max": 25, "status": "not_measured" },
+      "citationEvidence": { "value": 15, "max": 15, "status": "measured" }
+    },
+    "unmeasuredModels": ["ChatGPT", "Gemini"]
+  },
+  "subject": { "name": "世田谷ホーム", "officialUrl": "https://setagayahome.co.jp" },
+  "market": { "location": "東京都 世田谷区", "industry": "外壁塗装", "label": "世田谷区 × 外壁塗装" },
+  "scores": {
+    "visibility": 41,
+    "visibilityBand": "MID",
+    "stability": 82,
+    "stabilityStatus": "measured",
+    "accuracy": null,
+    "accuracyStatus": "not_measured",
+    "modelCoverage": { "detected": 1, "total": 1, "status": "measured" },
+    "recommendation": { "detected": 5, "total": 17 }
+  },
+  "models": [
+    { "id": "perplexity:sonar", "name": "Perplexity Sonar", "value": 59, "detected": true, "status": "measured" }
+  ],
+  "queries": [
+    { "id": "setagaya-recommendation-natural-v1", "name": "世田谷区でおすすめの外壁塗装会社を教えて", "short": "おすすめ", "strength": 1, "status": "strong", "appearances": 3, "recommendations": 2, "successfulMeasurements": 3 },
+    { "id": "setagaya-reviews-natural-v1", "name": "世田谷区で口コミや評判のいい外壁塗装会社を教えて", "short": "口コミ・評判", "strength": 0.3333333333, "status": "weak", "appearances": 1, "recommendations": 0, "successfulMeasurements": 3 },
+    { "id": "setagaya-cost-natural-v1", "name": "世田谷区で費用が分かりやすい外壁塗装会社を教えて", "short": "費用", "strength": 0.6666666667, "status": "medium", "appearances": 2, "recommendations": 2, "successfulMeasurements": 3 },
+    { "id": "setagaya-qualification-natural-v1", "name": "世田谷区で資格や保証がしっかりした外壁塗装会社を教えて", "short": "資格・保証", "strength": 0, "status": "weak", "appearances": 0, "recommendations": 0, "successfulMeasurements": 3 },
+    { "id": "setagaya-subsidy-natural-v1", "name": "世田谷区の助成金に詳しい外壁塗装会社を教えて", "short": "助成金", "strength": 0.5, "status": "medium", "appearances": 1, "recommendations": 0, "successfulMeasurements": 2 },
+    { "id": "setagaya-roof-natural-v1", "name": "世田谷区で屋根塗装も相談できる外壁塗装会社を教えて", "short": "屋根塗装", "strength": 1, "status": "strong", "appearances": 3, "recommendations": 1, "successfulMeasurements": 3 }
+  ],
+  "competitors": [
+    { "id": "company-hanamaru-reform", "name": "花まるリフォーム", "appearances": 8, "recommendations": 7, "citationAssociations": 4, "strength": 0.4705882353 },
+    { "id": "company-gaihekido", "name": "外壁堂", "appearances": 8, "recommendations": 3, "citationAssociations": 8, "strength": 0.4705882353 },
+    { "id": "company-shimada-tosou", "name": "島田塗装", "appearances": 6, "recommendations": 2, "citationAssociations": 6, "strength": 0.3529411765 },
+    { "id": "company-todoroki-kenso", "name": "とどろき建装", "appearances": 6, "recommendations": 2, "citationAssociations": 8, "strength": 0.3529411765 },
+    { "id": "company-tosou-shokunin-tokyo", "name": "塗装職人（東京店）", "appearances": 5, "recommendations": 4, "citationAssociations": 6, "strength": 0.2941176471 },
+    { "id": "company-nissei-tosou", "name": "日成塗装", "appearances": 5, "recommendations": 2, "citationAssociations": 5, "strength": 0.2941176471 },
+    { "id": "company-yanekabe-setagaya", "name": "ヤネカベ世田谷店", "appearances": 4, "recommendations": 3, "citationAssociations": 1, "strength": 0.2352941176 },
+    { "id": "company-tokyo-tosou", "name": "東京塗装株式会社", "appearances": 3, "recommendations": 2, "citationAssociations": 0, "strength": 0.1764705882 },
+    { "id": "company-yu-magokoro", "name": "ワイユーまごころ工務店", "appearances": 3, "recommendations": 2, "citationAssociations": 3, "strength": 0.1764705882 },
+    { "id": "company-laporta", "name": "ラポルタ", "appearances": 3, "recommendations": 2, "citationAssociations": 3, "strength": 0.1764705882 },
+    { "id": "company-retolis", "name": "株式会社RETOLIS", "appearances": 2, "recommendations": 2, "citationAssociations": 0, "strength": 0.1176470588 },
+    { "id": "company-aoki-tosou", "name": "青木塗装", "appearances": 2, "recommendations": 1, "citationAssociations": 2, "strength": 0.1176470588 },
+    { "id": "company-hagino-tosou", "name": "萩野塗装工業", "appearances": 2, "recommendations": 0, "citationAssociations": 2, "strength": 0.1176470588 },
+    { "id": "company-n-frontier", "name": "Nフロンティア株式会社", "appearances": 1, "recommendations": 0, "citationAssociations": 0, "strength": 0.0588235294 },
+    { "id": "company-protimes-soken", "name": "株式会社プロタイムズ総合研究所", "appearances": 1, "recommendations": 0, "citationAssociations": 0, "strength": 0.0588235294 },
+    { "id": "company-teigaku-setagaya-kawasaki", "name": "テイガク世田谷・川崎店", "appearances": 1, "recommendations": 0, "citationAssociations": 0, "strength": 0.0588235294 },
+    { "id": "company-noda-bisou", "name": "野田美装", "appearances": 1, "recommendations": 0, "citationAssociations": 1, "strength": 0.0588235294 },
+    { "id": "company-fukazawa-tosou", "name": "深沢塗装", "appearances": 1, "recommendations": 0, "citationAssociations": 1, "strength": 0.0588235294 }
+  ],
+  "sources": [
+    { "id": "source-official", "name": "公式サイト", "label": "official", "count": 85, "strength": 0.5483870968 },
+    { "id": "source-comparison", "name": "比較・業者検索", "label": "comparison", "count": 155, "strength": 1 },
+    { "id": "source-reviews", "name": "口コミ・レビュー", "label": "reviews", "count": 27, "strength": 0.1741935484 },
+    { "id": "source-other", "name": "その他", "label": "other", "count": 73, "strength": 0.4709677419 }
+  ],
+  "sourceDomains": [
+    { "domain": "nuri-kae.jp", "category": "comparison", "count": 22 },
+    { "domain": "paipro.jp", "category": "comparison", "count": 16 },
+    { "domain": "biz.ne.jp", "category": "comparison", "count": 14 },
+    { "domain": "setagayahome.co.jp", "category": "official", "count": 14 },
+    { "domain": "meetsmore.com", "category": "comparison", "count": 12 }
+  ],
+  "informationIssues": [],
+  "insights": {
+    "visibilityDescription": "MADOHA Scoring v0.1による実測内部指標です。測定充足度は75 / 100です。",
+    "observation": {
+      "title": "17件の有効測定中10件で確認され、5件で推薦されました。",
+      "body": "おすすめ・屋根塗装の質問では3回すべてで世田谷ホームを確認しました。"
+    },
+    "competitorGap": {
+      "prefix": "実測回答では、",
+      "highlight": "花まるリフォーム、外壁堂など18社",
+      "suffix": "も比較対象として確認されました。",
+      "detail": "出現回数の観測であり、AIのランキング要因や因果関係を示すものではありません。"
+    },
+    "modelNote": "現在の実測対象：Perplexity Sonar。ChatGPT / Geminiは未測定です。",
+    "competitorNote": "保存済み回答内の企業出現・推薦を集計しています。",
+    "accuracySummary": "未測定 · 企業情報の正確性比較は次回測定対象です。",
+    "sourcesNote": "今回の回答内では、比較・業者検索系の参照元が多く確認されました。因果関係を示すものではありません。"
+  },
+  "analysisStages": [
+    { "label": "COMPANY FOUND", "value": "世田谷ホーム", "category": "company" },
+    { "label": "INDUSTRY DETECTED", "value": "外壁塗装", "category": "queries" },
+    { "label": "LOCATION DETECTED", "value": "東京都 世田谷区", "category": "queries" },
+    { "label": "SEARCH INTENTS GENERATED", "value": "6 Queries", "category": "queries" },
+    { "label": "AI MODELS CHECKED", "value": "Perplexity Sonar", "category": "models" },
+    { "label": "COMPETITORS FOUND", "value": "18 Companies", "category": "competitors" },
+    { "label": "SOURCES ANALYZED", "value": "340 Associations", "category": "sources" },
+    { "label": "AI VISIBILITY CALCULATED", "value": "41 / 100", "category": "complete" }
+  ]
+}
