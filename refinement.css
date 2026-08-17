@@ -82,3 +82,8 @@ button:focus-visible,a:focus-visible,input:focus-visible{
 @media(prefers-reduced-motion:reduce){
   .net-node,.net-line,.screen-transition{animation:none!important;transition:none!important}
 }
+
+.score-ring{
+  background:radial-gradient(circle,#fff 54%,transparent 55%),conic-gradient(var(--acid) 0 var(--score,0%),#e9ece8 var(--score,0%))
+}
+.issue-entry>p{font-size:13px}
