@@ -1,0 +1,84 @@
+/* Browser-review refinements. Keep graph categories isolated from insight-card layout. */
+.net-node.models,.net-node.queries,.net-node.competitors,.net-node.sources{
+  min-height:0;
+  grid-column:auto;
+}
+
+.net-line{
+  height:clamp(1px,calc(var(--edge-strength, .5) * 3px),3px)!important;
+  min-height:0!important;
+  opacity:calc(.16 + var(--edge-strength, .5) * .32);
+  background:linear-gradient(90deg,rgba(75,94,89,.18),rgba(75,94,89,.72));
+}
+
+.net-node:not(.company){
+  font-size:clamp(10px,calc(9px + var(--node-strength, .5) * 3px),12px)!important;
+  line-height:1.35;
+  padding:10px 15px;
+  background:rgba(255,255,255,.9);
+  box-shadow:0 12px 30px rgba(22,40,35,.1),inset 0 1px 0 #fff;
+}
+
+button:focus-visible,a:focus-visible,input:focus-visible{
+  outline:3px solid rgba(107,145,0,.55);
+  outline-offset:3px;
+}
+
+.search-box:focus-within{
+  border-color:#6f7d47;
+  box-shadow:0 22px 75px rgba(36,54,49,.16),0 0 0 4px rgba(217,255,87,.3);
+}
+
+@media(min-width:901px){
+  .top{padding-top:clamp(64px,8vh,92px)}
+  .hero h1{font-size:clamp(64px,5.35vw,82px)}
+  .lead{font-size:16px;line-height:1.85;margin:24px 0 30px}
+  .concepts b{font-size:13px}.concepts small{font-size:11px}
+  .analysis-layout{margin-top:30px;gap:40px}
+  .analysis-layout li b{font-size:11px}.analysis-layout li span{font-size:14px}
+  .result-head{padding-top:38px;padding-bottom:28px}
+  .summary{padding-top:24px;padding-bottom:54px}
+  .score-card small,.metrics small{font-size:11px;line-height:1.65}
+  .observation p{font-size:13px;line-height:1.85}
+  .map-section{padding-bottom:68px}
+  .section-title>div>p{font-size:10px}.section-title>p{font-size:12px;max-width:500px;width:auto}
+  .map-controls button{font-size:10px;padding:10px 15px}
+  .result-map{height:620px}
+  .insight{padding:32px}
+  .insight header b{font-size:14px}.insight header span{font-size:10px}
+  .model-row,.query-example,.compare,.source-row{font-size:13px}
+  .competitor p{font-size:14px}.issue>p{font-size:13px}
+  .insight>small{font-size:11px;line-height:1.75}
+  .result-footer{font-size:10px}
+}
+
+@media(max-width:900px){
+  .net-node:not(.company){font-size:9px!important;padding:7px 10px}
+  .top-map{opacity:.18}
+  .analysis-map .net-node:not(.company){font-size:8px!important}
+  .score-card small{font-size:10px}
+  .observation p{font-size:12px}
+  .insight-grid{display:flex;flex-direction:column}
+  .insight.competitor{order:1}.insight.queries{order:2}.insight.issue{order:3}.insight.sources{order:4}.insight.models{order:5}
+  .insight header b{font-size:13px}
+  .competitor p,.issue>p{font-size:13px}
+  .query-example,.compare,.source-row,.model-row{font-size:12px}
+  .insight>small{font-size:10px}
+}
+
+@media(max-width:700px){
+  .map-controls{display:grid;grid-template-columns:1fr 1fr;overflow:visible;gap:7px}
+  .map-controls button{width:100%;min-height:42px;padding:8px 10px;text-align:left}
+}
+
+@media(max-width:480px){
+  .hero h1{font-size:clamp(37px,10.3vw,43px);line-height:1.08}
+  .lead{line-height:1.8}
+  .score-card{padding:22px}
+  .score-card strong{font-size:60px}
+  .map-controls button{min-height:40px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .net-node,.net-line,.screen-transition{animation:none!important;transition:none!important}
+}
