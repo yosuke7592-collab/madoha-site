@@ -1,7 +1,84 @@
-<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="description" content="AIが会社をどう認識・推薦しているかを可視化するMADOHA AI Search Intelligence。"><title>MADOHA | AI Search Intelligence</title><link rel="stylesheet" href="mvp.css"><link rel="stylesheet" href="refinement.css"><script type="module" src="app.js"></script></head>
-<body><a class="skip" href="#main">本文へ</a><header class="site-header"><a class="wordmark" href="index.html"><b>MADOHA</b><span>AI SEARCH INTELLIGENCE</span></a><span class="demo-status"><i></i>DEMO ENVIRONMENT</span><a class="company-link" href="company.html">COMPANY ↗</a></header><main id="main">
-<section class="screen top is-active" data-screen="top"><div class="grid-bg"></div><div class="network-stage top-map" data-network="top"></div><div class="hero"><p class="kicker"><span>01</span> ASK MADOHA</p><h1>AIは、あなたの会社を<br><em>知っていますか？</em></h1><p class="lead">ChatGPTやGeminiなどのAIが、あなたの会社を<br class="desktop">どのように認識・推薦しているかを可視化します。</p><form id="search-form" novalidate><label for="company-input">会社名・店舗名・URL</label><div class="search-box"><i></i><input id="company-input" placeholder="会社名・店舗名・URLを入力" autocomplete="organization" aria-describedby="search-error"><button>AI Visibilityを調べる <b>→</b></button></div><div class="form-meta"><button type="button" id="example-fill">例：世田谷ホーム</button><span>DEMO DATA / NO EXTERNAL API</span></div><p id="search-error" role="alert"></p></form></div><div class="concepts"><div><span>01</span><b>AI Visibility</b><small>認識・推薦の可視性</small></div><div><span>02</span><b>Competitors</b><small>同時に推薦される企業</small></div><div><span>03</span><b>Queries</b><small>強い・弱い質問</small></div><div><span>04</span><b>Sources</b><small>確認された参照元</small></div></div></section>
-<section class="screen analyzing" data-screen="analyzing" aria-live="polite"><header><p class="kicker"><span>02</span> BUILDING AI SEARCH SPACE</p><h2><span id="analysis-company">世田谷ホーム</span>を分析しています</h2><p>AIが認識する企業・質問・競合・参照元の関係を構築中</p></header><div class="analysis-layout"><div class="analysis-map"><div class="network-stage" data-network="analysis"></div><div class="progress"><b id="progress-value">0</b><span>% MAPPED</span></div></div><ol id="analysis-steps"></ol></div><button class="skip-analysis" id="skip-analysis">結果をすぐ見る →</button></section>
-<section class="screen result" data-screen="result"><header class="result-head"><div><p class="kicker"><span>03</span> AI VISIBILITY REPORT <b>DEMO</b></p><h2>世田谷ホーム</h2><p>世田谷区 × 外壁塗装</p></div><button id="new-search">← 新しく調べる</button></header><div class="summary"><article class="score-card"><div><p>AI VISIBILITY <i>i</i></p><strong>42</strong><span>/ 100</span><small>AI回答内での認識・推薦・情報整合性を<br>統合したデモ指標です。</small></div><div class="score-ring"><b>LOW — MID</b></div></article><div class="metrics"><article><p>MODEL COVERAGE</p><strong>2 <span>/ 3</span></strong><small>3モデル中2モデルで認識</small></article><article><p>RECOMMENDATION</p><strong>7 <span>/ 18</span></strong><small>推薦が確認された質問</small></article><article><p>STABILITY</p><strong>68<span>%</span></strong><small>複数回答での再現性</small></article></div><article class="observation"><span>OBSERVATION 01</span><h3>認識はされていますが、<br>「おすすめ」の質問では競合が優勢です。</h3><p>資格・保証・施工事例の情報を、AIが取得しやすい形で補強できる余地があります。</p></article></div>
-<section class="map-section"><div class="section-title"><div><p>RELATIONSHIP MAP</p><h3>AI Search Map</h3></div><p>AI回答内で確認された関係性を可視化。線の太さは出現頻度、ノードの大きさは相対的重要度を表します。</p></div><div class="map-controls" id="map-controls"></div><div id="result-map" class="result-map" role="img" aria-label="世田谷ホームを中心とするAI検索関係図"></div><div class="legend"><span><i></i>関係が強い</span><span><i></i>関係が弱い</span><span><b></b>サイズ＝相対的重要度</span></div></section>
-<section class="insights"><div class="section-title"><div><p>OBSERVED INSIGHTS</p><h3>スコアの内側で、何が起きているか</h3></div><span>DEMO MEASUREMENT · NOT PROVIDER SCORES</span></div><div class="insight-grid"><article class="insight models"><header><span>01 / AI MODELS</span><b>モデル別の可視性</b></header><div id="model-bars"></div><small>MADOHA独自のデモ測定値です。各AI事業者の公式スコアではありません。</small></article><article class="insight queries"><header><span>02 / QUERIES</span><b>推薦される質問</b></header><div class="query-total"><strong>7</strong><span>/ 18 Queries</span></div><div id="query-examples"></div></article><article class="insight competitor"><header><span>03 / COMPETITOR GAP</span><b>競合との差分</b></header><p>推薦された競合企業では、<strong>「施工事例」「保証」「資格情報」</strong>が明確に確認できました。</p><p>対象企業では、一部の情報がAIから取得しやすい形で確認できませんでした。</p><small>確認できた情報上の差分であり、AIのランキング要因を示すものではありません。</small></article><article class="insight issue"><header><span>04 / INFORMATION ACCURACY</span><b>情報の整合性</b></header><div class="issue-count"><i>!</i><strong>1 issue detected</strong></div><p>所在地に不一致が見つかりました</p><div class="compare"><span>公式サイト</span><b>成城</b><em>MATCH</em></div><div class="compare warn"><span>第三者サイト</span><b>喜多見</b><em>CHECK</em></div><small>AIの誤認を防ぐため、第三者サイトの情報確認を推奨します。</small></article><article class="insight sources"><header><span>05 / SOURCES</span><b>確認された参照元</b></header><div id="source-list"></div><small>AI回答・関連データで観測された参照元です。ランキング要因を示すものではありません。</small></article></div></section><footer class="result-footer"><div><b>MADOHA</b><span>AI SEARCH INTELLIGENCE</span></div><p>この結果はMVP用のデモデータです。実在のAI回答・企業評価を示すものではありません。</p><a href="company.html">COMPANY ↗</a></footer></section></main></body></html>
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="description" content="AIが会社をどう認識・推薦しているかを可視化するMADOHA AI Search Intelligence。">
+  <title>MADOHA | AI Search Intelligence</title>
+  <link rel="stylesheet" href="mvp.css">
+  <link rel="stylesheet" href="refinement.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">本文へ</a>
+  <header class="site-header">
+    <a class="wordmark" href="index.html"><b>MADOHA</b><span>AI SEARCH INTELLIGENCE</span></a>
+    <span class="demo-status"><i></i>DEMO ENVIRONMENT</span>
+    <a class="company-link" href="company.html">COMPANY ↗</a>
+  </header>
+  <main id="main">
+    <section class="screen top is-active" data-screen="top">
+      <div class="grid-bg"></div>
+      <div class="network-stage top-map" data-network="top"></div>
+      <div class="hero">
+        <p class="kicker"><span>01</span> ASK MADOHA</p>
+        <h1>AIは、あなたの会社を<br><em>知っていますか？</em></h1>
+        <p class="lead">ChatGPTやGeminiなどのAIが、あなたの会社を<br class="desktop">どのように認識・推薦しているかを可視化します。</p>
+        <form id="search-form" novalidate>
+          <label for="company-input">会社名・店舗名・URL</label>
+          <div class="search-box"><i></i><input id="company-input" placeholder="会社名・店舗名・URLを入力" autocomplete="organization" aria-describedby="search-error"><button>AI Visibilityを調べる <b>→</b></button></div>
+          <div class="form-meta"><button type="button" id="example-fill">例：世田谷ホーム</button><span>DEMO DATA / NO EXTERNAL API</span></div>
+          <p id="search-error" role="alert"></p>
+        </form>
+      </div>
+      <div class="concepts">
+        <div><span>01</span><b>AI Visibility</b><small>認識・推薦の可視性</small></div>
+        <div><span>02</span><b>Competitors</b><small>同時に推薦される企業</small></div>
+        <div><span>03</span><b>Queries</b><small>強い・弱い質問</small></div>
+        <div><span>04</span><b>Sources</b><small>確認された参照元</small></div>
+      </div>
+    </section>
+
+    <section class="screen analyzing" data-screen="analyzing" aria-live="polite">
+      <header><p class="kicker"><span>02</span> BUILDING AI SEARCH SPACE</p><h2><span id="analysis-company">—</span>を分析しています</h2><p>AIが認識する企業・質問・競合・参照元の関係を構築中</p></header>
+      <div class="analysis-layout"><div class="analysis-map"><div class="network-stage" data-network="analysis"></div><div class="progress"><b id="progress-value">0</b><span>% MAPPED</span></div></div><ol id="analysis-steps"></ol></div>
+      <button class="skip-analysis" id="skip-analysis">結果をすぐ見る →</button>
+    </section>
+
+    <section class="screen result" data-screen="result" aria-live="polite">
+      <header class="result-head">
+        <div><p class="kicker"><span>03</span> AI VISIBILITY REPORT <b id="result-dataset-status" hidden></b></p><h2 id="result-company">—</h2><p id="result-market">—</p></div>
+        <button id="new-search">← 新しく調べる</button>
+      </header>
+      <div class="summary">
+        <article class="score-card"><div><p>AI VISIBILITY <i>i</i></p><strong id="visibility-score">—</strong><span>/ 100</span><small id="visibility-description">未測定</small></div><div class="score-ring" id="visibility-ring"><b id="visibility-band">—</b></div></article>
+        <div class="metrics">
+          <article><p>MODEL COVERAGE</p><strong><span id="coverage-detected">—</span> <span>/ <span id="coverage-total">—</span></span></strong><small id="coverage-detail">未測定</small></article>
+          <article><p>RECOMMENDATION</p><strong><span id="recommendation-detected">—</span> <span>/ <span id="recommendation-total">—</span></span></strong><small id="recommendation-detail">未測定</small></article>
+          <article><p>STABILITY</p><strong><span id="stability-score">—</span><span id="stability-unit"></span></strong><small id="stability-detail">未測定</small></article>
+        </div>
+        <article class="observation"><span>OBSERVATION 01</span><h3 id="observation-title">未測定</h3><p id="observation-body">分析結果はありません。</p></article>
+      </div>
+
+      <section class="map-section">
+        <div class="section-title"><div><p>RELATIONSHIP MAP</p><h3>AI Search Map</h3></div><p>AI回答内で確認された関係性を可視化。線の太さは出現頻度、ノードの大きさは相対的重要度を表します。</p></div>
+        <div class="map-controls" id="map-controls"></div>
+        <div id="result-map" class="result-map" role="img" aria-label="対象企業を中心とするAI検索関係図"></div>
+        <div class="legend"><span><i></i>関係が強い</span><span><i></i>関係が弱い</span><span><b></b>サイズ＝相対的重要度</span></div>
+      </section>
+
+      <section class="insights">
+        <div class="section-title"><div><p>OBSERVED INSIGHTS</p><h3>スコアの内側で、何が起きているか</h3></div><span id="measurement-label">DATA STATUS</span></div>
+        <div class="insight-grid">
+          <article class="insight models"><header><span>01 / AI MODELS</span><b>モデル別の可視性</b></header><div id="model-bars"></div><small id="model-note">未測定</small></article>
+          <article class="insight queries"><header><span>02 / QUERIES</span><b>推薦される質問</b></header><div class="query-total"><strong id="query-recommendation-count">—</strong><span>/ <span id="query-total-count">—</span> Queries</span></div><div id="query-examples"></div></article>
+          <article class="insight competitor"><header><span>03 / COMPETITOR GAP</span><b>競合との差分</b></header><p id="competitor-gap-summary">未測定</p><p id="competitor-gap-detail">分析結果はありません。</p><small id="competitor-note">未測定</small></article>
+          <article class="insight issue"><header><span>04 / INFORMATION ACCURACY</span><b>情報の整合性</b></header><div class="issue-count"><i>!</i><strong id="issue-count">0 issues detected</strong></div><div id="issue-list"><p>確認された問題はありません</p></div><small id="accuracy-note">未測定</small></article>
+          <article class="insight sources"><header><span>05 / SOURCES</span><b>確認された参照元</b></header><div id="source-list"></div><small id="sources-note">未測定</small></article>
+        </div>
+      </section>
+      <footer class="result-footer"><div><b>MADOHA</b><span>AI SEARCH INTELLIGENCE</span></div><p id="dataset-note">データ状態を確認中です。</p><a href="company.html">COMPANY ↗</a></footer>
+    </section>
+  </main>
+</body>
+</html>
