@@ -38,7 +38,7 @@ function calculateStability(success, subjectId) {
   return scores.length ? Math.round(scores.reduce((sum, value) => sum + value, 0) / scores.length * 100) : null;
 }
 
-export function aggregateResultData(records, market, subject) {
+export function aggregateResultData(records, market, subject, registry = []) {
   const success = records.filter(record => record.status === 'success');
   const targetRows = success.map(record => ({ record, company: targetIn(record, subject.id) }));
   const appearances = targetRows.filter(item => item.company?.appeared).length;
@@ -76,10 +76,21 @@ export function aggregateResultData(records, market, subject) {
   const competitorMap = new Map();
   for (const record of success) for (const company of record.companies) {
     if (!company.normalizedCompanyId || company.normalizedCompanyId === subject.id) continue;
-    const item = competitorMap.get(company.normalizedCompanyId) || { id: company.normalizedCompanyId, name: company.rawName, count: 0 };
-    item.count += 1; competitorMap.set(item.id, item);
+    const registered = registry.find(item => item.id === company.normalizedCompanyId);
+    const item = competitorMap.get(company.normalizedCompanyId) || {
+      id: company.normalizedCompanyId, name: registered?.displayName || company.rawName,
+      appearances: 0, recommendations: 0, measurementCount: 0, relativePositionCount: 0, citationAssociations: 0
+    };
+    item.appearances += 1;
+    item.measurementCount += 1;
+    if (company.recommended) item.recommendations += 1;
+    if (Number.isFinite(company.relativePosition)) item.relativePositionCount += 1;
+    item.citationAssociations += Number(company.citationAssociations) || 0;
+    competitorMap.set(item.id, item);
   }
-  const competitors = [...competitorMap.values()].map(item => ({ id: item.id, name: item.name, strength: item.count / success.length })).sort((a, b) => b.strength - a.strength);
+  const competitors = [...competitorMap.values()]
+    .map(item => ({ ...item, count: item.appearances, strength: item.appearances / success.length }))
+    .sort((a, b) => b.strength - a.strength || b.recommendations - a.recommendations);
   const sourceCounts = new Map();
   for (const record of success) for (const citation of record.citations) sourceCounts.set(citation.sourceType, (sourceCounts.get(citation.sourceType) || 0) + 1);
   const sources = [...sourceCounts.entries()].map(([type, count]) => ({ id: `source-${type}`, name: type, label: type, count, strength: count / Math.max(1, success.length) }));
