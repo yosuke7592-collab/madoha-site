@@ -13,6 +13,8 @@ export const MARKET = {
   ].map(([intent, text], index) => ({ id: `setagaya-${intent}-natural-v1`, intent, style: 'natural', text, order: index + 1 }))
 };
 
+export const QUERY_SET_VERSION = 'setagaya-exterior-painting-v1';
+
 export const COMPANY_REGISTRY = [
   {
     id: 'demo-company-setagaya-home', canonicalName: '世田谷ホーム', displayName: '世田谷ホーム',

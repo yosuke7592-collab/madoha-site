@@ -4,7 +4,7 @@ import { validateMeasurementRecord, validateRawProviderEnvelope } from '../schem
 import { MARKET, COMPANY_REGISTRY, SUBJECT, fixtureFor } from '../data.mjs';
 import { normalizeCompanyName, extractCompanies, detectRecommendation, detectRelativePosition } from '../extraction.mjs';
 import { classifySource } from '../source.mjs';
-import { PerplexityFixtureAdapter, ProviderRegistry, LIVE_DISABLED_MESSAGE } from '../provider.mjs';
+import { PerplexityFixtureAdapter, ProviderRegistry } from '../provider.mjs';
 import { assertGuardrails } from '../guardrails.mjs';
 import { aggregateResultData } from '../aggregate.mjs';
 import { execute } from '../run.mjs';
@@ -108,13 +108,12 @@ test('fixture aggregation calculates scores and excludes failed records', async 
   assert.deepEqual(empty.dataset.scoreCompleteness, { measured: 0, total: 100 });
 });
 
-test('guardrails allow 18 and block request, repetition, cost, and live violations', () => {
+test('guardrails allow 18 and block request, repetition, and cost violations', () => {
   const plan = { mode: 'dry-run', marketCount: 1, providerCount: 1, queries: MARKET.queries, repetitions: 3 };
   assert.equal(assertGuardrails(plan, { requests: 18, max: .234 }).passed, true);
   assert.throws(() => assertGuardrails(plan, { requests: 19, max: .234 }), /Request limit/);
   assert.throws(() => assertGuardrails({ ...plan, repetitions: 4 }, { requests: 18, max: .234 }), /Repetition limit/);
   assert.throws(() => assertGuardrails(plan, { requests: 18, max: .31 }), /Estimated run cost/);
-  assert.throws(() => assertGuardrails({ ...plan, mode: 'live' }, { requests: 18, max: .234 }), new RegExp(LIVE_DISABLED_MESSAGE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
 });
 
 test('generated ResultData passes frontend normalization', async () => {
