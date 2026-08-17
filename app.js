@@ -1,4 +1,5 @@
 import { mockResult, normalizeResultData } from './mock-data.js';
+import { loadMeasuredDataset, resolveDataset } from './data-adapter.js';
 
 const $ = (selector, parent = document) => parent.querySelector(selector);
 const $$ = (selector, parent = document) => [...parent.querySelectorAll(selector)];
@@ -12,7 +13,7 @@ let timers = [];
 let activeCats = new Set(['models', 'queries', 'competitors', 'sources']);
 
 const positions = {
-  top: [['company', 50, 80, 'company'], ['ChatGPT', 18, 24, 'models'], ['Gemini', 76, 20, 'models'], ['Perplexity', 84, 55, 'models'], ['Queries', 20, 62, 'queries'], ['Competitors', 70, 70, 'competitors'], ['Sources', 38, 69, 'sources']],
+  top: [['company', 50, 80, 'company'], ['Perplexity Sonar', 18, 24, 'models'], ['Queries', 76, 20, 'queries'], ['Competitors', 84, 55, 'competitors'], ['Sources', 20, 62, 'sources']],
   analysis: [['company', 50, 50, 'company'], ['models', 19, 28, 'models'], ['queries', 77, 23, 'queries'], ['competitors', 79, 70, 'competitors'], ['sources', 22, 74, 'sources']]
 };
 
@@ -62,8 +63,8 @@ function setupAnalysis() {
   renderSimple($('[data-network="analysis"]'), 'analysis', 1);
 }
 
-function startAnalysis(input) {
-  data = normalizeResultData(mockResult, input);
+function startAnalysis(input, measuredData) {
+  data = normalizeResultData(measuredData, input);
   setText('#analysis-company', input);
   setupAnalysis();
   showScreen('analyzing');
@@ -116,13 +117,15 @@ function renderGraph() {
   map.innerHTML = '';
   const mobile = innerWidth < 700;
   const all = data.derived.graph.nodes;
-  const limits = { models: 3, queries: 2, competitors: 2, sources: 2 };
+  const limits = mobile
+    ? { models: 1, queries: 2, competitors: 2, sources: 2 }
+    : { models: 1, queries: 4, competitors: 5, sources: 4 };
   const seen = {};
   const offsets = mobile ? { c2: [5, 0] } : { q5: [0, -4] };
-  const visible = mobile ? all.filter(item => (seen[item.category] = (seen[item.category] || 0) + 1) <= limits[item.category]) : all;
+  const visible = all.filter(item => (seen[item.category] = (seen[item.category] || 0) + 1) <= (limits[item.category] || 0));
   const groups = mobile
     ? { models: { start: -145, end: -75, r: 32 }, queries: { start: -35, end: 15, r: 35 }, competitors: { start: 35, end: 85, r: 34 }, sources: { start: 115, end: 165, r: 35 } }
-    : { models: { start: -155, end: -65, r: 36 }, queries: { start: -55, end: 35, r: 40 }, competitors: { start: 45, end: 135, r: 38 }, sources: { start: 145, end: 235, r: 41 } };
+    : { models: { start: -155, end: -65, r: 36 }, queries: { start: -55, end: 15, r: 40 }, competitors: { start: 45, end: 135, r: 38 }, sources: { start: 155, end: 235, r: 41 } };
   const grouped = {};
   visible.forEach(item => (grouped[item.category] ??= []).push(item));
   Object.entries(grouped).forEach(([category, items]) => items.forEach((item, index) => {
@@ -180,13 +183,17 @@ function renderSummary() {
   setText('#visibility-score', visibility);
   setText('#visibility-description', insights.visibilityDescription, '未測定');
   setText('#visibility-band', scores.visibilityBand, visibility === null ? 'NOT MEASURED' : '—');
+  const completeness = data.dataset.scoreCompleteness;
+  setText('#score-completeness', completeness.measured === null || completeness.total === null ? '測定充足度：未測定' : `測定充足度 ${completeness.measured} / ${completeness.total}`);
+  const relativePosition = data.dataset.scoreComponents?.relativePosition;
+  setText('#relative-position-status', relativePosition?.status === 'not_measured' ? '相対順位：未測定' : `相対順位：${valueOrDash(relativePosition?.value)}`);
   $('#visibility-ring').style.setProperty('--score', `${visibility === null ? 0 : Math.min(100, Math.max(0, visibility))}%`);
   setText('#coverage-detected', coverage.detected);
   setText('#coverage-total', coverage.total);
   setText('#coverage-detail', coverage.detected === null || coverage.total === null ? '未測定' : `${coverage.total}モデル中${coverage.detected}モデルで認識`);
   setText('#recommendation-detected', recommendation.detected);
   setText('#recommendation-total', recommendation.total);
-  setText('#recommendation-detail', recommendation.detected === null || recommendation.total === null ? '未測定' : '推薦が確認された質問');
+  setText('#recommendation-detail', recommendation.detected === null || recommendation.total === null ? '未測定' : `${recommendation.total}件の有効測定中${recommendation.detected}件で推薦`);
   setText('#stability-score', stability);
   setText('#stability-unit', stability === null ? '' : '%', '');
   setText('#stability-detail', stability === null ? '未測定' : '複数回答での再現性');
@@ -196,21 +203,22 @@ function renderSummary() {
 
 function renderModels() {
   const container = $('#model-bars');
-  const models = data.derived.models;
+  const models = data.derived.models.filter(item => item.status !== 'not_measured');
   container.innerHTML = models.length ? models.map(item => {
     const value = numberOrNull(item.value);
     return `<div class="model-row"><span>${escapeHTML(item.name)}</span><i style="--value:${value === null ? 0 : Math.min(100, Math.max(0, value))}%"></i><b>${escapeHTML(valueOrDash(value))}</b></div>`;
   }).join('') : '<p>モデル測定データはありません。</p>';
-  setText('#model-note', data.derived.insights.modelNote, '未測定');
+  const unmeasured = data.dataset.unmeasuredModels;
+  setText('#model-note', data.derived.insights.modelNote || (unmeasured.length ? `${unmeasured.join(' / ')}は未測定です。` : ''), '未測定');
 }
 
 function renderQueries() {
   const recommendation = data.derived.scores.recommendation;
   setText('#query-recommendation-count', recommendation.detected);
   setText('#query-total-count', recommendation.total);
-  const examples = ['strong', 'weak'].map(status => data.derived.queries.find(query => query.status === status)).filter(Boolean);
+  const examples = data.derived.queries;
   $('#query-examples').innerHTML = examples.length
-    ? examples.map(query => `<div class="query-example ${escapeHTML(query.status)}"><b>${query.status === 'strong' ? 'STRONG' : 'WEAK'}</b><span>${escapeHTML(query.name)}</span></div>`).join('')
+    ? examples.map(query => `<div class="query-example ${escapeHTML(query.status)}"><b>${escapeHTML(query.status.toUpperCase())}</b><span>${escapeHTML(query.name)}<small>出現 ${escapeHTML(valueOrDash(query.appearances))} / ${escapeHTML(valueOrDash(query.successfulMeasurements))} · 推薦 ${escapeHTML(valueOrDash(query.recommendations))}</small></span></div>`).join('')
     : '<p>該当するクエリは未測定です。</p>';
 }
 
@@ -221,11 +229,21 @@ function renderCompetitorGap() {
     ? `${escapeHTML(gap.prefix)}${gap.highlight ? `<strong>${escapeHTML(gap.highlight)}</strong>` : ''}${escapeHTML(gap.suffix)}`
     : '未測定';
   setText('#competitor-gap-detail', gap.detail, '分析結果はありません。');
+  const competitors = data.derived.competitors.slice(0, 5);
+  $('#competitor-list').innerHTML = competitors.length
+    ? competitors.map(item => `<div><span>${escapeHTML(item.name)}</span><small>出現 ${escapeHTML(valueOrDash(item.appearances))} · 推薦 ${escapeHTML(valueOrDash(item.recommendations))}</small></div>`).join('')
+    : '<p>確認された企業はありません。</p>';
   setText('#competitor-note', data.derived.insights.competitorNote, '未測定');
 }
 
 function renderInformationIssues() {
   const issues = data.derived.informationIssues;
+  if (data.derived.scores.accuracyStatus === 'not_measured') {
+    setText('#issue-count', '未測定');
+    $('#issue-list').innerHTML = '<p>企業情報の正確性比較は次回測定対象です。</p>';
+    setText('#accuracy-note', data.derived.insights.accuracySummary, '未測定');
+    return;
+  }
   setText('#issue-count', `${issues.length} ${issues.length === 1 ? 'issue' : 'issues'} detected`);
   $('#issue-list').innerHTML = issues.length ? issues.map(issue => `
     <div class="issue-entry">
@@ -245,6 +263,10 @@ function renderSources() {
     const width = count === null ? 0 : count / maxCount * 100;
     return `<div class="source-row"><span>${escapeHTML(item.name)}<br><small>${escapeHTML(item.label)}</small></span><i style="--value:${width}%"></i><b>${escapeHTML(valueOrDash(count))}</b></div>`;
   }).join('') : '<p>確認された参照元はありません。</p>';
+  const domains = data.derived.sourceDomains.slice(0, 5);
+  $('#source-domains').innerHTML = domains.length
+    ? `<p>主要ドメイン</p>${domains.map(item => `<span>${escapeHTML(item.domain)} <b>${escapeHTML(valueOrDash(item.count))}</b></span>`).join('')}`
+    : '';
   setText('#sources-note', sources.length ? data.derived.insights.sourcesNote : '未測定', sources.length ? '参照元の説明はありません。' : '未測定');
 }
 
@@ -260,20 +282,41 @@ function renderResult() {
   renderSources();
 }
 
-$('#search-form').addEventListener('submit', event => {
-  event.preventDefault();
+async function runSearch(value) {
   const input = $('#company-input');
-  const value = input.value.trim();
   if (!value) {
     setText('#search-error', '会社名・店舗名・URLを入力してください。', '');
     input.focus();
     return;
   }
+  const dataset = resolveDataset(value);
+  if (!dataset) {
+    setText('#search-error', '現在、この企業の実測データはまだありません。現在の実測サンプル：世田谷ホーム', '');
+    input.focus();
+    return;
+  }
   setText('#search-error', '', '');
-  startAnalysis(value);
+  const submit = $('#search-form button[type="submit"], #search-form button:not([type])');
+  submit.disabled = true;
+  submit.setAttribute('aria-busy', 'true');
+  try {
+    const measuredData = await loadMeasuredDataset(dataset.id);
+    startAnalysis(value, measuredData);
+  } catch {
+    setText('#search-error', '実測データを読み込めませんでした。時間をおいてもう一度お試しください。', '');
+    input.focus();
+  } finally {
+    submit.disabled = false;
+    submit.removeAttribute('aria-busy');
+  }
+}
+
+$('#search-form').addEventListener('submit', event => {
+  event.preventDefault();
+  runSearch($('#company-input').value.trim());
 });
 $('#company-input').addEventListener('input', () => setText('#search-error', '', ''));
-$('#example-fill').onclick = () => { $('#company-input').value = '世田谷ホーム'; $('#company-input').focus(); };
+$('#example-fill').onclick = () => { $('#company-input').value = '世田谷ホーム'; runSearch('世田谷ホーム'); };
 $('#skip-analysis').onclick = showResult;
 $('#new-search').onclick = () => { timers.forEach(clearTimeout); timers = []; showScreen('top'); $('#company-input').focus(); };
 addEventListener('resize', () => { if ($('[data-screen="result"]').classList.contains('is-active')) renderGraph(); });

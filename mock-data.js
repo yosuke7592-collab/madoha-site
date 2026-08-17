@@ -88,14 +88,19 @@ export function normalizeResultData(raw = {}, submittedInput = '') {
   const insightSource = derivedSource.insights && typeof derivedSource.insights === 'object' ? derivedSource.insights : source.insights || {};
   const models = asArray(derivedSource.models ?? source.models).map((item, index) => ({
     id: asText(item?.id, `model-${index + 1}`), name: asText(item?.name, '未測定モデル'),
-    value: asNumber(item?.value), detected: typeof item?.detected === 'boolean' ? item.detected : null
+    value: asNumber(item?.value), detected: typeof item?.detected === 'boolean' ? item.detected : null,
+    status: asText(item?.status, 'measured')
   }));
   const queries = asArray(derivedSource.queries ?? source.queries).map((item, index) => ({
     id: asText(item?.id, `query-${index + 1}`), name: asText(item?.name, '未測定クエリ'), short: asText(item?.short),
-    strength: asNumber(item?.strength), status: asText(item?.status, 'not-measured')
+    strength: asNumber(item?.strength), status: asText(item?.status, 'not-measured'),
+    appearances: asNumber(item?.appearances), recommendations: asNumber(item?.recommendations),
+    successfulMeasurements: asNumber(item?.successfulMeasurements)
   }));
   const competitors = asArray(derivedSource.competitors ?? source.competitors).map((item, index) => ({
-    id: asText(item?.id, `competitor-${index + 1}`), name: asText(item?.name, '未測定企業'), strength: asNumber(item?.strength)
+    id: asText(item?.id, `competitor-${index + 1}`), name: asText(item?.name, '未測定企業'), strength: asNumber(item?.strength),
+    appearances: asNumber(item?.appearances), recommendations: asNumber(item?.recommendations),
+    citationAssociations: asNumber(item?.citationAssociations)
   }));
   const sources = asArray(derivedSource.sources ?? source.sources).map((item, index) => ({
     id: asText(item?.id, `source-${index + 1}`), name: asText(item?.name, '未測定ソース'),
@@ -119,7 +124,15 @@ export function normalizeResultData(raw = {}, submittedInput = '') {
 
   return {
     schemaVersion: asText(source.schemaVersion, '1.0'),
-    dataset: { status: datasetStatus, measuredAt: asText(datasetSource.measuredAt) || null },
+    dataset: {
+      status: datasetStatus, measuredAt: asText(datasetSource.measuredAt) || null,
+      providerScope: asText(datasetSource.providerScope),
+      scoreCompleteness: {
+        measured: asNumber(datasetSource.scoreCompleteness?.measured), total: asNumber(datasetSource.scoreCompleteness?.total)
+      },
+      scoreComponents: structuredClone(datasetSource.scoreComponents || {}),
+      unmeasuredModels: asArray(datasetSource.unmeasuredModels).map(item => asText(item)).filter(Boolean)
+    },
     subject: { submittedInput: asText(submittedInput).trim(), name: subjectName, officialUrl: asText(subjectSource.officialUrl) },
     market: {
       location: asText(marketSource.location), industry: asText(marketSource.industry),
@@ -129,10 +142,11 @@ export function normalizeResultData(raw = {}, submittedInput = '') {
       scores: {
         visibility: asNumber(scoreSource.visibility ?? source.visibilityScore), visibilityBand: asText(scoreSource.visibilityBand),
         stability: asNumber(scoreSource.stability ?? source.stability), accuracy: asNumber(scoreSource.accuracy ?? source.accuracy),
+        accuracyStatus: asText(scoreSource.accuracyStatus, asNumber(scoreSource.accuracy) === null ? 'not_measured' : 'measured'),
         modelCoverage: { detected: asNumber(modelCoverageSource.detected), total: asNumber(modelCoverageSource.total) },
         recommendation: { detected: asNumber(recommendationSource.detected), total: asNumber(recommendationSource.total) }
       },
-      models, queries, competitors, sources, informationIssues,
+      models, queries, competitors, sources, sourceDomains: asArray(source.sourceDomains), informationIssues,
       insights: {
         visibilityDescription: asText(insightSource.visibilityDescription),
         observation: { title: asText(insightSource.observation?.title ?? insightSource.observation), body: asText(insightSource.observation?.body) },

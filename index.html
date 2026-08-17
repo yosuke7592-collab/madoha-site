@@ -13,7 +13,7 @@
   <a class="skip" href="#main">本文へ</a>
   <header class="site-header">
     <a class="wordmark" href="index.html"><b>MADOHA</b><span>AI SEARCH INTELLIGENCE</span></a>
-    <span class="demo-status"><i></i>DEMO ENVIRONMENT</span>
+    <span class="demo-status"><i></i>MEASURED DATA AVAILABLE</span>
     <a class="company-link" href="company.html">COMPANY ↗</a>
   </header>
   <main id="main">
@@ -23,11 +23,11 @@
       <div class="hero">
         <p class="kicker"><span>01</span> ASK MADOHA</p>
         <h1>AIは、あなたの会社を<br><em>知っていますか？</em></h1>
-        <p class="lead">ChatGPTやGeminiなどのAIが、あなたの会社を<br class="desktop">どのように認識・推薦しているかを可視化します。</p>
+        <p class="lead">保存済みのAI実測データから、会社の認識・推薦・参照元を<br class="desktop">可視化します。現在の実測対象はPerplexity Sonarです。</p>
         <form id="search-form" novalidate>
           <label for="company-input">会社名・店舗名・URL</label>
           <div class="search-box"><i></i><input id="company-input" placeholder="会社名・店舗名・URLを入力" autocomplete="organization" aria-describedby="search-error"><button>AI Visibilityを調べる <b>→</b></button></div>
-          <div class="form-meta"><button type="button" id="example-fill">例：世田谷ホーム</button><span>DEMO DATA / NO EXTERNAL API</span></div>
+          <div class="form-meta"><button type="button" id="example-fill">世田谷ホームを試す</button><span>MEASURED DATA / NO LIVE API</span></div>
           <p id="search-error" role="alert"></p>
         </form>
       </div>
@@ -51,7 +51,7 @@
         <button id="new-search">← 新しく調べる</button>
       </header>
       <div class="summary">
-        <article class="score-card"><div><p>AI VISIBILITY <i>i</i></p><strong id="visibility-score">—</strong><span>/ 100</span><small id="visibility-description">未測定</small></div><div class="score-ring" id="visibility-ring"><b id="visibility-band">—</b></div></article>
+        <article class="score-card"><div><p>AI VISIBILITY <i>i</i></p><strong id="visibility-score">—</strong><span>/ 100</span><small id="visibility-description">未測定</small><small class="score-completeness" id="score-completeness">測定充足度 —</small><small class="unmeasured-position" id="relative-position-status">順位：—</small></div><div class="score-ring" id="visibility-ring"><b id="visibility-band">—</b></div></article>
         <div class="metrics">
           <article><p>MODEL COVERAGE</p><strong><span id="coverage-detected">—</span> <span>/ <span id="coverage-total">—</span></span></strong><small id="coverage-detail">未測定</small></article>
           <article><p>RECOMMENDATION</p><strong><span id="recommendation-detected">—</span> <span>/ <span id="recommendation-total">—</span></span></strong><small id="recommendation-detail">未測定</small></article>
@@ -72,9 +72,9 @@
         <div class="insight-grid">
           <article class="insight models"><header><span>01 / AI MODELS</span><b>モデル別の可視性</b></header><div id="model-bars"></div><small id="model-note">未測定</small></article>
           <article class="insight queries"><header><span>02 / QUERIES</span><b>推薦される質問</b></header><div class="query-total"><strong id="query-recommendation-count">—</strong><span>/ <span id="query-total-count">—</span> Queries</span></div><div id="query-examples"></div></article>
-          <article class="insight competitor"><header><span>03 / COMPETITOR GAP</span><b>競合との差分</b></header><p id="competitor-gap-summary">未測定</p><p id="competitor-gap-detail">分析結果はありません。</p><small id="competitor-note">未測定</small></article>
-          <article class="insight issue"><header><span>04 / INFORMATION ACCURACY</span><b>情報の整合性</b></header><div class="issue-count"><i>!</i><strong id="issue-count">0 issues detected</strong></div><div id="issue-list"><p>確認された問題はありません</p></div><small id="accuracy-note">未測定</small></article>
-          <article class="insight sources"><header><span>05 / SOURCES</span><b>確認された参照元</b></header><div id="source-list"></div><small id="sources-note">未測定</small></article>
+          <article class="insight competitor"><header><span>03 / COMPETITORS</span><b>同時に確認された企業</b></header><p id="competitor-gap-summary">未測定</p><p id="competitor-gap-detail">分析結果はありません。</p><div id="competitor-list" class="competitor-list"></div><small id="competitor-note">未測定</small></article>
+          <article class="insight issue"><header><span>04 / INFORMATION ACCURACY</span><b>情報の整合性</b></header><div class="issue-count"><i>!</i><strong id="issue-count">未測定</strong></div><div id="issue-list"><p>未測定</p></div><small id="accuracy-note">未測定</small></article>
+          <article class="insight sources"><header><span>05 / SOURCES</span><b>確認された参照元</b></header><div id="source-list"></div><div id="source-domains" class="source-domains"></div><small id="sources-note">未測定</small></article>
         </div>
       </section>
       <footer class="result-footer"><div><b>MADOHA</b><span>AI SEARCH INTELLIGENCE</span></div><p id="dataset-note">データ状態を確認中です。</p><a href="company.html">COMPANY ↗</a></footer>
