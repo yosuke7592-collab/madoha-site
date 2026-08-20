@@ -5,6 +5,9 @@ import { MARKET, COMPANY_REGISTRY, SUBJECT, QUERY_SET_VERSION, fixtureFor } from
 import { PerplexityFixtureAdapter, ProviderRegistry } from './provider.mjs';
 import { PerplexityLiveAdapter, KEY_MISSING_MESSAGE } from './live.mjs';
 import { GUARDRAILS, assertGuardrails } from './guardrails.mjs';
+import { OPENAI_GUARDRAILS } from './guardrails.mjs';
+import { OpenAiFixtureAdapter, OpenAiLiveAdapter, OPENAI_KEY_MISSING_MESSAGE, OPENAI_MODEL } from './openai.mjs';
+import { openAiFixtureFor } from './openai-data.mjs';
 import { aggregateResultData } from './aggregate.mjs';
 import { FileLedgerStore, assertNoDuplicate, createRunFingerprint, ledgerUsage, recordCompletedRun } from './ledger.mjs';
 
@@ -21,29 +24,29 @@ function parseMode(args) {
   return live ? 'live' : fixture ? 'fixture' : 'dry-run';
 }
 
-function assertLiveConfirmation(args) {
+function assertLiveConfirmation(args, limits) {
   if (!args.includes('--confirm-live')) throw new Error('Live execution requires --confirm-live.');
   const confirmedCost = Number(valueAfter(args, '--confirm-cost'));
-  if (!Number.isFinite(confirmedCost) || confirmedCost !== GUARDRAILS.MAX_ESTIMATED_RUN_USD) {
-    throw new Error(`Live execution requires --confirm-cost ${GUARDRAILS.MAX_ESTIMATED_RUN_USD.toFixed(2)}.`);
+  if (!Number.isFinite(confirmedCost) || confirmedCost !== limits.MAX_ESTIMATED_RUN_USD) {
+    throw new Error(`Live execution requires --confirm-cost ${limits.MAX_ESTIMATED_RUN_USD.toFixed(2)}.`);
   }
 }
 
-function createNetworkBudget() {
+function createNetworkBudget(limits) {
   return {
-    used: 0, max: GUARDRAILS.MAX_REQUESTS_PER_RUN,
+    used: 0, max: limits.MAX_REQUESTS_PER_RUN,
     consume() { if (this.used >= this.max) return false; this.used += 1; return true; }
   };
 }
 
-function outputSummary(plan, estimate, guardrail, usage) {
+function outputSummary(plan, estimate, guardrail, usage, limits) {
   return {
     market: MARKET.label, marketId: MARKET.id, provider: plan.provider, model: plan.model,
     queryCount: plan.queries.length, repetitions: plan.repetitions, totalRequests: estimate.requests,
     estimate: { ...estimate, min: round(estimate.min), standard: round(estimate.standard), max: round(estimate.max) },
     limits: {
-      perRunUsd: GUARDRAILS.MAX_ESTIMATED_RUN_USD, dailyUsd: GUARDRAILS.DAILY_HARD_STOP_USD,
-      monthlyUsd: GUARDRAILS.MONTHLY_HARD_STOP_USD, maxNetworkRequests: GUARDRAILS.MAX_REQUESTS_PER_RUN
+      perRunUsd: limits.MAX_ESTIMATED_RUN_USD, dailyUsd: limits.DAILY_HARD_STOP_USD,
+      monthlyUsd: limits.MONTHLY_HARD_STOP_USD, maxNetworkRequests: limits.MAX_REQUESTS_PER_RUN
     }, ledgerUsage: usage, guardrail
   };
 }
@@ -67,35 +70,41 @@ export async function execute(args = process.argv.slice(2), options = {}) {
   const repetitions = 3;
   const now = options.now || new Date().toISOString();
   const cycleId = valueAfter(args, '--cycle') || now.slice(0, 10);
+  const provider = valueAfter(args, '--provider') || 'perplexity';
+  if (!['perplexity', 'openai'].includes(provider)) throw new Error(`Unknown provider: ${provider}`);
+  const model = provider === 'openai' ? OPENAI_MODEL : 'sonar';
+  const limits = provider === 'openai' ? OPENAI_GUARDRAILS : GUARDRAILS;
   const runId = options.runId || `${mode}-run-${now.replace(/[:.]/g, '-')}`;
   const basePlan = {
-    mode, provider: 'perplexity', model: 'sonar', searchContextSize: 'low', marketCount: 1,
+    mode, provider, model, searchContextSize: provider === 'perplexity' ? 'low' : null, marketCount: 1,
     providerCount: 1, queries: MARKET.queries, repetitions, runId, cycleId, querySetVersion: QUERY_SET_VERSION
   };
   const fixtureAdapter = new PerplexityFixtureAdapter({ registry: COMPANY_REGISTRY, fixtureLoader: fixtureFor });
   const liveAdapter = options.liveAdapter || new PerplexityLiveAdapter({ registry: COMPANY_REGISTRY });
-  const adapter = mode === 'live' ? liveAdapter : fixtureAdapter;
-  new ProviderRegistry().register(adapter).get('perplexity');
+  const openAiFixtureAdapter = new OpenAiFixtureAdapter({ registry: COMPANY_REGISTRY, fixtureLoader: openAiFixtureFor });
+  const openAiLiveAdapter = options.openAiLiveAdapter || new OpenAiLiveAdapter({ registry: COMPANY_REGISTRY });
+  const adapter = provider === 'openai' ? (mode === 'live' ? openAiLiveAdapter : openAiFixtureAdapter) : (mode === 'live' ? liveAdapter : fixtureAdapter);
+  new ProviderRegistry().register(adapter).get(provider);
   const estimate = adapter.estimateCost(basePlan);
   const ledgerStore = options.ledgerStore || new FileLedgerStore(resolve(moduleRoot, 'state', 'run-ledger.json'));
   const ledger = await ledgerStore.load(now);
   const usage = ledgerUsage(ledger);
-  const guardrail = assertGuardrails(basePlan, estimate, usage);
-  const summary = outputSummary(basePlan, estimate, guardrail, usage);
+  const guardrail = assertGuardrails(basePlan, estimate, usage, limits);
+  const summary = outputSummary(basePlan, estimate, guardrail, usage, limits);
   options.onPlan?.(summary);
   if (mode === 'dry-run') return { summary, envelopes: [], records: [], resultData: null, run: null };
 
   if (mode === 'live') {
-    assertLiveConfirmation(args);
-    liveAdapter.validateRequest(basePlan);
+    assertLiveConfirmation(args, limits);
+    adapter.validateRequest(basePlan);
   } else {
-    fixtureAdapter.validateRequest(basePlan);
+    adapter.validateRequest(basePlan);
   }
 
   const fingerprint = createRunFingerprint({ marketId, provider: basePlan.provider, model: basePlan.model, querySetVersion: QUERY_SET_VERSION, repetitions, cycleId });
   if (mode === 'live') assertNoDuplicate(ledger, fingerprint, now);
   const startedAt = now;
-  const requestBudget = createNetworkBudget();
+  const requestBudget = createNetworkBudget(limits);
   const envelopes = [];
   const records = [];
   for (const query of MARKET.queries) for (let repetition = 1; repetition <= repetitions; repetition += 1) {
@@ -143,7 +152,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       scoreCompleteness: output.resultData.dataset.scoreCompleteness, run: output.run, outputPath: output.outputPath
     }, null, 2));
   }).catch(error => {
-    const safeMessage = error.message === KEY_MISSING_MESSAGE ? KEY_MISSING_MESSAGE : error.message;
+    const safeMessage = [KEY_MISSING_MESSAGE, OPENAI_KEY_MISSING_MESSAGE].includes(error.message) ? error.message : error.message;
     console.error(safeMessage); process.exitCode = 1;
   });
 }

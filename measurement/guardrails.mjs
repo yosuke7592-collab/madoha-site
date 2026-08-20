@@ -5,17 +5,23 @@ export const GUARDRAILS = Object.freeze({
   MAX_OUTPUT_TOKENS: 600, SEARCH_CONTEXT_SIZE: 'low'
 });
 
-export function assertGuardrails(plan, estimate, usage = { runsToday: 0, dailyUsd: 0, monthlyUsd: 0 }) {
+export const OPENAI_GUARDRAILS = Object.freeze({
+  ...GUARDRAILS,
+  MAX_ESTIMATED_RUN_USD: 0.28,
+  MAX_OUTPUT_TOKENS: 600
+});
+
+export function assertGuardrails(plan, estimate, usage = { runsToday: 0, dailyUsd: 0, monthlyUsd: 0 }, limits = GUARDRAILS) {
   const failures = [];
-  if (plan.marketCount > GUARDRAILS.MAX_MARKETS_PER_RUN) failures.push('Market limit exceeded.');
-  if (plan.queries.length > GUARDRAILS.MAX_QUERIES_PER_RUN) failures.push('Query limit exceeded.');
-  if (plan.repetitions > GUARDRAILS.MAX_REPETITIONS) failures.push('Repetition limit exceeded.');
-  if (plan.providerCount > GUARDRAILS.MAX_PROVIDER_COUNT) failures.push('Provider limit exceeded.');
-  if (estimate.requests > GUARDRAILS.MAX_REQUESTS_PER_RUN) failures.push('Request limit exceeded.');
-  if (estimate.max > GUARDRAILS.MAX_ESTIMATED_RUN_USD) failures.push('Estimated run cost limit exceeded.');
-  if (usage.runsToday >= GUARDRAILS.MAX_RUNS_PER_DAY) failures.push('Daily run limit exceeded.');
-  if (usage.dailyUsd + estimate.max > GUARDRAILS.DAILY_HARD_STOP_USD) failures.push('Daily cost hard stop exceeded.');
-  if (usage.monthlyUsd + estimate.max > GUARDRAILS.MONTHLY_HARD_STOP_USD) failures.push('Monthly cost hard stop exceeded.');
+  if (plan.marketCount > limits.MAX_MARKETS_PER_RUN) failures.push('Market limit exceeded.');
+  if (plan.queries.length > limits.MAX_QUERIES_PER_RUN) failures.push('Query limit exceeded.');
+  if (plan.repetitions > limits.MAX_REPETITIONS) failures.push('Repetition limit exceeded.');
+  if (plan.providerCount > limits.MAX_PROVIDER_COUNT) failures.push('Provider limit exceeded.');
+  if (estimate.requests > limits.MAX_REQUESTS_PER_RUN) failures.push('Request limit exceeded.');
+  if (estimate.max > limits.MAX_ESTIMATED_RUN_USD) failures.push('Estimated run cost limit exceeded.');
+  if (usage.runsToday >= limits.MAX_RUNS_PER_DAY) failures.push('Daily run limit exceeded.');
+  if (usage.dailyUsd + estimate.max > limits.DAILY_HARD_STOP_USD) failures.push('Daily cost hard stop exceeded.');
+  if (usage.monthlyUsd + estimate.max > limits.MONTHLY_HARD_STOP_USD) failures.push('Monthly cost hard stop exceeded.');
   if (failures.length) throw new Error(failures.join(' '));
   return { passed: true, failures: [] };
 }
