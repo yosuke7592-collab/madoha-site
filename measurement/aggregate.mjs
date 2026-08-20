@@ -40,37 +40,50 @@ function calculateStability(success, subjectId) {
 
 export function aggregateResultData(records, market, subject, registry = []) {
   const success = records.filter(record => record.status === 'success');
-  const targetRows = success.map(record => ({ record, company: targetIn(record, subject.id) }));
-  const appearances = targetRows.filter(item => item.company?.appeared).length;
-  const recommendations = targetRows.filter(item => item.company?.recommended).length;
-  const positions = targetRows.map(item => item.company?.relativePosition).filter(Number.isFinite);
-  const citationEligible = targetRows.filter(item => item.company?.appeared);
-  const citationEvidence = citationEligible.filter(item => targetCitation(item.record, subject)).length;
-  const appearanceScore = success.length ? appearances / success.length * 30 : 0;
-  const recommendationScore = success.length ? recommendations / success.length * 30 : 0;
-  const positionScore = positions.length ? positions.reduce((sum, value) => sum + positionFactor(value), 0) / positions.length * 25 : 0;
-  const citationScore = citationEligible.length ? citationEvidence / citationEligible.length * 15 : 0;
-  const completeness = (success.length ? 60 : 0) + (positions.length ? 25 : 0) + (citationEligible.length ? 15 : 0);
-  const visibility = Math.round(appearanceScore + recommendationScore + positionScore + citationScore);
-  const stability = calculateStability(success, subject.id);
-
   const modelGroups = new Map();
   for (const record of success) {
     const key = `${record.provider}:${record.model}`;
     if (!modelGroups.has(key)) modelGroups.set(key, []);
     modelGroups.get(key).push(record);
   }
+  const groups = [...modelGroups.values()];
+  const averageGroupRate = predicate => groups.length
+    ? groups.reduce((sum, group) => sum + group.filter(predicate).length / group.length, 0) / groups.length
+    : 0;
+  const targetRows = success.map(record => ({ record, company: targetIn(record, subject.id) }));
+  const appearances = targetRows.filter(item => item.company?.appeared).length;
+  const recommendations = targetRows.filter(item => item.company?.recommended).length;
+  const positions = targetRows.map(item => item.company?.relativePosition).filter(Number.isFinite);
+  const citationEligible = targetRows.filter(item => item.company?.appeared);
+  const citationEvidence = citationEligible.filter(item => targetCitation(item.record, subject)).length;
+  const appearanceScore = averageGroupRate(record => targetIn(record, subject.id)?.appeared) * 30;
+  const recommendationScore = averageGroupRate(record => targetIn(record, subject.id)?.recommended) * 30;
+  const providerPositionScores = groups.map(group => group.flatMap(record => {
+    const position = targetIn(record, subject.id)?.relativePosition;
+    return Number.isFinite(position) ? [positionFactor(position)] : [];
+  })).filter(values => values.length).map(values => values.reduce((sum, value) => sum + value, 0) / values.length);
+  const positionScore = providerPositionScores.length ? providerPositionScores.reduce((sum, value) => sum + value, 0) / providerPositionScores.length * 25 : 0;
+  const providerCitationScores = groups.map(group => group.filter(record => targetIn(record, subject.id)?.appeared))
+    .filter(rows => rows.length).map(rows => rows.filter(record => targetCitation(record, subject)).length / rows.length);
+  const citationScore = providerCitationScores.length ? providerCitationScores.reduce((sum, value) => sum + value, 0) / providerCitationScores.length * 15 : 0;
+  const completeness = (success.length ? 60 : 0) + (positions.length ? 25 : 0) + (citationEligible.length ? 15 : 0);
+  const visibility = Math.round(appearanceScore + recommendationScore + positionScore + citationScore);
+  const stability = calculateStability(success, subject.id);
+
   const models = [...modelGroups.entries()].map(([id, group]) => {
     const detected = group.some(record => targetIn(record, subject.id)?.appeared);
     const value = group.length ? Math.round(group.filter(record => targetIn(record, subject.id)?.appeared).length / group.length * 100) : null;
-    return { id, name: 'Perplexity Sonar', value, detected };
+    const sample = group[0];
+    const name = sample.provider === 'openai' ? 'OpenAI Search' : sample.provider === 'perplexity' ? 'Perplexity Sonar' : `${sample.provider} ${sample.model}`;
+    return { id, name, provider: sample.provider, model: sample.model, value, detected };
   });
   const plannedModels = new Set(records.map(record => `${record.provider}:${record.model}`));
   const coverageDetected = models.filter(model => model.detected).length;
 
   const queries = market.queries.map(query => {
-    const group = success.filter(record => record.queryId === query.id);
-    const strength = group.length ? group.filter(record => targetIn(record, subject.id)?.appeared).length / group.length : null;
+    const providerRates = groups.map(group => group.filter(record => record.queryId === query.id)).filter(group => group.length)
+      .map(group => group.filter(record => targetIn(record, subject.id)?.appeared).length / group.length);
+    const strength = providerRates.length ? providerRates.reduce((sum, value) => sum + value, 0) / providerRates.length : null;
     return { id: query.id, name: query.text, short: query.intent, strength, status: strength === null ? 'not-measured' : strength >= .67 ? 'strong' : strength >= .34 ? 'medium' : 'weak' };
   });
   const competitorMap = new Map();
@@ -89,7 +102,10 @@ export function aggregateResultData(records, market, subject, registry = []) {
     competitorMap.set(item.id, item);
   }
   const competitors = [...competitorMap.values()]
-    .map(item => ({ ...item, count: item.appearances, strength: item.appearances / success.length }))
+    .map(item => ({
+      ...item, count: item.appearances,
+      strength: groups.length ? groups.reduce((sum, group) => sum + group.filter(record => record.companies.some(company => company.normalizedCompanyId === item.id)).length / group.length, 0) / groups.length : 0
+    }))
     .sort((a, b) => b.strength - a.strength || b.recommendations - a.recommendations);
   const sourceCounts = new Map();
   for (const record of success) for (const citation of record.citations) sourceCounts.set(citation.sourceType, (sourceCounts.get(citation.sourceType) || 0) + 1);
@@ -102,6 +118,7 @@ export function aggregateResultData(records, market, subject, registry = []) {
       status: records.length > 0 && records.every(record => record.status === 'success') ? 'measured' : 'partial',
       measuredAt: records.map(record => record.measuredAt).sort().at(-1) || null,
       measurementRunId: records[0]?.runId || null, scoringVersion: '0.1', stabilityVersion: '0.1',
+      providerWeighting: 'equal_provider_model',
       recommendationRuleVersion: RECOMMENDATION_RULE_VERSION, sourceClassificationVersion: SOURCE_CLASSIFICATION_VERSION,
       scoreCompleteness: { measured: completeness, total: 100 },
       scoreComponents: {
@@ -119,7 +136,13 @@ export function aggregateResultData(records, market, subject, registry = []) {
       modelCoverage: { detected: success.length ? coverageDetected : null, total: success.length ? plannedModels.size : null, status: success.length ? 'measured' : 'not_measured' },
       recommendation: { detected: recommendations, total: success.length }
     },
-    models, queries, competitors, sources, informationIssues: [],
+    models, queries, competitors, sources,
+    providerComparison: models.map(model => ({ provider: model.provider, model: model.model, visibility: model.value, detected: model.detected })),
+    queryProviderComparison: market.queries.flatMap(query => [...modelGroups.entries()].map(([id, group]) => {
+      const rows = group.filter(record => record.queryId === query.id);
+      return { queryId: query.id, providerModel: id, measurementCount: rows.length, appearanceRate: rows.length ? rows.filter(record => targetIn(record, subject.id)?.appeared).length / rows.length : null };
+    })),
+    informationIssues: [],
     insights: {
       visibilityDescription: 'MADOHA Scoring v0.1による内部観測指標です。AI事業者のランキング要因ではありません。',
       observation: { title: `${recommendations} / ${success.length}件の有効測定で推薦を確認しました。`, body: strongest ? `最も認識が強かったqueryは「${strongest.name}」です。` : '有効なquery測定がありません。' },
