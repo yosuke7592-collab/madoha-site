@@ -107,13 +107,17 @@ export async function execute(args = process.argv.slice(2), options = {}) {
   const requestBudget = createNetworkBudget(limits);
   const envelopes = [];
   const records = [];
+  let systemicFailure = null;
   for (const query of MARKET.queries) for (let repetition = 1; repetition <= repetitions; repetition += 1) {
     const requestedAt = options.clock?.() || now;
     const context = {
       ...basePlan, mode: mode === 'live' ? 'live' : 'fixture', now: requestedAt, market: MARKET,
       query, repetition, requestBudget
     };
-    const envelope = await adapter.fetchRaw(context);
+    const envelope = systemicFailure && typeof adapter.createCircuitBreakerEnvelope === 'function'
+      ? adapter.createCircuitBreakerEnvelope(context, systemicFailure)
+      : await adapter.fetchRaw(context);
+    if (envelope.payload?.providerFailure?.systemic) systemicFailure = envelope.payload.providerFailure;
     envelopes.push(envelope);
     records.push(adapter.normalizeProviderResponse({
       rawEnvelope: envelope, runId, market: MARKET, query, repetition, requestedAt,
