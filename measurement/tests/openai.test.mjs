@@ -4,7 +4,7 @@ import { MARKET, COMPANY_REGISTRY, SUBJECT, QUERY_SET_VERSION } from '../data.mj
 import { openAiFixtureFor } from '../openai-data.mjs';
 import {
   OpenAiFixtureAdapter, OpenAiLiveAdapter, OPENAI_ENDPOINT, OPENAI_KEY_MISSING_MESSAGE,
-  OPENAI_MODEL, estimateOpenAiCost
+  OPENAI_MODEL, classifyOpenAiError, estimateOpenAiCost
 } from '../openai.mjs';
 import { OPENAI_GUARDRAILS, assertGuardrails } from '../guardrails.mjs';
 import { aggregateResultData } from '../aggregate.mjs';
@@ -27,7 +27,7 @@ const mockPayload = id => ({
     { type: 'message', content: [{ type: 'output_text', text: 'おすすめは世田谷ホームです。', annotations: [{ type: 'url_citation', url: 'https://setagayahome.co.jp/cases', title: '世田谷ホーム公式', start_index: 0, end_index: 5 }] }] }
   ], usage: { input_tokens: 100, output_tokens: 50, total_tokens: 150 }
 });
-const response = (status, payload) => ({ ok: status >= 200 && status < 300, status, headers: { get: () => null }, json: async () => payload });
+const response = (status, payload, headerValues = {}) => ({ ok: status >= 200 && status < 300, status, headers: { get: name => headerValues[name.toLowerCase()] ?? null }, json: async () => payload });
 const livePlan = overrides => ({ ...basePlan, mode: 'live', runId: 'mock-openai', market: MARKET, query: MARKET.queries[0], repetition: 1, requestBudget: { used: 0, max: 18, consume() { this.used += 1; return this.used <= this.max; } }, ...overrides });
 
 test('fixture generates 18 records and covers success, absent, no citation, and provider error', async () => {
@@ -90,13 +90,47 @@ test('mocked live success and provider failures normalize without real network',
   assert.equal(record.status, 'success');
   assert.equal(record.citations.length, 1);
 
-  for (const status of [401, 429, 500]) {
+  for (const status of [401, 500]) {
     let attempts = 0;
     const failed = new OpenAiLiveAdapter({ registry: COMPANY_REGISTRY, fetchImpl: async () => { attempts += 1; return response(status, { error: { message: 'not persisted' } }); }, apiKeyProvider: () => 'test-only', sleep: async () => {}, now: () => now });
     const failedRecord = failed.normalizeProviderResponse({ rawEnvelope: await failed.fetchRaw(livePlan()), runId: 'mock', market: MARKET, query: MARKET.queries[0], repetition: 1, requestedAt: now });
     assert.equal(failedRecord.status, 'failed');
     assert.equal(attempts, status === 401 ? 1 : 2);
   }
+});
+
+test('OpenAI 429 classification retries only transient RPM and TPM errors', async () => {
+  for (const code of ['rate_limit_exceeded', 'requests_per_minute', 'tokens_per_minute']) {
+    let attempts = 0;
+    const live = new OpenAiLiveAdapter({ registry: COMPANY_REGISTRY, fetchImpl: async () => { attempts += 1; return attempts === 1 ? response(429, { error: { type: 'rate_limit_error', code, message: 'Rate limit reached.' } }, { 'retry-after': '0' }) : response(200, mockPayload('ok')); }, apiKeyProvider: () => 'test-only', sleep: async () => {}, now: () => now });
+    const raw = await live.fetchRaw(livePlan());
+    assert.equal(attempts, 2);
+    assert.equal(raw.payload.status, 'completed');
+  }
+});
+
+test('permanent quota and model-access 429 errors do not retry and preserve only safe diagnostics', async () => {
+  for (const [code, category] of [['insufficient_quota', 'insufficient_quota'], ['model_not_allowed', 'model_access']]) {
+    let attempts = 0;
+    const live = new OpenAiLiveAdapter({ registry: COMPANY_REGISTRY, fetchImpl: async () => { attempts += 1; return response(429, { error: { type: 'invalid_request_error', code, message: 'Safe provider diagnostic.' } }, { 'x-ratelimit-limit-requests': '500' }); }, apiKeyProvider: () => 'test-only', sleep: async () => {}, now: () => now });
+    const raw = await live.fetchRaw(livePlan());
+    assert.equal(attempts, 1);
+    assert.equal(raw.payload.providerFailure.category, category);
+    assert.equal(raw.payload.providerFailure.retryable, false);
+    assert.equal(raw.payload.providerFailure.systemic, true);
+    assert.equal(raw.metadata.rateLimits.requestLimit, '500');
+  }
+  assert.equal(classifyOpenAiError(429, { error: {} }).retryable, false);
+});
+
+test('systemic OpenAI error trips circuit breaker without consuming the remaining request budget', async () => {
+  let calls = 0;
+  const live = new OpenAiLiveAdapter({ registry: COMPANY_REGISTRY, fetchImpl: async () => { calls += 1; return response(429, { error: { type: 'insufficient_quota', code: 'insufficient_quota', message: 'Quota exhausted.' } }); }, apiKeyProvider: () => 'test-only', now: () => now });
+  const output = await execute(['--provider', 'openai', '--live', '--confirm-live', '--confirm-cost', '0.28', '--cycle', 'circuit-test'], { now, runId: 'circuit-test', openAiLiveAdapter: live, ledgerStore: new MemoryLedgerStore(), writeOutput: false });
+  assert.equal(calls, 1);
+  assert.equal(output.run.networkRequests, 1);
+  assert.equal(output.records.length, 18);
+  assert.equal(output.records.filter(item => item.failure?.category === 'circuit_breaker').length, 17);
 });
 
 test('shared ledger totals both providers and OpenAI fingerprint duplicate is blocked', async () => {
