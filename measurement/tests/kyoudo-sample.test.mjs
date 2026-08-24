@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const sample = JSON.parse(await readFile(new URL('../../data/samples/kyoudo-housing-paid-diagnosis.json', import.meta.url), 'utf8'));
+const directFileSource = await readFile(new URL('../../sample-kyoudo-data.js', import.meta.url), 'utf8');
 
 test('Kyoudo paid sample is explicit fixture and covers purchase-value sections', () => {
   assert.equal(sample.sample, true);
@@ -17,4 +18,9 @@ test('Kyoudo paid sample is explicit fixture and covers purchase-value sections'
   assert.ok(sample.actions.length >= 5 && sample.actions.every(item => item.target && item.change && item.reason && item.expectedChange && item.verification));
   assert.ok(sample.facts.every(item => item.status === 'fact' && /^https:\/\//.test(item.source)));
   assert.ok(sample.baseline.id && sample.baseline.metrics.length >= 5 && sample.baseline.remeasurement && sample.baseline.fixedConditions.length >= 5 && sample.baseline.targets.length >= 5);
+});
+
+test('direct-file sample embeds the same data without fetch', () => {
+  const embedded = JSON.parse(directFileSource.replace(/^globalThis\.MADOHA_KYOUDO_SAMPLE\s*=\s*/, '').replace(/;\s*$/, ''));
+  assert.deepEqual(embedded, sample);
 });
