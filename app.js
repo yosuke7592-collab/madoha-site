@@ -11,6 +11,7 @@ const numberOrNull = value => Number.isFinite(Number(value)) && value !== null &
 let data = normalizeResultData(mockResult);
 let timers = [];
 let activeCats = new Set(['models', 'queries', 'competitors', 'sources']);
+let lastFreeCheckUrl = '';
 
 const positions = {
   top: [['company', 50, 80, 'company'], ['Perplexity Sonar', 18, 24, 'models'], ['Queries', 76, 20, 'queries'], ['Competitors', 84, 55, 'competitors'], ['Sources', 20, 62, 'sources']],
@@ -289,21 +290,17 @@ async function runSearch(value) {
     input.focus();
     return;
   }
-  const dataset = resolveDataset(value);
-  if (!dataset) {
-    setText('#search-error', '現在、この企業の実測データはまだありません。現在の実測サンプル：世田谷ホーム', '');
-    input.focus();
-    return;
-  }
   setText('#search-error', '', '');
   const submit = $('#search-form button[type="submit"], #search-form button:not([type])');
   submit.disabled = true;
   submit.setAttribute('aria-busy', 'true');
   try {
-    const measuredData = await loadMeasuredDataset(dataset.id);
-    startAnalysis(value, measuredData);
-  } catch {
-    setText('#search-error', '実測データを読み込めませんでした。時間をおいてもう一度お試しください。', '');
+    const response = await fetch('/api/free-check', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url: value }) });
+    const payload = await response.json();
+    if (!response.ok || !payload.ok) throw new Error(payload.error || '診断に失敗しました。');
+    renderFreeResult(payload.result);
+  } catch (error) {
+    setText('#search-error', error.message || 'サイトを確認できませんでした。時間をおいてもう一度お試しください。', '');
     input.focus();
   } finally {
     submit.disabled = false;
@@ -311,15 +308,96 @@ async function runSearch(value) {
   }
 }
 
+function renderFreeResult(result) {
+  lastFreeCheckUrl = result.url;
+  setText('#free-result-company', result.title);
+  setText('#free-result-url', result.url);
+  setText('#free-score', result.score);
+  setText('#free-band', result.band);
+  setText('#free-disclaimer', result.disclaimer);
+  $('#free-check-list').innerHTML = result.checks.map(item => `<article class="free-check ${item.status}"><i>${item.status === 'pass' ? '✓' : '!'}</i><div><b>${escapeHTML(item.label)}</b><span>${escapeHTML(item.detail)}</span></div><em>${item.status === 'pass' ? '確認済み' : '改善候補'}</em></article>`).join('');
+  showScreen('free-result');
+}
+
+async function showMeasuredSample() {
+  const dataset = resolveDataset('世田谷ホーム');
+  try { startAnalysis('世田谷ホーム（詳細診断サンプル）', await loadMeasuredDataset(dataset.id)); }
+  catch { setText('#search-error', '実測サンプルを読み込めませんでした。', ''); showScreen('top'); }
+}
+
 $('#search-form').addEventListener('submit', event => {
   event.preventDefault();
   runSearch($('#company-input').value.trim());
 });
 $('#company-input').addEventListener('input', () => setText('#search-error', '', ''));
-$('#example-fill').onclick = () => { $('#company-input').value = '世田谷ホーム'; runSearch('世田谷ホーム'); };
+$('#new-free-search').onclick = () => { showScreen('top'); $('#company-input').focus(); };
+$('#paid-diagnosis').onclick = async () => {
+  const button = $('#paid-diagnosis');
+  button.disabled = true;
+  setText('#checkout-note', '安全な決済画面を準備しています。', '');
+  try {
+    const response = await fetch('/api/checkout', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url: lastFreeCheckUrl }) });
+    const payload = await response.json();
+    if (!response.ok || !payload.checkoutUrl) throw new Error(payload.error || '決済を開始できませんでした。');
+    location.assign(payload.checkoutUrl);
+  } catch (error) { setText('#checkout-note', error.message, ''); button.disabled = false; }
+};
 $('#skip-analysis').onclick = showResult;
 $('#new-search').onclick = () => { timers.forEach(clearTimeout); timers = []; showScreen('top'); $('#company-input').focus(); };
 addEventListener('resize', () => { if ($('[data-screen="result"]').classList.contains('is-active')) renderGraph(); });
 
 renderSimple($('[data-network="top"]'), 'top');
 setupAnalysis();
+
+const markdownToSafeHtml = value => String(value || '').split(/\n{2,}/).map(block => {
+  const safe = escapeHTML(block).replace(/\n/g, '<br>');
+  const heading = safe.match(/^(#{1,3})\s+(.+)$/);
+  return heading ? `<h${heading[1].length + 2}>${heading[2]}</h${heading[1].length + 2}>` : `<p>${safe}</p>`;
+}).join('');
+
+async function resumePaidDiagnosis(orderId, sessionId) {
+  showScreen('paid-result');
+  const headers = { 'x-checkout-session': sessionId };
+  const readOrder = async () => {
+    const response = await fetch(`/api/paid-diagnosis/${orderId}`, { headers });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || '診断状態を確認できません。');
+    return payload.order;
+  };
+  try {
+    let order = await readOrder();
+    setText('#paid-target-url', order.target_url);
+    if (order.diagnosis_status === 'paid') {
+      setText('#paid-status-title', '決済を確認しました');
+      setText('#paid-status-body', 'ボタンを押すとAI詳細診断を開始します。追加料金は発生しません。');
+      $('#start-paid-diagnosis').hidden = false;
+      $('#start-paid-diagnosis').onclick = async () => {
+        $('#start-paid-diagnosis').hidden = true;
+        const response = await fetch(`/api/paid-diagnosis/${orderId}/start`, { method: 'POST', headers });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || '診断を開始できませんでした。');
+        setText('#paid-status-title', 'AI詳細診断を実行しています');
+        setText('#paid-status-body', '通常は数分で完了します。この画面で自動更新します。');
+        poll();
+      };
+    } else poll();
+    async function poll() {
+      order = await readOrder();
+      if (order.diagnosis_status === 'complete') {
+        $('#paid-progress').hidden = true; $('#paid-report').hidden = false;
+        $('#paid-report-body').innerHTML = markdownToSafeHtml(order.report_markdown);
+        return;
+      }
+      if (order.diagnosis_status === 'failed') {
+        setText('#paid-status-title', '診断を完了できませんでした');
+        setText('#paid-status-body', '追加料金なしで再実行できます。サポートへお問い合わせください。'); return;
+      }
+      setText('#paid-status-title', order.diagnosis_status === 'running' ? 'AI詳細診断を実行しています' : '診断を開始する準備をしています');
+      timers.push(setTimeout(poll, 5000));
+    }
+  } catch (error) { setText('#paid-status-title', '診断を表示できません'); setText('#paid-status-body', error.message); }
+}
+
+$('#paid-home').onclick = () => showScreen('top');
+const returnParams = new URLSearchParams(location.search);
+if (returnParams.get('diagnosis') && returnParams.get('session_id')) resumePaidDiagnosis(returnParams.get('diagnosis'), returnParams.get('session_id'));

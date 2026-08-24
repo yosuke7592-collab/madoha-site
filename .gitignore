@@ -3,3 +3,4 @@ measurement/state/
 .env
 .env.*
 !.env.example
+.wrangler/

@@ -1,0 +1,10 @@
+.git
+.github
+.wrangler
+.env*
+AGENTS.md
+worker
+measurement
+migrations
+wrangler.jsonc
+**/*.test.mjs
