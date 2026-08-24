@@ -4,10 +4,15 @@ import { readFile } from 'node:fs/promises';
 
 const sample = JSON.parse(await readFile(new URL('../../data/samples/kyoudo-housing-paid-diagnosis.json', import.meta.url), 'utf8'));
 const directFileSource = await readFile(new URL('../../sample-kyoudo-data.js', import.meta.url), 'utf8');
+const reportSource = await readFile(new URL('../../sample-kyoudo.js', import.meta.url), 'utf8');
 
 test('Kyoudo paid sample is explicit fixture and covers purchase-value sections', () => {
   assert.equal(sample.sample, true);
   assert.match(sample.measurement.limitations, /実測値ではありません/);
+  assert.deepEqual(
+    ['overallRating', 'improvementPotential', 'opportunityLoss', 'competitorGap', 'keyPoint'].filter(key => !sample.executiveSummary[key]),
+    [],
+  );
   assert.equal(sample.queries.length, 8);
   assert.ok(sample.queries.every(item => item.query && typeof item.appeared === 'boolean' && typeof item.recommended === 'boolean' && item.sampleAnswer && /^https:\/\//.test(item.evidenceUrl) && item.mainCompetitor && item.gap));
   assert.ok(sample.competitors.length >= 3);
@@ -18,6 +23,21 @@ test('Kyoudo paid sample is explicit fixture and covers purchase-value sections'
   assert.ok(sample.actions.length >= 5 && sample.actions.every(item => item.target && item.change && item.reason && item.expectedChange && item.verification));
   assert.ok(sample.facts.every(item => item.status === 'fact' && /^https:\/\//.test(item.source)));
   assert.ok(sample.baseline.id && sample.baseline.metrics.length >= 5 && sample.baseline.remeasurement && sample.baseline.fixedConditions.length >= 5 && sample.baseline.targets.length >= 5);
+});
+
+test('executive report leads with decisions and keeps detailed evidence later', () => {
+  const summaryAt = reportSource.indexOf('経営判断サマリー');
+  const topActionsAt = reportSource.indexOf('まず、この3件から着手してください');
+  const detailAt = reportSource.indexOf('ここからは判断の根拠です');
+  const queriesAt = reportSource.indexOf('質問ごとの結果');
+  const remeasurementAt = reportSource.indexOf('次回測定');
+  assert.ok(summaryAt >= 0 && summaryAt < topActionsAt && topActionsAt < detailAt && detailAt < queriesAt && queriesAt < remeasurementAt);
+  assert.match(reportSource, /最優先/);
+  assert.match(reportSource, /重要/);
+  assert.match(reportSource, /要確認/);
+  assert.match(reportSource, /問題なし/);
+  assert.match(reportSource, /公式サイトや公開情報で確認できた事実/);
+  assert.match(reportSource, /MADOHAが推奨する改善策/);
 });
 
 test('direct-file sample embeds the same data without fetch', () => {

@@ -4,16 +4,21 @@
   "subject": { "name": "株式会社協同住宅", "url": "https://www.kyoudo.jp/", "area": "千葉県浦安市・市川市", "category": "不動産・建築・住宅相談" },
   "measurement": {
     "snapshotDate": "2026-08-24",
-    "mode": "保存資料・公開検索結果をもとにした商品確認用fixture",
-    "models": ["商品確認用fixture（本番AIモデル未実行）"],
+    "mode": "保存資料・公開検索結果をもとにした商品確認用の仮データ",
+    "models": ["商品確認用の仮データ（本番AIモデル未実行）"],
     "queryCount": 8,
     "repetitions": 1,
-    "limitations": "OpenAI・Perplexity等の有料APIは実行していません。質問別の数値は完成商品の見え方を確認するためのfixtureであり、株式会社協同住宅の実測値ではありません。公式サイトと公開検索結果に基づくFACTだけを事実として表示します。"
+    "limitations": "有料AIは実行していません。質問別の数値は、完成商品の見え方を確認するための仮データです。株式会社協同住宅の実測値ではありません。FACT欄には、公式サイトと公開検索結果で確認した事実だけを表示します。"
   },
   "executiveSummary": {
-    "headline": "会社名での識別材料は揃う一方、一般的な『浦安の不動産会社選び』では強みが第三者情報へ十分伝播していない",
-    "currentPosition": "公式サイトから、浦安・市川の地域密着、不動産・建築・資金相談を横断する会社として理解できる材料があります。一方、第三者の比較・推薦面では掲載は確認できるものの、上位候補として選ばれる決定材料は限定的です。",
-    "paidValue": "最優先はサイトの見た目だけではなく、『不動産＋建築＋資金相談』『購入後の修繕まで相談可能』を、質問に直接答えるページと第三者が引用できる根拠へ変えることです。営業開始年は社内資料で確認してから強みとして統一します。"
+    "overallRating": "要改善",
+    "improvementPotential": "大",
+    "headline": "会社の特徴は伝わります。しかし、選ばれる理由の裏付けが不足しています。",
+    "opportunityLoss": "地域密着と、不動産・建築をまとめて相談できる強みが、AIの推薦理由になっていません。",
+    "competitorGap": "競合は地域サイトで具体的に紹介されています。協同住宅は、実績や事例の第三者情報で差をつけられています。",
+    "keyPoint": "サービスの幅は十分に伝わっています。実績・事例・第三者情報を補えば、会社名を含まない質問でも候補に入りやすくなります。",
+    "currentPosition": "公式サイトから、浦安・市川の地域密着企業だと分かります。不動産、建築、資金相談をまとめて扱う点も確認できます。第三者の比較情報では、上位候補として選ぶ根拠がまだ不足しています。",
+    "paidValue": "最初に営業年数の表現を確認し、誤情報の原因をなくします。次に、購入とリフォームをまとめて支援した事例を公開します。その後、第三者サイトでも同じ強みが伝わる状態を作ります。"
   },
   "facts": [
     { "claim": "公式サイトは浦安・市川を主な取扱エリアとしている", "source": "https://www.kyoudo.jp/", "evidence": "公式サイト本文", "status": "fact" },
@@ -25,7 +30,7 @@
   "perception": {
     "recognizedAs": ["浦安・市川の地域密着型不動産会社", "売買と賃貸に加え、注文住宅・リフォームも扱う住宅会社", "ローンや不動産活用まで相談できる窓口"],
     "notYetClear": ["どの顧客課題で他社より優先して選ぶべきか", "施工・仲介の具体的な実績件数", "担当者の専門性と得意分野", "顧客評価を裏付ける十分な一次情報", "浦安の個別地域・物件種別ごとの具体的知見"],
-    "interpretation": "会社の業務範囲は理解しやすい一方、推薦理由となる定量実績・事例・顧客証言が弱く、AIが『選ぶ理由』を説明しにくい状態という仮説です。"
+    "interpretation": "事業内容は理解しやすい状態です。一方、実績・事例・顧客の声が不足しています。そのため、AIが『選ぶ理由』を説明しにくい可能性があります。"
   },
   "queries": [
     { "intent": "指名確認", "query": "株式会社協同住宅はどんな会社？", "appeared": true, "recommended": true, "sampleAnswer": "浦安市猫実に所在し、浦安・市川を中心に売買・賃貸・建築・リフォーム等を扱う地域密着の住宅会社として回答する想定です。", "evidenceUrl": "https://www.kyoudo.jp/", "mainCompetitor": "なし（指名質問）", "fixtureEvidence": "公式サイト情報から事業領域と所在地を説明可能", "gap": "代表者・免許・実績を1ページで確認できる情報設計" },
@@ -49,35 +54,35 @@
     { "name": "株式会社グランデ浦安", "mentions": "3 / 8", "recommendations": "2 / 8", "evidenceUrls": 2, "winningIntent": "浦安駅・賃貸", "confirmedDifference": "駅周辺の比較ページで事業者情報が確認される" }
   ],
   "sources": [
-    { "name": "協同住宅公式サイト", "type": "official", "role": "会社情報・サービス範囲の一次情報", "url": "https://www.kyoudo.jp/", "priority": "維持・強化" },
-    { "name": "不動産ドットコム", "type": "license/directory", "role": "免許・所在地・営業年数等の第三者確認", "url": "https://www.e-fudou.com/12/12227/21686/", "priority": "情報整合性を監視" },
-    { "name": "新浦安ナビ 不動産屋一覧", "type": "local directory", "role": "浦安市の事業者候補としての発見", "url": "https://www.shinurayasu.chiba.jp/navi/realestate/shop.html", "priority": "掲載情報を充実" },
-    { "name": "HOT2 浦安駅おすすめ8選", "type": "comparison", "role": "賃貸会社を比較する文脈での候補化", "url": "https://hot2.jp/urayasu/shop_view.php?cid=24", "priority": "紹介内容の正確性を確認" },
-    { "name": "浦安専門ドットコム", "type": "local directory", "role": "地域カテゴリ上の存在確認", "url": "https://urayasu-senmon.com/shops/soudan/fudousan.html", "priority": "NAP整合性を維持" }
+    { "name": "協同住宅公式サイト", "type": "公式サイト", "role": "会社情報・サービス範囲の一次情報", "url": "https://www.kyoudo.jp/", "priority": "維持・強化" },
+    { "name": "不動産ドットコム", "type": "免許情報・企業一覧", "role": "免許・所在地・免許取得日の第三者確認", "url": "https://www.e-fudou.com/12/12227/21686/", "priority": "情報の一致を監視" },
+    { "name": "新浦安ナビ 不動産屋一覧", "type": "地域の企業一覧", "role": "浦安市の事業者候補としての発見", "url": "https://www.shinurayasu.chiba.jp/navi/realestate/shop.html", "priority": "掲載情報を充実" },
+    { "name": "HOT2 浦安駅おすすめ8選", "type": "比較ページ", "role": "賃貸会社を比較する場面での候補化", "url": "https://hot2.jp/urayasu/shop_view.php?cid=24", "priority": "紹介内容を確認" },
+    { "name": "浦安専門ドットコム", "type": "地域の企業一覧", "role": "地域カテゴリ上の存在確認", "url": "https://urayasu-senmon.com/shops/soudan/fudousan.html", "priority": "会社名・住所・電話番号を統一" }
   ],
   "issues": [
-    { "type": "potential_misinformation", "severity": "high", "fact": "第三者の宅建免許情報では免許取得日が1984年6月20日とされる。これは法人創立日や浦安での営業開始日を直接証明しない", "observed": "公式サイトトップには『地元浦安で建築・不動産業を営んで32年』という表現が残る", "impact": "基準年が不明なため、AIが営業年数について異なる数字を回答する可能性", "action": "登記・免許・社内沿革で創立日と営業開始日を確認後、https://www.kyoudo.jp/ の年数表現を確認済みの固定年月へ統一", "evidenceUrl": "https://www.kyoudo.jp/", "checkedAt": "2026-08-24" },
+    { "type": "potential_misinformation", "severity": "high", "fact": "第三者情報では、宅建業免許の取得日は1984年6月20日です。ただし、免許取得日は創立日や営業開始日を証明しません。", "observed": "公式サイトに『地元浦安で32年』という表現があります。いつを基準にした年数かは明確ではありません。", "impact": "基準年が不明です。AIが営業年数について異なる数字を答える恐れがあります。", "action": "登記・免許・社内沿革で、創立日と営業開始日を確認します。その後、年数表現を固定年月に統一します。", "evidenceUrl": "https://www.kyoudo.jp/", "checkedAt": "2026-08-24" },
     { "type": "information_gap", "severity": "high", "fact": "不動産と建築を横断するサービスを掲げる", "observed": "確認したトップページ上ではワンストップで解決した具体事例を確認できない", "impact": "差別化要因が一般的なサービス列挙として処理される", "action": "https://www.kyoudo.jp/ から購入＋リフォーム、売却＋住み替え等の事例ページへ導線を追加", "evidenceUrl": "https://www.kyoudo.jp/", "checkedAt": "2026-08-24" },
     { "type": "information_gap", "severity": "medium", "fact": "注文住宅・リフォームを扱う", "observed": "費用目安、仕様、保証、工程、事例の要約がトップページから把握しにくい", "impact": "建築系の質問で推薦根拠が不足", "action": "https://www.kyoudo.jp/const/ にFAQ・実績・プロセスを追加", "evidenceUrl": "https://www.kyoudo.jp/const/", "checkedAt": "2026-08-24" },
     { "type": "evidence_gap", "severity": "medium", "fact": "地域密着を訴求する", "observed": "確認したトップページでは町別の相場・暮らし情報が推薦理由として整理されていない", "impact": "大手との差を説明しづらい", "action": "https://www.kyoudo.jp/ 配下に猫実・北栄・新浦安等の地域別ガイドを公開", "evidenceUrl": "https://www.kyoudo.jp/", "checkedAt": "2026-08-24" }
   ],
   "actions": [
-    { "priority": 1, "horizon": "7日", "type": "FACT FIX", "target": "公式サイト全体・会社概要", "change": "登記・免許・社内沿革で法人創立日と浦安での営業開始日を確認し、『32年』等の表現を確認済みの固定年月へ統一。住所・電話・免許・代表者・営業時間も単一ページに集約", "reason": "免許取得日と創立日を混同せず、誤情報リスクを即時に減らす", "expectedChange": "指名質問で基準年月・所在地・電話の回答一致率を100%へ近づける", "verification": "会社名質問3回で確認済み基準年月・所在地・電話の一致を確認" },
-    { "priority": 2, "horizon": "30日", "type": "EVIDENCE", "target": "新規：ワンストップ事例ページ3件", "change": "購入＋リフォーム、住み替え＋売却、土地＋注文住宅の実例を、課題・提案・結果・地域・担当範囲付きで公開", "reason": "不動産＋建築という最大の差別化を推薦根拠へ変える", "expectedChange": "複合相談質問の推薦回数増加", "verification": "複合相談2質問×3回で出現率・推薦率を比較" },
-    { "priority": 3, "horizon": "30日", "type": "ANSWER CONTENT", "target": "売買・賃貸・建築・リフォーム・売却ページ", "change": "各ページに対象顧客、対応地域、費用の考え方、期間、流れ、保証、FAQを追加しFAQPage等を適切に構造化", "reason": "質問意図に対する直接回答を増やす", "expectedChange": "非指名質問で公式サイトが参照される範囲の拡大", "verification": "6意図の引用URLと回答内容を再測定" },
+    { "priority": 1, "horizon": "7日", "type": "FACT FIX", "target": "公式サイト全体・会社概要", "change": "創立日と浦安での営業開始日を、社内資料で確認します。その後、『32年』などの表現を固定年月に統一します。会社概要には住所・電話・免許情報もまとめます。", "reason": "免許取得日と創立日を混同しないためです。誤情報の原因を早期になくします。", "expectedChange": "会社情報について、AIの回答が一致しやすくなります。", "verification": "会社名を含む質問を3回実行します。基準年月・所在地・電話の一致を確認します。" },
+    { "priority": 2, "horizon": "30日", "type": "EVIDENCE", "target": "新規：ワンストップ事例ページ3件", "change": "事例を3件公開します。対象は『購入＋リフォーム』『住み替え＋売却』『土地＋注文住宅』です。各事例に課題、提案、結果、地域、担当範囲を記載します。", "reason": "不動産と建築を一社で扱える強みを、選ぶ根拠に変えます。", "expectedChange": "複合相談の質問で、推薦される回数の増加を目指します。", "verification": "複合相談の2質問を各3回実行します。表示と推薦の変化を比べます。" },
+    { "priority": 3, "horizon": "30日", "type": "ANSWER CONTENT", "target": "売買・賃貸・建築・リフォーム・売却ページ", "change": "各ページに、対象顧客、対応地域、費用、期間、流れ、保証、よくある質問を追加します。検索サービスが読み取りやすい形で掲載します。", "reason": "利用者の質問に、公式サイトが直接答えられる範囲を広げます。", "expectedChange": "会社名を含まない質問でも、公式サイトが参考にされやすくなります。", "verification": "6種類の質問で、参考にされたページと回答内容を再測定します。" },
     { "priority": 4, "horizon": "60日", "type": "LOCAL AUTHORITY", "target": "浦安地域ガイド", "change": "地域ごとの住環境、住宅種別、災害情報の読み方、購入・賃貸時の注意点を担当者監修で公開", "reason": "地域密着を宣言ではなく固有知識で証明する", "expectedChange": "浦安×悩み質問での言及・引用増加", "verification": "地域別3質問×3回で競合との出現差を比較" },
     { "priority": 5, "horizon": "90日", "type": "THIRD-PARTY", "target": "地域ディレクトリ・顧客レビュー・業界団体プロフィール", "change": "NAPと事業説明を統一し、実顧客へ事実に基づくレビュー投稿を依頼。比較サイトには最新の強みと対応領域を提供", "reason": "公式サイト外に独立した推薦根拠を増やす", "expectedChange": "第三者情報源の種類と推薦根拠の増加", "verification": "引用ドメイン数、第三者引用率、情報不一致件数を比較" }
   ],
   "baseline": {
     "id": "kyoudo-fixture-2026-08-24-v1",
     "metrics": [
-      { "name": "質問カバレッジ", "value": "4 / 8", "definition": "対象企業が回答内に出現したfixture質問数" },
-      { "name": "推薦カバレッジ", "value": "2 / 8", "definition": "明示的な選択肢として扱われたfixture質問数" },
-      { "name": "非指名質問の出現", "value": "3 / 7", "definition": "会社名を含まないfixture質問での出現数" },
-      { "name": "確認情報源", "value": "5 domains", "definition": "本サンプルで根拠として確認した公開ドメイン数" },
-      { "name": "重大な情報不一致候補", "value": "1", "definition": "購入判断・企業認識に影響し得る年数表現の不一致" }
+      { "name": "回答に社名が出た", "value": "4 / 8", "definition": "仮データの8質問のうち、社名が出た質問数" },
+      { "name": "相談先として推薦された", "value": "2 / 8", "definition": "仮データの8質問のうち、選択肢として推薦された質問数" },
+      { "name": "会社名なしで社名が出た", "value": "3 / 7", "definition": "会社名を含まない7質問のうち、社名が出た質問数" },
+      { "name": "確認した情報源", "value": "5サイト", "definition": "本サンプルで根拠を確認したWebサイト数" },
+      { "name": "表現の確認が必要", "value": "1件", "definition": "営業年数の基準を社内資料で確認する必要がある項目" }
     ],
-    "remeasurement": "本番では上記8質問を各3回、同じAIモデル・日本語・浦安市の利用者という条件で測定し、回答全文・引用URL・成功/失敗・モデル版を保存します。30〜60日後に出現率、推薦率、引用URL、事実一致率、競合差を比較し、施策との因果は断定しません。",
+    "remeasurement": "本番では、同じ8質問を各3回測定します。AIモデル、日本語、浦安市の利用者という条件を固定します。回答全文、参考URL、成否、モデル版を保存します。30〜60日後に再測定し、表示、推薦、事実の一致、競合差を比べます。施策だけが変化の原因だとは断定しません。",
     "fixedConditions": ["質問文8件を固定", "各質問3反復", "日本語・浦安市で住宅サービスを探す利用者", "モデル名・版・測定日時を保存", "回答全文と引用URLを保存", "失敗回答も分母に含め別記"],
     "targets": ["建築質問：出現0/3 → 2/3", "リフォーム質問：出現0/3 → 2/3", "非指名推薦：現状想定1/7 → 3/7", "重大な情報不一致：1件 → 0件", "第三者根拠ドメイン：5 → 8"]
   }
