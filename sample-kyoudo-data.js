@@ -2,10 +2,13 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
   "schemaVersion": "paid-report-sample-v1",
   "sample": true,
   "subject": {
+    "entity_type": "company",
+    "identification_status": "confirmed",
     "name": "株式会社協同住宅",
     "url": "https://www.kyoudo.jp/",
     "area": "千葉県浦安市・市川市",
-    "category": "不動産・建築・住宅相談"
+    "category": "不動産・建築・住宅相談",
+    "confirmation": "名称・公式URL・所在地・事業内容が一致する対象として確認済み"
   },
   "measurement": {
     "snapshotDate": "2026-08-24",
@@ -13,9 +16,27 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
     "models": [
       "商品確認用の仮データ（本番AIモデル未実行）"
     ],
-    "queryCount": 8,
+    "queryCount": 10,
     "repetitions": 1,
     "limitations": "有料AIは実行していません。質問別の数値は、完成商品の見え方を確認するための仮データです。株式会社協同住宅の実測値ではありません。FACT欄には、公式サイトと公開検索結果で確認した事実だけを表示します。"
+  },
+  "queryDiscovery": {
+    "method": "公式サイト、地域の企業一覧、比較ページ、サービス内容、商圏、一般利用者の表現を材料に質問候補を作成",
+    "sources": [
+      "協同住宅公式サイト",
+      "新浦安ナビ 不動産屋一覧",
+      "HOT2 浦安駅おすすめ8選",
+      "公開されているサービス案内",
+      "浦安・市川という商圏"
+    ],
+    "qaPolicy": [
+      "一般利用者が自然に尋ねる",
+      "同じ意味を重複させない",
+      "協同住宅に有利な誘導をしない",
+      "サービスと商圏に合う",
+      "測定目的が明確"
+    ],
+    "result": "非指名6問と指名4問を確定"
   },
   "executiveSummary": {
     "overallRating": "要改善",
@@ -76,92 +97,698 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
   },
   "queries": [
     {
-      "intent": "指名確認",
-      "query": "株式会社協同住宅はどんな会社？",
-      "appeared": true,
-      "recommended": true,
-      "sampleAnswer": "浦安市猫実に所在し、浦安・市川を中心に売買・賃貸・建築・リフォーム等を扱う地域密着の住宅会社として回答する想定です。",
-      "evidenceUrl": "https://www.kyoudo.jp/",
-      "mainCompetitor": "なし（指名質問）",
-      "fixtureEvidence": "公式サイト情報から事業領域と所在地を説明可能",
-      "gap": "代表者・免許・実績を1ページで確認できる情報設計"
-    },
-    {
+      "id": "nb-buy",
+      "kind": "nonbrand",
       "intent": "地域×売買",
-      "query": "浦安で家を買うとき相談できる不動産会社",
+      "query": "浦安で家を買うとき相談できる不動産会社は？",
+      "discoveryEvidence": [
+        "商圏",
+        "売買サービス",
+        "地域の企業一覧"
+      ],
+      "qa": {
+        "natural": true,
+        "neutral": true,
+        "relevant": true,
+        "distinct": true
+      },
       "appeared": true,
       "recommended": false,
-      "sampleAnswer": "候補企業一覧には含まれるが、購入支援実績を比較できず、優先推薦まではしない想定です。",
+      "sampleAnswer": "地域の候補には入ります。ただし、購入支援実績を比較できず、優先推薦には至りません。",
       "evidenceUrl": "https://www.shinurayasu.chiba.jp/navi/realestate/shop.html",
       "mainCompetitor": "明和地所・富士屋商事",
-      "fixtureEvidence": "地域一覧への掲載はあるが、推奨上位を裏付ける比較材料が限定的",
-      "gap": "購入支援事例、地域別相場知識、購入者レビュー"
+      "gap": "購入支援事例、地域別相場知識、購入者レビュー",
+      "channels": [
+        {
+          "channel": "chatgpt",
+          "repetition": 1,
+          "appeared": true,
+          "recommended": false,
+          "rank": null,
+          "reason": "地域の企業一覧で存在を確認",
+          "answer": "候補の一社として言及。購入実績の比較材料は不足。",
+          "competitors": [
+            "明和地所",
+            "富士屋商事"
+          ],
+          "sources": [
+            "https://www.shinurayasu.chiba.jp/navi/realestate/shop.html"
+          ]
+        },
+        {
+          "channel": "gemini",
+          "repetition": 1,
+          "appeared": true,
+          "recommended": false,
+          "rank": null,
+          "reason": "公式サイトで売買対応を確認",
+          "answer": "相談可能な会社として説明。優先順位は提示なし。",
+          "competitors": [
+            "明和地所"
+          ],
+          "sources": [
+            "https://www.kyoudo.jp/"
+          ]
+        },
+        {
+          "channel": "google_ai_mode",
+          "repetition": 1,
+          "appeared": false,
+          "recommended": false,
+          "rank": null,
+          "reason": "回答内で確認できず",
+          "answer": "協同住宅の名称は出現しない想定。",
+          "competitors": [
+            "富士屋商事"
+          ],
+          "sources": [
+            "https://www.shinurayasu.chiba.jp/navi/realestate/shop.html"
+          ]
+        }
+      ]
     },
     {
+      "id": "nb-rent",
+      "kind": "nonbrand",
       "intent": "地域×賃貸",
-      "query": "浦安駅でおすすめの賃貸不動産会社",
+      "query": "浦安駅でおすすめの賃貸不動産会社は？",
+      "discoveryEvidence": [
+        "浦安駅",
+        "賃貸サービス",
+        "比較ページ"
+      ],
+      "qa": {
+        "natural": true,
+        "neutral": true,
+        "relevant": true,
+        "distinct": true
+      },
       "appeared": true,
       "recommended": false,
-      "sampleAnswer": "地域の候補として言及される一方、駅距離・物件量・口コミ等の比較材料が少なく、上位推薦には弱い想定です。",
+      "sampleAnswer": "地域の候補には入ります。物件量や口コミを比較できず、上位推薦には至りません。",
       "evidenceUrl": "https://hot2.jp/urayasu/shop_view.php?cid=24",
       "mainCompetitor": "富士屋商事・グランデ浦安",
-      "fixtureEvidence": "おすすめ8選の一例に掲載を確認",
-      "gap": "取扱物件量、駅別の強み、対応品質の客観データ"
+      "gap": "取扱物件量、駅別の強み、対応品質の客観データ",
+      "channels": [
+        {
+          "channel": "chatgpt",
+          "repetition": 1,
+          "appeared": true,
+          "recommended": false,
+          "rank": null,
+          "reason": "地域比較ページに掲載",
+          "answer": "候補として言及。順位は提示なし。",
+          "competitors": [
+            "富士屋商事"
+          ],
+          "sources": [
+            "https://hot2.jp/urayasu/shop_view.php?cid=24"
+          ]
+        },
+        {
+          "channel": "gemini",
+          "repetition": 1,
+          "appeared": false,
+          "recommended": false,
+          "rank": null,
+          "reason": "物件量の比較材料が不足",
+          "answer": "回答内に名称なし。",
+          "competitors": [
+            "富士屋商事",
+            "グランデ浦安"
+          ],
+          "sources": [
+            "https://hot2.jp/urayasu/shop_view.php?cid=24"
+          ]
+        },
+        {
+          "channel": "google_ai_mode",
+          "repetition": 1,
+          "appeared": true,
+          "recommended": false,
+          "rank": null,
+          "reason": "地域ページで事業者情報を確認",
+          "answer": "地域の相談先として言及。",
+          "competitors": [
+            "グランデ浦安"
+          ],
+          "sources": [
+            "https://hot2.jp/urayasu/shop_view.php?cid=24"
+          ]
+        }
+      ]
     },
     {
-      "intent": "建築",
-      "query": "浦安で注文住宅を相談できる会社",
+      "id": "nb-build",
+      "kind": "nonbrand",
+      "intent": "注文住宅",
+      "query": "浦安で注文住宅を相談できる会社は？",
+      "discoveryEvidence": [
+        "注文住宅サービス",
+        "商圏",
+        "一般的な相談表現"
+      ],
+      "qa": {
+        "natural": true,
+        "neutral": true,
+        "relevant": true,
+        "distinct": true
+      },
       "appeared": false,
       "recommended": false,
-      "sampleAnswer": "公式サイト上の取扱いは確認できるものの、施工事例・仕様・保証を比較できず回答候補から外れる想定です。",
+      "sampleAnswer": "注文住宅への対応は確認できます。施工事例や保証を比較できず、候補には入りません。",
       "evidenceUrl": "https://www.kyoudo.jp/const/",
       "mainCompetitor": "地域工務店・住宅メーカー",
-      "fixtureEvidence": "公式サイトには注文住宅があるが、第三者の推薦根拠が不足",
-      "gap": "施工事例、性能仕様、設計プロセス、費用目安"
+      "gap": "施工事例、性能仕様、設計の流れ、費用目安",
+      "channels": [
+        {
+          "channel": "chatgpt",
+          "repetition": 1,
+          "appeared": false,
+          "recommended": false,
+          "rank": null,
+          "reason": "施工事例が不足",
+          "answer": "回答内に名称なし。",
+          "competitors": [
+            "地域工務店"
+          ],
+          "sources": [
+            "https://www.kyoudo.jp/const/"
+          ]
+        },
+        {
+          "channel": "gemini",
+          "repetition": 1,
+          "appeared": false,
+          "recommended": false,
+          "rank": null,
+          "reason": "仕様と保証の情報が不足",
+          "answer": "回答内に名称なし。",
+          "competitors": [
+            "住宅メーカー"
+          ],
+          "sources": [
+            "https://www.kyoudo.jp/const/"
+          ]
+        },
+        {
+          "channel": "google_ai_mode",
+          "repetition": 1,
+          "appeared": false,
+          "recommended": false,
+          "rank": null,
+          "reason": "比較可能な建築情報が不足",
+          "answer": "回答内に名称なし。",
+          "competitors": [
+            "地域工務店"
+          ],
+          "sources": [
+            "https://www.kyoudo.jp/const/"
+          ]
+        }
+      ]
     },
     {
+      "id": "nb-renovate",
+      "kind": "nonbrand",
       "intent": "リフォーム",
-      "query": "浦安で住宅リフォームを頼める地域密着会社",
+      "query": "浦安で住宅リフォームを頼める地域密着会社は？",
+      "discoveryEvidence": [
+        "リフォームサービス",
+        "地域密着の訴求",
+        "一般的な依頼表現"
+      ],
+      "qa": {
+        "natural": true,
+        "neutral": true,
+        "relevant": true,
+        "distinct": true
+      },
       "appeared": false,
       "recommended": false,
-      "sampleAnswer": "リフォーム対応の記載だけでは工事品質や得意領域を比較できず、推薦候補に残りにくい想定です。",
+      "sampleAnswer": "対応の記載はあります。工事事例や費用が不足し、推薦候補には残りません。",
       "evidenceUrl": "https://www.kyoudo.jp/const/",
       "mainCompetitor": "施工事例を公開する地域会社",
-      "fixtureEvidence": "サービス案内はあるが、課題別事例や成果が不足",
-      "gap": "部位別事例、工期・費用、保証、顧客の声"
+      "gap": "部位別事例、工期・費用、保証、顧客の声",
+      "channels": [
+        {
+          "channel": "chatgpt",
+          "repetition": 1,
+          "appeared": false,
+          "recommended": false,
+          "rank": null,
+          "reason": "工事事例が不足",
+          "answer": "回答内に名称なし。",
+          "competitors": [
+            "施工事例を公開する地域会社"
+          ],
+          "sources": [
+            "https://www.kyoudo.jp/const/"
+          ]
+        },
+        {
+          "channel": "gemini",
+          "repetition": 1,
+          "appeared": false,
+          "recommended": false,
+          "rank": null,
+          "reason": "費用と保証の情報が不足",
+          "answer": "回答内に名称なし。",
+          "competitors": [],
+          "sources": [
+            "https://www.kyoudo.jp/const/"
+          ]
+        },
+        {
+          "channel": "google_ai_mode",
+          "repetition": 1,
+          "appeared": false,
+          "recommended": false,
+          "rank": null,
+          "reason": "第三者の施工評価が不足",
+          "answer": "回答内に名称なし。",
+          "competitors": [],
+          "sources": [
+            "https://www.kyoudo.jp/const/"
+          ]
+        }
+      ]
     },
     {
-      "intent": "売却",
-      "query": "浦安市の家を売却するときの相談先",
+      "id": "nb-sell",
+      "kind": "nonbrand",
+      "intent": "売却相談",
+      "query": "浦安市の家を売却するとき、どこへ相談すればよい？",
+      "discoveryEvidence": [
+        "売却相談サービス",
+        "商圏",
+        "行動を含む質問"
+      ],
+      "qa": {
+        "natural": true,
+        "neutral": true,
+        "relevant": true,
+        "distinct": true
+      },
       "appeared": false,
       "recommended": false,
-      "sampleAnswer": "売却相談の受付は確認できるものの、査定方針・成約実績・売却期間が不明で推薦材料が不足する想定です。",
+      "sampleAnswer": "売却相談は受け付けています。査定方針や成約実績がなく、推薦材料が不足しています。",
       "evidenceUrl": "https://www.kyoudo.jp/consult/",
       "mainCompetitor": "売却実績を公開する地域仲介会社",
-      "fixtureEvidence": "売る・貸す相談は明示されるが、査定や売却実績の根拠が不足",
-      "gap": "売却事例、査定方針、期間、地域相場解説"
+      "gap": "売却事例、査定方針、期間、地域相場解説",
+      "channels": [
+        {
+          "channel": "chatgpt",
+          "repetition": 1,
+          "appeared": false,
+          "recommended": false,
+          "rank": null,
+          "reason": "売却実績が不足",
+          "answer": "回答内に名称なし。",
+          "competitors": [
+            "売却実績を公開する地域会社"
+          ],
+          "sources": [
+            "https://www.kyoudo.jp/consult/"
+          ]
+        },
+        {
+          "channel": "gemini",
+          "repetition": 1,
+          "appeared": false,
+          "recommended": false,
+          "rank": null,
+          "reason": "査定方針が不明",
+          "answer": "回答内に名称なし。",
+          "competitors": [],
+          "sources": [
+            "https://www.kyoudo.jp/consult/"
+          ]
+        },
+        {
+          "channel": "google_ai_mode",
+          "repetition": 1,
+          "appeared": false,
+          "recommended": false,
+          "rank": null,
+          "reason": "地域相場の説明が不足",
+          "answer": "回答内に名称なし。",
+          "competitors": [],
+          "sources": [
+            "https://www.kyoudo.jp/consult/"
+          ]
+        }
+      ]
     },
     {
-      "intent": "複合相談",
-      "query": "中古住宅の購入とリフォームをまとめて相談できる浦安の会社",
+      "id": "nb-combined",
+      "kind": "nonbrand",
+      "intent": "購入＋リフォーム",
+      "query": "中古住宅の購入とリフォームをまとめて相談できる浦安の会社は？",
+      "discoveryEvidence": [
+        "売買と建築の両サービス",
+        "複合相談",
+        "商圏"
+      ],
+      "qa": {
+        "natural": true,
+        "neutral": true,
+        "relevant": true,
+        "distinct": true
+      },
       "appeared": true,
       "recommended": true,
-      "sampleAnswer": "不動産仲介と建築・リフォームの両方を扱うため、相談先候補として推薦する想定です。",
+      "sampleAnswer": "仲介とリフォームの両方に対応します。まとめて相談できる候補として推薦されます。",
       "evidenceUrl": "https://www.kyoudo.jp/",
       "mainCompetitor": "不動産と施工を一体提供する会社",
-      "fixtureEvidence": "不動産と建築を一社で扱う点が質問意図と直接合致",
-      "gap": "ワンストップ事例と担当体制の明文化"
+      "gap": "一括支援の事例と担当体制",
+      "channels": [
+        {
+          "channel": "chatgpt",
+          "repetition": 1,
+          "appeared": true,
+          "recommended": true,
+          "rank": 2,
+          "reason": "不動産と建築を一社で扱う",
+          "answer": "相談先の2番目として推薦。",
+          "competitors": [
+            "一体提供型の地域会社"
+          ],
+          "sources": [
+            "https://www.kyoudo.jp/"
+          ]
+        },
+        {
+          "channel": "gemini",
+          "repetition": 1,
+          "appeared": true,
+          "recommended": true,
+          "rank": null,
+          "reason": "質問とサービス範囲が一致",
+          "answer": "候補として推薦。順位付けはなし。",
+          "competitors": [],
+          "sources": [
+            "https://www.kyoudo.jp/"
+          ]
+        },
+        {
+          "channel": "google_ai_mode",
+          "repetition": 1,
+          "appeared": true,
+          "recommended": false,
+          "rank": null,
+          "reason": "サービス対応は確認",
+          "answer": "対応会社として言及。明示的な推薦はなし。",
+          "competitors": [],
+          "sources": [
+            "https://www.kyoudo.jp/"
+          ]
+        }
+      ]
     },
     {
-      "intent": "資金相談",
-      "query": "浦安で住宅ローンと物件購入を相談できる会社",
-      "appeared": false,
-      "recommended": false,
-      "sampleAnswer": "ローン相談の案内はあるものの、担当資格・相談範囲・事例が不足し、専門相談先としては推薦しにくい想定です。",
+      "id": "br-company",
+      "kind": "branded",
+      "intent": "会社理解",
+      "query": "株式会社協同住宅はどんな会社？",
+      "discoveryEvidence": [
+        "指名検索の基本タイプ",
+        "公式会社情報"
+      ],
+      "qa": {
+        "natural": true,
+        "neutral": true,
+        "relevant": true,
+        "distinct": true
+      },
+      "appeared": true,
+      "recommended": null,
+      "sampleAnswer": "浦安・市川を中心に、不動産、建築、リフォーム、資金相談を扱う会社と説明されます。",
       "evidenceUrl": "https://www.kyoudo.jp/",
-      "mainCompetitor": "FP相談を明示する地域不動産会社",
-      "fixtureEvidence": "資金相談の記載はあるが、専門性を示す詳細情報が不足",
-      "gap": "相談範囲、資格、金融機関との関係、相談事例"
+      "mainCompetitor": "対象外",
+      "gap": "代表者・免許・実績を一ページで確認できる情報",
+      "channels": [
+        {
+          "channel": "chatgpt",
+          "repetition": 1,
+          "accuracy": "概ね正確",
+          "strengths": [
+            "地域密着",
+            "不動産と建築の一括相談"
+          ],
+          "informationGaps": [
+            "実績件数"
+          ],
+          "answer": "浦安・市川で住宅相談を扱う地域企業。",
+          "sources": [
+            "https://www.kyoudo.jp/"
+          ]
+        },
+        {
+          "channel": "gemini",
+          "repetition": 1,
+          "accuracy": "概ね正確",
+          "strengths": [
+            "幅広い住宅サービス"
+          ],
+          "informationGaps": [
+            "担当者の専門性"
+          ],
+          "answer": "不動産と建築を横断する会社。",
+          "sources": [
+            "https://www.kyoudo.jp/"
+          ]
+        },
+        {
+          "channel": "google_ai_mode",
+          "repetition": 1,
+          "accuracy": "要確認",
+          "strengths": [
+            "浦安の地域企業"
+          ],
+          "informationGaps": [
+            "営業年数の基準"
+          ],
+          "answer": "地域密着の不動産・建築会社。",
+          "sources": [
+            "https://www.kyoudo.jp/",
+            "https://www.e-fudou.com/12/12227/21686/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "br-reputation",
+      "kind": "branded",
+      "intent": "評判・信頼",
+      "query": "株式会社協同住宅の評判や信頼性は？",
+      "discoveryEvidence": [
+        "指名検索の基本タイプ",
+        "第三者情報",
+        "口コミ確認"
+      ],
+      "qa": {
+        "natural": true,
+        "neutral": true,
+        "relevant": true,
+        "distinct": true
+      },
+      "appeared": true,
+      "recommended": null,
+      "sampleAnswer": "地域での掲載は確認できます。十分な顧客評価は見つからず、評判の断定は避けられます。",
+      "evidenceUrl": "https://www.shinurayasu.chiba.jp/navi/realestate/shop.html",
+      "mainCompetitor": "対象外",
+      "gap": "事実に基づく顧客の声、取引事例、第三者評価",
+      "channels": [
+        {
+          "channel": "chatgpt",
+          "repetition": 1,
+          "accuracy": "情報不足",
+          "strengths": [
+            "地域一覧への掲載"
+          ],
+          "informationGaps": [
+            "顧客評価"
+          ],
+          "answer": "公開情報だけでは評判を断定できない。",
+          "sources": [
+            "https://www.shinurayasu.chiba.jp/navi/realestate/shop.html"
+          ]
+        },
+        {
+          "channel": "gemini",
+          "repetition": 1,
+          "accuracy": "情報不足",
+          "strengths": [
+            "地域での事業者掲載"
+          ],
+          "informationGaps": [
+            "口コミの量"
+          ],
+          "answer": "地域企業として確認できるが評価材料は限定的。",
+          "sources": [
+            "https://www.shinurayasu.chiba.jp/navi/realestate/shop.html"
+          ]
+        },
+        {
+          "channel": "google_ai_mode",
+          "repetition": 1,
+          "accuracy": "情報不足",
+          "strengths": [],
+          "informationGaps": [
+            "独立した顧客評価"
+          ],
+          "answer": "十分な評判情報を確認できない。",
+          "sources": [
+            "https://hot2.jp/urayasu/shop_view.php?cid=24"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "br-strength",
+      "kind": "branded",
+      "intent": "強み・注意点",
+      "query": "株式会社協同住宅の強みと、相談前の注意点は？",
+      "discoveryEvidence": [
+        "指名検索の基本タイプ",
+        "サービス横断",
+        "情報不足の確認"
+      ],
+      "qa": {
+        "natural": true,
+        "neutral": true,
+        "relevant": true,
+        "distinct": true
+      },
+      "appeared": true,
+      "recommended": null,
+      "sampleAnswer": "一社で幅広く相談できる点が強みです。実績や費用は相談前に確認が必要です。",
+      "evidenceUrl": "https://www.kyoudo.jp/",
+      "mainCompetitor": "対象外",
+      "gap": "実績、費用、保証、担当体制",
+      "channels": [
+        {
+          "channel": "chatgpt",
+          "repetition": 1,
+          "accuracy": "概ね正確",
+          "strengths": [
+            "一括相談"
+          ],
+          "informationGaps": [
+            "実績",
+            "費用"
+          ],
+          "answer": "幅広い相談対応が強み。実績確認が必要。",
+          "sources": [
+            "https://www.kyoudo.jp/"
+          ]
+        },
+        {
+          "channel": "gemini",
+          "repetition": 1,
+          "accuracy": "概ね正確",
+          "strengths": [
+            "地域性",
+            "サービスの幅"
+          ],
+          "informationGaps": [
+            "保証"
+          ],
+          "answer": "地域性と対応範囲が強み。保証情報は要確認。",
+          "sources": [
+            "https://www.kyoudo.jp/"
+          ]
+        },
+        {
+          "channel": "google_ai_mode",
+          "repetition": 1,
+          "accuracy": "要確認",
+          "strengths": [
+            "地域密着"
+          ],
+          "informationGaps": [
+            "営業年数",
+            "担当体制"
+          ],
+          "answer": "地域密着を説明。年数表現は確認が必要。",
+          "sources": [
+            "https://www.kyoudo.jp/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "br-decision",
+      "kind": "branded",
+      "intent": "利用判断",
+      "query": "株式会社協同住宅に中古住宅の購入とリフォームを相談して大丈夫？",
+      "discoveryEvidence": [
+        "指名検索の基本タイプ",
+        "主要サービス",
+        "利用判断"
+      ],
+      "qa": {
+        "natural": true,
+        "neutral": true,
+        "relevant": true,
+        "distinct": true
+      },
+      "appeared": true,
+      "recommended": null,
+      "sampleAnswer": "両方に対応するため相談先の候補です。契約前に実績、費用、保証、担当範囲の確認が必要です。",
+      "evidenceUrl": "https://www.kyoudo.jp/",
+      "mainCompetitor": "対象外",
+      "gap": "一括支援の事例、費用、保証、担当範囲",
+      "channels": [
+        {
+          "channel": "chatgpt",
+          "repetition": 1,
+          "accuracy": "概ね正確",
+          "strengths": [
+            "購入と工事の一括相談"
+          ],
+          "informationGaps": [
+            "事例",
+            "費用"
+          ],
+          "answer": "候補になり得る。契約条件は個別確認が必要。",
+          "sources": [
+            "https://www.kyoudo.jp/"
+          ]
+        },
+        {
+          "channel": "gemini",
+          "repetition": 1,
+          "accuracy": "概ね正確",
+          "strengths": [
+            "相談窓口の一元化"
+          ],
+          "informationGaps": [
+            "保証",
+            "担当範囲"
+          ],
+          "answer": "相談可能。保証と担当範囲を確認すべき。",
+          "sources": [
+            "https://www.kyoudo.jp/"
+          ]
+        },
+        {
+          "channel": "google_ai_mode",
+          "repetition": 1,
+          "accuracy": "概ね正確",
+          "strengths": [
+            "不動産と建築への対応"
+          ],
+          "informationGaps": [
+            "具体事例"
+          ],
+          "answer": "対応範囲は一致。事例の確認が必要。",
+          "sources": [
+            "https://www.kyoudo.jp/"
+          ]
+        }
+      ]
     }
   ],
   "competitors": [
@@ -190,32 +817,32 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
   "comparison": [
     {
       "name": "株式会社協同住宅",
-      "mentions": "4 / 8",
-      "recommendations": "2 / 8",
+      "mentions": "7 / 18",
+      "recommendations": "2 / 18",
       "evidenceUrls": 5,
-      "winningIntent": "指名・購入＋リフォーム",
+      "winningIntent": "購入＋リフォーム",
       "confirmedDifference": "不動産と建築を横断する公式情報"
     },
     {
       "name": "株式会社富士屋商事／U-BIG24",
-      "mentions": "5 / 8",
-      "recommendations": "3 / 8",
+      "mentions": "仮データ内で確認",
+      "recommendations": "仮データ内で確認",
       "evidenceUrls": 3,
       "winningIntent": "浦安駅・賃貸",
       "confirmedDifference": "第三者ページが浦安での営業実績と物件紹介量を具体的に説明"
     },
     {
       "name": "株式会社明和地所",
-      "mentions": "5 / 8",
-      "recommendations": "3 / 8",
+      "mentions": "仮データ内で確認",
+      "recommendations": "仮データ内で確認",
       "evidenceUrls": 3,
       "winningIntent": "地域×売買・店舗発見",
       "confirmedDifference": "複数の地域一覧で店舗単位の掲載を確認"
     },
     {
       "name": "株式会社グランデ浦安",
-      "mentions": "3 / 8",
-      "recommendations": "2 / 8",
+      "mentions": "仮データ内で確認",
+      "recommendations": "仮データ内で確認",
       "evidenceUrls": 2,
       "winningIntent": "浦安駅・賃貸",
       "confirmedDifference": "駅周辺の比較ページで事業者情報が確認される"
@@ -309,7 +936,7 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
       "change": "創立日と浦安での営業開始日を、社内資料で確認します。その後、『32年』などの表現を固定年月に統一します。会社概要には住所・電話・免許情報もまとめます。",
       "reason": "免許取得日と創立日を混同しないためです。誤情報の原因を早期になくします。",
       "expectedChange": "会社情報について、AIの回答が一致しやすくなります。",
-      "verification": "会社名を含む質問を3回実行します。基準年月・所在地・電話の一致を確認します。"
+      "verification": "指名4問を3つのAIで各1回測定します。基準年月・所在地・電話の一致を確認します。"
     },
     {
       "priority": 2,
@@ -318,8 +945,8 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
       "target": "新規：ワンストップ事例ページ3件",
       "change": "事例を3件公開します。対象は『購入＋リフォーム』『住み替え＋売却』『土地＋注文住宅』です。各事例に課題、提案、結果、地域、担当範囲を記載します。",
       "reason": "不動産と建築を一社で扱える強みを、選ぶ根拠に変えます。",
-      "expectedChange": "複合相談の質問で、推薦される回数の増加を目指します。",
-      "verification": "複合相談の2質問を各3回実行します。表示と推薦の変化を比べます。"
+      "expectedChange": "複合相談の質問で、推薦されるAIの増加を目指します。",
+      "verification": "同じ複合相談の質問を3つのAIで各1回測定します。表示と推薦の変化を比べます。"
     },
     {
       "priority": 3,
@@ -336,39 +963,39 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
       "horizon": "60日",
       "type": "LOCAL AUTHORITY",
       "target": "浦安地域ガイド",
-      "change": "地域ごとの住環境、住宅種別、災害情報の読み方、購入・賃貸時の注意点を担当者監修で公開",
-      "reason": "地域密着を宣言ではなく固有知識で証明する",
-      "expectedChange": "浦安×悩み質問での言及・引用増加",
-      "verification": "地域別3質問×3回で競合との出現差を比較"
+      "change": "地域ごとの住環境、住宅種別、災害情報の読み方を公開します。購入・賃貸時の注意点も担当者監修で説明します。",
+      "reason": "地域密着という表現を、具体的な地域知識で裏付けます。",
+      "expectedChange": "浦安の具体的な相談で、社名や公式情報が使われる可能性を高めます。",
+      "verification": "地域に関する非指名質問を3つのAIで各1回測定します。競合との出現差を比べます。"
     },
     {
       "priority": 5,
       "horizon": "90日",
       "type": "THIRD-PARTY",
-      "target": "地域ディレクトリ・顧客レビュー・業界団体プロフィール",
-      "change": "NAPと事業説明を統一し、実顧客へ事実に基づくレビュー投稿を依頼。比較サイトには最新の強みと対応領域を提供",
-      "reason": "公式サイト外に独立した推薦根拠を増やす",
-      "expectedChange": "第三者情報源の種類と推薦根拠の増加",
-      "verification": "引用ドメイン数、第三者引用率、情報不一致件数を比較"
+      "target": "地域の企業一覧・顧客レビュー・業界団体プロフィール",
+      "change": "会社名・住所・電話番号と事業説明を統一します。実顧客には、事実に基づくレビュー投稿を依頼します。比較サイトには最新の対応領域を提供します。",
+      "reason": "公式サイト以外にも、独立した確認材料を増やします。",
+      "expectedChange": "第三者情報の種類と、AIが参考にできる根拠の増加を目指します。",
+      "verification": "参考にされたWebサイト数、第三者サイトの利用状況、情報の食い違いを比べます。"
     }
   ],
   "baseline": {
     "id": "kyoudo-fixture-2026-08-24-v1",
     "metrics": [
       {
-        "name": "回答に社名が出た",
-        "value": "4 / 8",
-        "definition": "仮データの8質問のうち、社名が出た質問数"
+        "name": "非指名で社名が出た",
+        "value": "7 / 18",
+        "definition": "非指名6問を3つのAIで測定した18結果のうち、社名が出た結果数"
       },
       {
-        "name": "相談先として推薦された",
-        "value": "2 / 8",
-        "definition": "仮データの8質問のうち、選択肢として推薦された質問数"
+        "name": "非指名で推薦された",
+        "value": "2 / 18",
+        "definition": "非指名18結果のうち、相談先として推薦された結果数"
       },
       {
-        "name": "会社名なしで社名が出た",
-        "value": "3 / 7",
-        "definition": "会社名を含まない7質問のうち、社名が出た質問数"
+        "name": "指名質問の説明",
+        "value": "12 / 12",
+        "definition": "指名4問を3つのAIで確認した回答数。正確性は回答ごとに別記"
       },
       {
         "name": "確認した情報源",
@@ -381,21 +1008,21 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
         "definition": "営業年数の基準を社内資料で確認する必要がある項目"
       }
     ],
-    "remeasurement": "本番では、同じ8質問を各3回測定します。AIモデル、日本語、浦安市の利用者という条件を固定します。回答全文、参考URL、成否、モデル版を保存します。30〜60日後に再測定し、表示、推薦、事実の一致、競合差を比べます。施策だけが変化の原因だとは断定しません。",
+    "remeasurement": "本番では、同じ10質問をChatGPT、Gemini、Google AI Modeで各1回測定します。質問文、日本語、浦安市の利用者という条件を固定します。回答全文、参考URL、成否、モデル版を保存します。30〜60日後に同じ30測定を行い、表示、推薦、事実の一致、競合差を比べます。施策だけが変化の原因だとは断定しません。",
     "fixedConditions": [
-      "質問文8件を固定",
-      "各質問3反復",
+      "非指名6問・指名4問を固定",
+      "1質問×1AI×1回",
+      "ChatGPT・Gemini・Google AI Mode",
       "日本語・浦安市で住宅サービスを探す利用者",
       "モデル名・版・測定日時を保存",
-      "回答全文と引用URLを保存",
-      "失敗回答も分母に含め別記"
+      "回答全文と参考URLを保存"
     ],
     "targets": [
-      "建築質問：出現0/3 → 2/3",
-      "リフォーム質問：出現0/3 → 2/3",
-      "非指名推薦：現状想定1/7 → 3/7",
-      "重大な情報不一致：1件 → 0件",
-      "第三者根拠ドメイン：5 → 8"
+      "注文住宅：3AI中0 → 1以上で出現",
+      "リフォーム：3AI中0 → 1以上で出現",
+      "非指名推薦：6問中1 → 2以上",
+      "営業年数の確認項目：1件 → 0件",
+      "第三者の根拠サイト：5 → 8"
     ]
   }
 };

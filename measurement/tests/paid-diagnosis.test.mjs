@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assertPaidOrder, PRICE_JPY, verifyStripeSignature } from '../../worker/paid-diagnosis.mjs';
+import { assertPaidOrder, PRICE_JPY, runPaidDiagnosis, verifyStripeSignature } from '../../worker/paid-diagnosis.mjs';
 
 test('AI diagnosis is locked unless server-side payment state is paid', () => {
   assert.throws(() => assertPaidOrder(null));
@@ -8,6 +8,13 @@ test('AI diagnosis is locked unless server-side payment state is paid', () => {
   assert.throws(() => assertPaidOrder({ payment_status: 'paid', diagnosis_status: 'complete' }), /開始/);
   assert.doesNotThrow(() => assertPaidOrder({ payment_status: 'paid', diagnosis_status: 'queued' }));
   assert.equal(PRICE_JPY, 4980);
+});
+
+test('legacy one-shot AI execution stays fail-closed before v1 production connection', async () => {
+  await assert.rejects(
+    runPaidDiagnosis({}, { id: 'test', payment_status: 'paid', diagnosis_status: 'queued' }),
+    /3チャネル測定は本番接続前/,
+  );
 });
 
 test('Stripe signature requires valid HMAC and rejects stale events', async () => {

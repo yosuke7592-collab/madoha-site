@@ -71,22 +71,8 @@ export async function verifyCheckoutAccess(env, orderId, sessionId) {
 
 export async function runPaidDiagnosis(env, order) {
   assertPaidOrder(order);
-  if (!env.OPENAI_API_KEY) throw new Error('診断エンジンが設定されていません。');
-  const claimed = await env.DB.prepare("UPDATE diagnosis_orders SET diagnosis_status='running',attempt_count=attempt_count+1,started_at=datetime('now'),updated_at=datetime('now') WHERE id=? AND payment_status='paid' AND diagnosis_status IN ('queued','failed') AND attempt_count < 2").bind(order.id).run();
-  if (Number(claimed.meta?.changes || 0) !== 1) throw new Error('診断ジョブは処理済みです。');
-  const response = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST', headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ model: env.OPENAI_DIAGNOSIS_MODEL || 'gpt-5-mini', store: false, tools: [{ type: 'web_search' }],
-      input: `あなたはAI検索観測アナリストです。対象サイト ${order.target_url} について、公開情報と検索結果だけを根拠に調査してください。推測を事実として断定しないでください。日本語で、(1)企業・サービスの認識、(2)想定顧客質問6件、(3)質問ごとの露出・推薦傾向、(4)競合候補、(5)参照された情報源、(6)情報の不一致、(7)優先改善項目5件、(8)調査上の限界を、見出し付きMarkdownで報告してください。` })
-  });
-  const payload = await response.json();
-  if (!response.ok) {
-    await env.DB.prepare("UPDATE diagnosis_orders SET diagnosis_status='failed',error_message=?,updated_at=datetime('now') WHERE id=?").bind(payload?.error?.message || 'AI診断に失敗しました。', order.id).run();
-    throw new Error('AI診断に失敗しました。再実行できます。');
-  }
-  const report = payload.output_text || payload.output?.flatMap(item => item.content || []).find(item => item.type === 'output_text')?.text;
-  if (!report) throw new Error('診断結果を生成できませんでした。');
-  await env.DB.prepare("UPDATE diagnosis_orders SET diagnosis_status='complete',report_markdown=?,provider_response_id=?,completed_at=datetime('now'),updated_at=datetime('now') WHERE id=?")
-    .bind(report, payload.id || null, order.id).run();
-  return { id: order.id, status: 'complete', report };
+  // Paid Diagnosis v1 requires 10 questions x 3 channels x one observation.
+  // The previous one-shot OpenAI report did not satisfy the formal product specification,
+  // so live execution stays fail-closed until all three paid providers are connected.
+  throw new Error('正式仕様v1の3チャネル測定は本番接続前です。診断は開始されていません。');
 }
