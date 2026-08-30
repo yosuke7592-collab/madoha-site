@@ -30,15 +30,25 @@ test('Kyoudo paid sample is explicit fixture and covers purchase-value sections'
   assert.ok(sample.baseline.id && sample.baseline.metrics.length >= 5 && sample.baseline.remeasurement && sample.baseline.fixedConditions.length >= 5 && sample.baseline.targets.length >= 5);
 });
 
-test('report uses six non-duplicative sections and AI cross-comparison', () => {
-  for (let section = 1; section <= 6; section += 1) assert.match(reportSource, new RegExp(`SECTION ${section}`));
-  assert.equal((reportSource.match(/SECTION \d/g) || []).length, 6);
-  assert.match(reportSource, /AI検索での見え方/);
-  assert.match(reportSource, /会社名で調べたときの見え方/);
+test('report starts with ten search results and keeps evaluation labels out of customer UI', () => {
+  assert.doesNotMatch(reportSource, /診断サマリー/);
+  assert.doesNotMatch(reportSource, /総合評価/);
+  assert.doesNotMatch(reportSource, /最大の機会損失/);
+  assert.doesNotMatch(reportSource, /class="tag/);
+  assert.match(reportSource, /非指名検索 6問/);
+  assert.match(reportSource, /指名検索 4問/);
+  assert.match(reportSource, /query-block/);
+  assert.match(reportSource, /掲載あり/);
+  assert.match(reportSource, /掲載なし/);
+  assert.match(reportSource, /番目に掲載/);
+  assert.match(reportSource, /AIによる推薦順位/);
+  assert.match(reportSource, /実際のAI回答/);
+  assert.match(reportSource, /掲載された企業/);
+  assert.match(reportSource, /参照された情報/);
+  assert.match(reportSource, /MADOHAの見解/);
   assert.match(reportSource, /ChatGPT/);
   assert.match(reportSource, /Gemini/);
   assert.match(reportSource, /Google AI Mode/);
-  assert.match(reportSource, /公開情報で確認できた事実/);
   assert.match(reportSource, /改善する場合の選択肢/);
   assert.match(reportSource, /特定の表示・推薦結果を保証するものではありません/);
   assert.ok(pdf.length > 10_000);
