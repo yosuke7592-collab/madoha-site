@@ -124,7 +124,8 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "repetition": 1,
           "appeared": true,
           "recommended": false,
-          "rank": null,
+          "listedPosition": 2,
+          "aiRank": null,
           "reason": "地域の企業一覧で存在を確認",
           "answer": "浦安で住宅購入を相談するなら、地域で売買仲介を扱う会社を複数比較するとよいでしょう。候補として、明和地所、株式会社協同住宅、富士屋商事があります。株式会社協同住宅は浦安・市川で不動産売買と住宅相談を扱っています。各社の取扱物件、購入支援の実績、担当者との相性を確認してください。",
           "competitors": [
@@ -140,7 +141,8 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "repetition": 1,
           "appeared": true,
           "recommended": false,
-          "rank": null,
+          "listedPosition": 2,
+          "aiRank": null,
           "reason": "公式サイトで売買対応を確認",
           "answer": "浦安市内には住宅購入を相談できる不動産会社が複数あります。明和地所は地域の物件情報を扱う会社として確認できます。株式会社協同住宅も売買、ローン、建築を含む住宅相談に対応しています。購入条件や希望地域を伝え、紹介可能な物件と費用を比較することをおすすめします。",
           "competitors": [
@@ -197,7 +199,8 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "repetition": 1,
           "appeared": true,
           "recommended": false,
-          "rank": null,
+          "listedPosition": 2,
+          "aiRank": null,
           "reason": "地域比較ページに掲載",
           "answer": "浦安駅周辺で賃貸物件を探す場合、富士屋商事、株式会社協同住宅などが相談先の候補です。株式会社協同住宅は浦安・市川を中心に賃貸と売買の相談を受け付けています。駅からの距離、取扱物件数、初期費用、営業時間を各社へ確認して選んでください。",
           "competitors": [
@@ -228,7 +231,8 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "repetition": 1,
           "appeared": true,
           "recommended": false,
-          "rank": null,
+          "listedPosition": 2,
+          "aiRank": null,
           "reason": "地域ページで事業者情報を確認",
           "answer": "浦安駅周辺の賃貸会社として、グランデ浦安と株式会社協同住宅が候補に挙げられます。株式会社協同住宅は地域の住宅相談を幅広く扱う会社です。賃貸物件の掲載数や対応エリアは時期により変わるため、最新情報を各社へ確認してください。",
           "competitors": [
@@ -275,9 +279,7 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
             "ポラスグループ",
             "スターツホーム"
           ],
-          "sources": [
-            "https://www.kyoudo.jp/const/"
-          ]
+          "sources": []
         },
         {
           "channel": "gemini",
@@ -292,9 +294,7 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
             "ミサワホーム",
             "ポラスグループ"
           ],
-          "sources": [
-            "https://www.kyoudo.jp/const/"
-          ]
+          "sources": []
         },
         {
           "channel": "google_ai_mode",
@@ -308,9 +308,7 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
             "ポラスグループ",
             "ミサワホーム"
           ],
-          "sources": [
-            "https://www.kyoudo.jp/const/"
-          ],
+          "sources": [],
           "comment": "3つの回答すべてで協同住宅は掲載されませんでした。回答内では、比較できる施工事例や住宅性能の情報が中心に扱われています。"
         }
       ]
@@ -350,9 +348,7 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
             "スターツホーム",
             "ポラスのリフォーム"
           ],
-          "sources": [
-            "https://www.kyoudo.jp/const/"
-          ]
+          "sources": []
         },
         {
           "channel": "gemini",
@@ -366,9 +362,7 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
             "スターツホーム",
             "ポラスのリフォーム"
           ],
-          "sources": [
-            "https://www.kyoudo.jp/const/"
-          ]
+          "sources": []
         },
         {
           "channel": "google_ai_mode",
@@ -382,9 +376,7 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
             "ポラスのリフォーム",
             "スターツホーム"
           ],
-          "sources": [
-            "https://www.kyoudo.jp/const/"
-          ]
+          "sources": []
         }
       ]
     },
@@ -424,7 +416,7 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
             "富士屋商事"
           ],
           "sources": [
-            "https://www.kyoudo.jp/consult/"
+            "https://www.shinurayasu.chiba.jp/navi/realestate/shop.html"
           ]
         },
         {
@@ -440,7 +432,7 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
             "富士屋商事"
           ],
           "sources": [
-            "https://www.kyoudo.jp/consult/"
+            "https://www.shinurayasu.chiba.jp/navi/realestate/shop.html"
           ]
         },
         {
@@ -456,7 +448,7 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
             "富士屋商事"
           ],
           "sources": [
-            "https://www.kyoudo.jp/consult/"
+            "https://www.shinurayasu.chiba.jp/navi/realestate/shop.html"
           ]
         }
       ]
@@ -489,7 +481,8 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "repetition": 1,
           "appeared": true,
           "recommended": true,
-          "rank": 2,
+          "listedPosition": 2,
+          "aiRank": 2,
           "reason": "不動産と建築を一社で扱う",
           "answer": "中古住宅の購入とリフォームをまとめて相談する場合、不動産仲介と工事の両方に対応する会社が便利です。候補はポラスグループ、株式会社協同住宅の順です。株式会社協同住宅は浦安・市川で不動産売買とリフォームを扱っており、物件探しと工事相談を同じ窓口で進められます。対応範囲と費用は個別に確認してください。",
           "competitors": [
@@ -504,7 +497,8 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "repetition": 1,
           "appeared": true,
           "recommended": true,
-          "rank": null,
+          "listedPosition": 1,
+          "aiRank": null,
           "reason": "質問とサービス範囲が一致",
           "answer": "浦安で中古住宅の購入とリフォームを一緒に相談できる会社として、株式会社協同住宅が候補です。株式会社協同住宅は不動産売買、建築、リフォームを案内しています。購入前に建物の状態を確認し、工事費を含めた資金計画を相談できるか問い合わせるとよいでしょう。",
           "competitors": [],
@@ -517,7 +511,8 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "repetition": 1,
           "appeared": true,
           "recommended": false,
-          "rank": null,
+          "listedPosition": 1,
+          "aiRank": null,
           "reason": "サービス対応は確認",
           "answer": "株式会社協同住宅は浦安・市川で不動産と建築関連の相談に対応しています。中古住宅の購入とリフォームの両方を扱うため、相談先の候補になります。Web上では一括支援の具体的な事例や費用が十分に確認できないため、実際の担当範囲と見積り方法は問い合わせが必要です。",
           "competitors": [],

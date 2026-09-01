@@ -35,14 +35,14 @@ test('report starts with ten search results and keeps evaluation labels out of c
   assert.doesNotMatch(reportSource, /総合評価/);
   assert.doesNotMatch(reportSource, /最大の機会損失/);
   assert.doesNotMatch(reportSource, /class="tag/);
-  assert.match(reportSource, /非指名検索 6問/);
-  assert.match(reportSource, /指名検索 4問/);
+  assert.match(reportSource, /会社名を入れない検索/);
+  assert.match(reportSource, /会社名を入れた検索/);
   assert.match(reportSource, /query-block/);
-  assert.match(reportSource, /掲載あり/);
-  assert.match(reportSource, /掲載なし/);
+  assert.match(reportSource, /\['掲載',row\.appeared\?'あり':'なし'/);
+  assert.match(reportSource, /'掲載なし'/);
   assert.match(reportSource, /番目に掲載/);
-  assert.match(reportSource, /AIによる推薦順位/);
-  assert.match(reportSource, /実際のAI回答/);
+  assert.match(reportSource, /AIの順位付け/);
+  assert.match(reportSource, /AI RESPONSE/);
   assert.match(reportSource, /掲載された企業/);
   assert.match(reportSource, /参照された情報/);
   assert.match(reportSource, /MADOHAの見解/);
@@ -63,7 +63,24 @@ test('final sample shows substantial answers and keeps analysis secondary', () =
   assert.match(reportSource, /data\.actions\.slice\(0,3\)/);
   assert.match(reportSource, /sourceRole/);
   assert.match(reportSource, /host\(source\.url\)/);
-  assert.match(reportSource, /sentence\.includes\(data\.subject\.name\)/);
+  assert.match(reportSource, /subject-highlight/);
+});
+
+test('listing positions, recommendation ranks and source catalog stay consistent', () => {
+  const nonbrandRows = sample.queries.filter(query => query.kind === 'nonbrand').flatMap(query => query.channels.map(row => ({ query, row })));
+  const appeared = nonbrandRows.filter(({ row }) => row.appeared);
+  assert.equal(appeared.length, 7);
+  for (const { row } of appeared) {
+    assert.ok(Number.isInteger(row.listedPosition));
+    assert.ok(row.listedPosition >= 1 && row.listedPosition <= row.competitors.length + 1);
+  }
+  const ranked = nonbrandRows.filter(({ row }) => Number.isInteger(row.aiRank));
+  assert.equal(ranked.length, 1);
+  assert.ok(ranked.every(({ row }) => row.recommended));
+  const knownHosts = new Set(sample.sources.map(source => new URL(source.url).hostname.replace(/^www\./, '')));
+  for (const { row } of nonbrandRows) {
+    assert.ok(row.sources.every(url => knownHosts.has(new URL(url).hostname.replace(/^www\./, ''))));
+  }
 });
 
 test('direct-file sample embeds the same data without fetch', () => {
