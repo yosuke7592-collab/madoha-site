@@ -6,7 +6,8 @@ const siteNames={
 };
 const host=url=>{try{return new URL(url).hostname.replace(/^www\./,'')}catch{return String(url)}};
 const sourceName=url=>siteNames[host(url)]||host(url);
-const sourceLinks=urls=>`<ul class="reference-list">${[...new Set(urls||[])].map(url=>`<li><a href="${e(url)}" target="_blank" rel="noopener"><b>${e(sourceName(url))}</b><small>${e(url)}</small></a></li>`).join('')||'<li>取得できた参照情報はありません。</li>'}</ul>`;
+const sourceRole=(data,url)=>data.sources.find(item=>host(item.url)===host(url))?.role||'AI回答が参照したWeb情報';
+const sourceLinks=(data,urls)=>`<ul class="reference-list">${[...new Set(urls||[])].map(url=>`<li><a href="${e(url)}" target="_blank" rel="noopener"><b>${e(sourceName(url))}</b><span>${e(sourceRole(data,url))}</span><small>${e(host(url))}</small></a></li>`).join('')||'<li>取得できた参照情報はありません。</li>'}</ul>`;
 
 function displayedCompanies(data,row){
   const competitors=[...(row.competitors||[])];
@@ -25,23 +26,16 @@ function companyList(data,row){
   return `<ol class="company-order">${list.map(name=>`<li class="${name===data.subject.name?'target-company':''}"><span>${e(name)}</span>${name===data.subject.name?'<b>診断対象</b>':''}</li>`).join('')}</ol>`;
 }
 function actualAnswer(data,row){
-  const list=displayedCompanies(data,row);
-  const names=list.length?`掲載企業は、${list.join('、')}です。`:'';
-  const target=row.appeared?`<mark>${e(data.subject.name)}について、${e(row.answer)}</mark>`:e(row.answer);
-  return `<p>${e(names)}</p><p>${target}</p>`;
+  const sentences=String(row.answer||'').match(/[^。]+。?/g)||[];
+  return sentences.map(sentence=>sentence.includes(data.subject.name)?`<mark>${e(sentence)}</mark>`:`<p>${e(sentence)}</p>`).join('');
 }
-function madohaView(data,query,row){
-  if(query.kind==='branded')return `今回の回答では「${e(row.accuracy)}」と判定できる説明でした。${row.informationGaps?.length?`確認できない情報は「${e(row.informationGaps.join('、'))}」です。`:''}`;
-  const label=listingLabel(data,row);
-  const refs=(row.sources||[]).map(sourceName);
-  return `今回の回答では、協同住宅は${label}でした。${refs.length?`参照情報として${e(refs.join('、'))}が確認されました。`:''}`;
-}
+const madohaView=row=>row.comment?`<div class="madoha-view"><h5>MADOHAの見解</h5><p>${e(row.comment)}</p></div>`:'';
 function nonbrandResult(data,query,row){
   const list=displayedCompanies(data,row),position=listedPosition(data,row);
-  return `<section class="ai-result"><header><h4>${e(channelNames[row.channel])}</h4><div class="status-line"><strong class="${row.appeared?'shown':'not-shown'}">${row.appeared?'掲載あり':'掲載なし'}</strong><span>${position?`${list.length}社中${position}番目に掲載`:`今回掲載された企業 ${list.length}社`}</span><span>${row.recommended?'推薦あり':'推薦なし'}</span><span>AIによる推薦順位：${aiRankLabel(row)}</span></div></header><div class="answer-panel"><h5>実際のAI回答</h5>${actualAnswer(data,row)}</div><div class="result-columns"><div><h5>掲載された企業</h5>${companyList(data,row)}</div><div><h5>参照された情報</h5>${sourceLinks(row.sources)}</div></div><div class="madoha-view"><h5>MADOHAの見解</h5><p>${madohaView(data,query,row)}</p></div></section>`;
+  return `<section class="ai-result"><header><h4>${e(channelNames[row.channel])}</h4><div class="status-line"><strong class="${row.appeared?'shown':'not-shown'}">${row.appeared?'掲載あり':'掲載なし'}</strong><span>${position?`${list.length}社中${position}番目に掲載`:`今回掲載された企業 ${list.length}社`}</span><span>${row.recommended?'推薦あり':'推薦なし'}</span><span>AIによる推薦順位：${aiRankLabel(row)}</span></div></header><div class="answer-panel"><h5>実際のAI回答</h5>${actualAnswer(data,row)}</div><div class="result-columns"><div><h5>掲載された企業</h5>${companyList(data,row)}</div><div><h5>参照された情報</h5>${sourceLinks(data,row.sources)}</div></div>${madohaView(row)}</section>`;
 }
 function brandedResult(data,query,row){
-  return `<section class="ai-result"><header><h4>${e(channelNames[row.channel])}</h4><div class="status-line"><strong>${e(row.accuracy)}</strong><span>情報不足：${e((row.informationGaps||[]).join('、')||'確認なし')}</span></div></header><div class="answer-panel"><h5>実際のAI回答</h5><p><mark>${e(row.answer)}</mark></p></div><div class="result-columns"><div><h5>強みとして書かれたこと</h5><ul>${(row.strengths||[]).map(item=>`<li>${e(item)}</li>`).join('')||'<li>明確な記載なし</li>'}</ul></div><div><h5>参照された情報</h5>${sourceLinks(row.sources)}</div></div><div class="madoha-view"><h5>MADOHAの見解</h5><p>${madohaView(data,query,row)}</p></div></section>`;
+  return `<section class="ai-result"><header><h4>${e(channelNames[row.channel])}</h4></header><div class="answer-panel"><h5>実際のAI回答</h5>${actualAnswer(data,row)}</div><div class="result-columns branded-columns"><div><h5>強みとして書かれたこと</h5><ul>${(row.strengths||[]).map(item=>`<li>${e(item)}</li>`).join('')||'<li>明確な記載なし</li>'}</ul><h5 class="gap-label">確認できなかった情報</h5><ul>${(row.informationGaps||[]).map(item=>`<li>${e(item)}</li>`).join('')||'<li>特になし</li>'}</ul></div><div><h5>参照された情報</h5>${sourceLinks(data,row.sources)}</div></div>${madohaView(row)}</section>`;
 }
 function resultSummary(data,query,row){
   if(query.kind==='branded')return `<span><b>${e(channelNames[row.channel])}</b>${e(row.accuracy)}</span>`;
@@ -61,8 +55,8 @@ function render(data){
     <section class="query-list">${nonbrand.map((query,index)=>queryBlock(data,query,index)).join('')}</section>
     <header class="report-intro branded-intro"><p>次に、会社名を含む4つの検索結果を確認します。</p><h2>指名検索 4問</h2><p>会社の説明、評判、強みと注意点、利用判断について、3つのAIの回答を比較しました。</p></header>
     <section class="query-list">${branded.map((query,index)=>queryBlock(data,query,index+6)).join('')}</section>
-    <section class="closing-section"><header><p>検索結果を確認した後の参考情報</p><h2>改善する場合の選択肢</h2></header><p>以下は、今回の検索結果と参照情報から考えられる候補です。特定の表示・推薦結果を保証するものではありません。</p><ul class="option-list">${data.actions.slice(0,5).map(action=>`<li><h3>${e(action.target)}</h3><p>${e(action.change)}</p></li>`).join('')}</ul></section>
-    <section class="closing-section sources-section"><header><p>検索結果で使用した主なWeb情報</p><h2>参照情報</h2></header><div class="source-lines">${data.sources.map(source=>`<p><b>${e(source.name)}</b><span>${e(source.role)}</span><a href="${e(source.url)}" target="_blank" rel="noopener">${e(source.url)}</a></p>`).join('')}</div></section>
+    <section class="closing-section"><header><p>検索結果を確認した後の参考情報</p><h2>改善する場合の選択肢</h2></header><p>以下は、今回の検索結果と参照情報から考えられる候補です。特定の表示・推薦結果を保証するものではありません。</p><ol class="option-list">${data.actions.slice(0,3).map(action=>`<li><h3>${e(action.target)}</h3><p>${e(action.change)}</p></li>`).join('')}</ol></section>
+    <section class="closing-section sources-section"><header><p>検索結果で使用した主なWeb情報</p><h2>参照情報</h2></header><div class="source-lines">${data.sources.map(source=>`<p><b>${e(source.name)}</b><span>${e(source.role)}</span><a href="${e(source.url)}" target="_blank" rel="noopener">${e(host(source.url))}</a></p>`).join('')}</div></section>
     <section class="measurement-note"><h2>測定条件・注意書き</h2><p>非指名6問と指名4問を、ChatGPT、Gemini、Google AI Modeで各1回検索しました。合計30件の検索結果です。</p><p>本診断は測定時点におけるAI検索の回答を観測したものです。AIの回答は変動するため、同じ質問でも結果が異なる場合があります。また、改善施策による特定の表示・推薦結果を保証するものではありません。</p><p class="sample-caution"><b>商品確認用サンプル：</b>この画面の30件は表示確認用の仮データです。株式会社協同住宅の実測値ではありません。</p></section>
   </main><footer class="end"><b>MADOHA</b><p>検索結果 + 参照情報 + 必要最小限の見解</p><a href="index.html">無料チェックへ戻る</a></footer>`;
 }

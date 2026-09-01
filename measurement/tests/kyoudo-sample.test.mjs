@@ -54,6 +54,18 @@ test('report starts with ten search results and keeps evaluation labels out of c
   assert.ok(pdf.length > 10_000);
 });
 
+test('final sample shows substantial answers and keeps analysis secondary', () => {
+  const rows = sample.queries.flatMap(query => query.channels);
+  assert.equal(rows.length, 30);
+  assert.ok(rows.every(row => row.answer.length >= 75));
+  assert.ok(rows.filter(row => row.comment).length <= 4);
+  assert.ok(!JSON.stringify(sample.queries).match(/地域工務店|住宅メーカー|施工事例を公開する地域会社|売却実績を公開する地域会社/));
+  assert.match(reportSource, /data\.actions\.slice\(0,3\)/);
+  assert.match(reportSource, /sourceRole/);
+  assert.match(reportSource, /host\(source\.url\)/);
+  assert.match(reportSource, /sentence\.includes\(data\.subject\.name\)/);
+});
+
 test('direct-file sample embeds the same data without fetch', () => {
   const embedded = JSON.parse(directFileSource.replace(/^globalThis\.MADOHA_KYOUDO_SAMPLE\s*=\s*/, '').replace(/;\s*$/, ''));
   assert.deepEqual(embedded, sample);

@@ -126,7 +126,7 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "recommended": false,
           "rank": null,
           "reason": "地域の企業一覧で存在を確認",
-          "answer": "候補の一社として言及。購入実績の比較材料は不足。",
+          "answer": "浦安で住宅購入を相談するなら、地域で売買仲介を扱う会社を複数比較するとよいでしょう。候補として、明和地所、株式会社協同住宅、富士屋商事があります。株式会社協同住宅は浦安・市川で不動産売買と住宅相談を扱っています。各社の取扱物件、購入支援の実績、担当者との相性を確認してください。",
           "competitors": [
             "明和地所",
             "富士屋商事"
@@ -142,7 +142,7 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "recommended": false,
           "rank": null,
           "reason": "公式サイトで売買対応を確認",
-          "answer": "相談可能な会社として説明。優先順位は提示なし。",
+          "answer": "浦安市内には住宅購入を相談できる不動産会社が複数あります。明和地所は地域の物件情報を扱う会社として確認できます。株式会社協同住宅も売買、ローン、建築を含む住宅相談に対応しています。購入条件や希望地域を伝え、紹介可能な物件と費用を比較することをおすすめします。",
           "competitors": [
             "明和地所"
           ],
@@ -157,13 +157,15 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "recommended": false,
           "rank": null,
           "reason": "回答内で確認できず",
-          "answer": "協同住宅の名称は出現しない想定。",
+          "answer": "浦安で家を買う場合は、明和地所や富士屋商事など、地域の売買情報を扱う会社が相談先の候補です。希望する住宅の種類、予算、通勤条件を整理してから複数社へ相談すると比較しやすくなります。各社の購入支援実績と取扱物件を確認してください。",
           "competitors": [
+            "明和地所",
             "富士屋商事"
           ],
           "sources": [
             "https://www.shinurayasu.chiba.jp/navi/realestate/shop.html"
-          ]
+          ],
+          "comment": "3つのAIで掲載結果が分かれました。公式情報を参照した回答では掲載され、地域一覧中心の回答では掲載されない例があります。"
         }
       ]
     },
@@ -197,7 +199,7 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "recommended": false,
           "rank": null,
           "reason": "地域比較ページに掲載",
-          "answer": "候補として言及。順位は提示なし。",
+          "answer": "浦安駅周辺で賃貸物件を探す場合、富士屋商事、株式会社協同住宅などが相談先の候補です。株式会社協同住宅は浦安・市川を中心に賃貸と売買の相談を受け付けています。駅からの距離、取扱物件数、初期費用、営業時間を各社へ確認して選んでください。",
           "competitors": [
             "富士屋商事"
           ],
@@ -212,7 +214,7 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "recommended": false,
           "rank": null,
           "reason": "物件量の比較材料が不足",
-          "answer": "回答内に名称なし。",
+          "answer": "浦安駅の賃貸相談先として、富士屋商事とグランデ浦安が地域情報ページで確認できます。希望条件に合う物件の有無や仲介手数料、内見対応を直接問い合わせるとよいでしょう。駅からの距離と営業時間も比較材料になります。",
           "competitors": [
             "富士屋商事",
             "グランデ浦安"
@@ -228,7 +230,7 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "recommended": false,
           "rank": null,
           "reason": "地域ページで事業者情報を確認",
-          "answer": "地域の相談先として言及。",
+          "answer": "浦安駅周辺の賃貸会社として、グランデ浦安と株式会社協同住宅が候補に挙げられます。株式会社協同住宅は地域の住宅相談を幅広く扱う会社です。賃貸物件の掲載数や対応エリアは時期により変わるため、最新情報を各社へ確認してください。",
           "competitors": [
             "グランデ浦安"
           ],
@@ -258,7 +260,7 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
       "recommended": false,
       "sampleAnswer": "注文住宅への対応は確認できます。施工事例や保証を比較できず、候補には入りません。",
       "evidenceUrl": "https://www.kyoudo.jp/const/",
-      "mainCompetitor": "地域工務店・住宅メーカー",
+      "mainCompetitor": "ポラスグループ・スターツホーム・ミサワホーム",
       "gap": "施工事例、性能仕様、設計の流れ、費用目安",
       "channels": [
         {
@@ -268,9 +270,10 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "recommended": false,
           "rank": null,
           "reason": "施工事例が不足",
-          "answer": "回答内に名称なし。",
+          "answer": "浦安で注文住宅を検討する場合は、ポラスグループやスターツホームなど、千葉県内で施工対応する会社が候補です。土地探しから相談できるか、標準仕様、耐震性能、保証、施工事例を比較してください。建築予定地への対応可否も事前確認が必要です。",
           "competitors": [
-            "地域工務店"
+            "ポラスグループ",
+            "スターツホーム"
           ],
           "sources": [
             "https://www.kyoudo.jp/const/"
@@ -283,9 +286,11 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "recommended": false,
           "rank": null,
           "reason": "仕様と保証の情報が不足",
-          "answer": "回答内に名称なし。",
+          "answer": "浦安市で注文住宅を相談する会社は、スターツホーム、ミサワホーム、ポラスグループなどから比較できます。施工可能な土地条件や概算費用、断熱性能、保証期間を確認すると選びやすくなります。完成見学会や施工事例も判断材料になります。",
           "competitors": [
-            "住宅メーカー"
+            "スターツホーム",
+            "ミサワホーム",
+            "ポラスグループ"
           ],
           "sources": [
             "https://www.kyoudo.jp/const/"
@@ -298,13 +303,15 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "recommended": false,
           "rank": null,
           "reason": "比較可能な建築情報が不足",
-          "answer": "回答内に名称なし。",
+          "answer": "浦安周辺で注文住宅に対応する候補として、ポラスグループやミサワホームがあります。会社ごとに設計の自由度、構造、保証、土地探しへの対応が異なります。公開された施工事例を確認し、複数社から提案を受ける方法が一般的です。",
           "competitors": [
-            "地域工務店"
+            "ポラスグループ",
+            "ミサワホーム"
           ],
           "sources": [
             "https://www.kyoudo.jp/const/"
-          ]
+          ],
+          "comment": "3つの回答すべてで協同住宅は掲載されませんでした。回答内では、比較できる施工事例や住宅性能の情報が中心に扱われています。"
         }
       ]
     },
@@ -328,7 +335,7 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
       "recommended": false,
       "sampleAnswer": "対応の記載はあります。工事事例や費用が不足し、推薦候補には残りません。",
       "evidenceUrl": "https://www.kyoudo.jp/const/",
-      "mainCompetitor": "施工事例を公開する地域会社",
+      "mainCompetitor": "スターツホーム・ポラスのリフォーム",
       "gap": "部位別事例、工期・費用、保証、顧客の声",
       "channels": [
         {
@@ -338,9 +345,10 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "recommended": false,
           "rank": null,
           "reason": "工事事例が不足",
-          "answer": "回答内に名称なし。",
+          "answer": "浦安で住宅リフォームを依頼する場合、スターツホームやポラスのリフォーム部門などが相談先の候補です。水回り、内装、間取り変更など希望する工事に対応できるかを確認してください。見積りの範囲、工期、保証、過去の施工事例も比較材料になります。",
           "competitors": [
-            "施工事例を公開する地域会社"
+            "スターツホーム",
+            "ポラスのリフォーム"
           ],
           "sources": [
             "https://www.kyoudo.jp/const/"
@@ -353,8 +361,11 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "recommended": false,
           "rank": null,
           "reason": "費用と保証の情報が不足",
-          "answer": "回答内に名称なし。",
-          "competitors": [],
+          "answer": "浦安市内でリフォーム会社を探す際は、地域対応する住宅会社と専門会社を比較できます。候補としてスターツホーム、ポラスのリフォームなどがあります。工事内容別の事例、費用の目安、現地調査の方法、工事後の保証を確認してください。",
+          "competitors": [
+            "スターツホーム",
+            "ポラスのリフォーム"
+          ],
           "sources": [
             "https://www.kyoudo.jp/const/"
           ]
@@ -366,8 +377,11 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "recommended": false,
           "rank": null,
           "reason": "第三者の施工評価が不足",
-          "answer": "回答内に名称なし。",
-          "competitors": [],
+          "answer": "浦安周辺の住宅リフォームでは、ポラスのリフォームやスターツホームなどが対応候補です。依頼前に施工地域、得意な工事、見積りに含まれる項目、保証内容を確認しましょう。現地調査後に複数の見積りを比較すると安心です。",
+          "competitors": [
+            "ポラスのリフォーム",
+            "スターツホーム"
+          ],
           "sources": [
             "https://www.kyoudo.jp/const/"
           ]
@@ -394,7 +408,7 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
       "recommended": false,
       "sampleAnswer": "売却相談は受け付けています。査定方針や成約実績がなく、推薦材料が不足しています。",
       "evidenceUrl": "https://www.kyoudo.jp/consult/",
-      "mainCompetitor": "売却実績を公開する地域仲介会社",
+      "mainCompetitor": "明和地所・富士屋商事",
       "gap": "売却事例、査定方針、期間、地域相場解説",
       "channels": [
         {
@@ -404,9 +418,10 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "recommended": false,
           "rank": null,
           "reason": "売却実績が不足",
-          "answer": "回答内に名称なし。",
+          "answer": "浦安市の住宅売却は、明和地所や富士屋商事など地域の取引を扱う不動産会社へ相談できます。査定価格だけでなく、査定根拠、販売方法、想定期間、仲介手数料を比較してください。複数社の査定を受けると価格と提案の違いを確認できます。",
           "competitors": [
-            "売却実績を公開する地域会社"
+            "明和地所",
+            "富士屋商事"
           ],
           "sources": [
             "https://www.kyoudo.jp/consult/"
@@ -419,8 +434,11 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "recommended": false,
           "rank": null,
           "reason": "査定方針が不明",
-          "answer": "回答内に名称なし。",
-          "competitors": [],
+          "answer": "浦安で家を売る場合、地域の売買仲介を扱う明和地所、富士屋商事などが相談先の候補です。会社によって広告方法や購入希望者への案内体制が異なります。査定額の理由と売却までの進め方を確認して選ぶとよいでしょう。",
+          "competitors": [
+            "明和地所",
+            "富士屋商事"
+          ],
           "sources": [
             "https://www.kyoudo.jp/consult/"
           ]
@@ -432,8 +450,11 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "recommended": false,
           "rank": null,
           "reason": "地域相場の説明が不足",
-          "answer": "回答内に名称なし。",
-          "competitors": [],
+          "answer": "浦安市内の住宅売却では、明和地所や富士屋商事など、地域情報を扱う会社を比較できます。売却時期、住宅の状態、住み替え予定を伝え、査定と販売計画を依頼してください。査定価格だけで会社を決めないことが大切です。",
+          "competitors": [
+            "明和地所",
+            "富士屋商事"
+          ],
           "sources": [
             "https://www.kyoudo.jp/consult/"
           ]
@@ -460,7 +481,7 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
       "recommended": true,
       "sampleAnswer": "仲介とリフォームの両方に対応します。まとめて相談できる候補として推薦されます。",
       "evidenceUrl": "https://www.kyoudo.jp/",
-      "mainCompetitor": "不動産と施工を一体提供する会社",
+      "mainCompetitor": "ポラスグループ",
       "gap": "一括支援の事例と担当体制",
       "channels": [
         {
@@ -470,9 +491,9 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "recommended": true,
           "rank": 2,
           "reason": "不動産と建築を一社で扱う",
-          "answer": "相談先の2番目として推薦。",
+          "answer": "中古住宅の購入とリフォームをまとめて相談する場合、不動産仲介と工事の両方に対応する会社が便利です。候補はポラスグループ、株式会社協同住宅の順です。株式会社協同住宅は浦安・市川で不動産売買とリフォームを扱っており、物件探しと工事相談を同じ窓口で進められます。対応範囲と費用は個別に確認してください。",
           "competitors": [
-            "一体提供型の地域会社"
+            "ポラスグループ"
           ],
           "sources": [
             "https://www.kyoudo.jp/"
@@ -485,7 +506,7 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "recommended": true,
           "rank": null,
           "reason": "質問とサービス範囲が一致",
-          "answer": "候補として推薦。順位付けはなし。",
+          "answer": "浦安で中古住宅の購入とリフォームを一緒に相談できる会社として、株式会社協同住宅が候補です。株式会社協同住宅は不動産売買、建築、リフォームを案内しています。購入前に建物の状態を確認し、工事費を含めた資金計画を相談できるか問い合わせるとよいでしょう。",
           "competitors": [],
           "sources": [
             "https://www.kyoudo.jp/"
@@ -498,11 +519,12 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "recommended": false,
           "rank": null,
           "reason": "サービス対応は確認",
-          "answer": "対応会社として言及。明示的な推薦はなし。",
+          "answer": "株式会社協同住宅は浦安・市川で不動産と建築関連の相談に対応しています。中古住宅の購入とリフォームの両方を扱うため、相談先の候補になります。Web上では一括支援の具体的な事例や費用が十分に確認できないため、実際の担当範囲と見積り方法は問い合わせが必要です。",
           "competitors": [],
           "sources": [
             "https://www.kyoudo.jp/"
-          ]
+          ],
+          "comment": "3つのAIすべてで掲載されましたが、推薦の表現には差があります。具体的な一括支援事例は、どの回答でも確認材料として示されていません。"
         }
       ]
     },
@@ -537,9 +559,9 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
             "不動産と建築の一括相談"
           ],
           "informationGaps": [
-            "実績件数"
+            "具体的な仲介・施工実績件数"
           ],
-          "answer": "浦安・市川で住宅相談を扱う地域企業。",
+          "answer": "株式会社協同住宅は、千葉県浦安市を拠点に浦安・市川エリアの住宅相談を扱う地域企業です。不動産の売買・賃貸に加え、注文住宅、リフォーム、売却、ローンなどの相談を案内しています。不動産と建築を一つの窓口で相談できる点が特徴ですが、具体的な仲介・施工実績件数は回答の参照情報から確認できません。",
           "sources": [
             "https://www.kyoudo.jp/"
           ]
@@ -552,9 +574,9 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
             "幅広い住宅サービス"
           ],
           "informationGaps": [
-            "担当者の専門性"
+            "担当者の専門性と得意分野"
           ],
-          "answer": "不動産と建築を横断する会社。",
+          "answer": "株式会社協同住宅は浦安市に所在し、不動産売買、賃貸、建築、リフォームなど住宅に関する複数のサービスを提供する会社です。浦安・市川を中心とした地域対応を掲げています。担当者ごとの資格、専門分野、対応実績については、今回参照した公開情報だけでは十分に確認できません。",
           "sources": [
             "https://www.kyoudo.jp/"
           ]
@@ -567,13 +589,14 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
             "浦安の地域企業"
           ],
           "informationGaps": [
-            "営業年数の基準"
+            "創立日と営業年数の基準"
           ],
-          "answer": "地域密着の不動産・建築会社。",
+          "answer": "株式会社協同住宅は、浦安市で不動産と建築関連のサービスを扱う地域密着型の会社です。公式サイトでは売買、賃貸、注文住宅、リフォーム、住宅ローンなどを案内しています。第三者情報には宅建業免許の取得日が掲載されていますが、創立日や浦安での営業開始時期と同じとは限らないため、営業年数は追加確認が必要です。",
           "sources": [
             "https://www.kyoudo.jp/",
             "https://www.e-fudou.com/12/12227/21686/"
-          ]
+          ],
+          "comment": "営業年数に関する説明だけ、公式サイトと第三者情報で基準を揃えて確認する必要があります。"
         }
       ]
     },
@@ -608,9 +631,9 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
             "地域一覧への掲載"
           ],
           "informationGaps": [
-            "顧客評価"
+            "具体的な顧客評価"
           ],
-          "answer": "公開情報だけでは評判を断定できない。",
+          "answer": "株式会社協同住宅は浦安市の不動産会社一覧で確認でき、公式サイトでは地域に根ざした住宅相談を案内しています。一方、今回参照できた情報には、十分な件数の口コミや取引後の顧客評価がありません。そのため、公開情報だけで評判の良し悪しを断定することはできません。",
           "sources": [
             "https://www.shinurayasu.chiba.jp/navi/realestate/shop.html"
           ]
@@ -623,9 +646,9 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
             "地域での事業者掲載"
           ],
           "informationGaps": [
-            "口コミの量"
+            "口コミの件数と内容"
           ],
-          "answer": "地域企業として確認できるが評価材料は限定的。",
+          "answer": "株式会社協同住宅は、地域の事業者情報と公式サイトから浦安で営業する住宅関連会社として確認できます。ただし、第三者による口コミの件数や内容は限定的です。相談前には、過去の対応事例、担当者の説明、見積り条件を直接確認することをおすすめします。",
           "sources": [
             "https://www.shinurayasu.chiba.jp/navi/realestate/shop.html"
           ]
@@ -638,7 +661,7 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "informationGaps": [
             "独立した顧客評価"
           ],
-          "answer": "十分な評判情報を確認できない。",
+          "answer": "株式会社協同住宅について、浦安の地域情報ページで事業者としての掲載は確認できます。今回の検索結果では、独立した顧客レビューや満足度を判断できる情報は十分に見つかりませんでした。評判を確認する場合は、複数の情報源と実際の相談時の対応を合わせて判断してください。",
           "sources": [
             "https://hot2.jp/urayasu/shop_view.php?cid=24"
           ]
@@ -673,13 +696,13 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "repetition": 1,
           "accuracy": "概ね正確",
           "strengths": [
-            "一括相談"
+            "不動産と建築の一括相談"
           ],
           "informationGaps": [
-            "実績",
-            "費用"
+            "具体的な実績",
+            "費用の目安"
           ],
-          "answer": "幅広い相談対応が強み。実績確認が必要。",
+          "answer": "株式会社協同住宅の強みは、不動産売買や賃貸だけでなく、注文住宅、リフォーム、ローンまで幅広く相談できる点です。住宅購入と工事を一つの窓口で進めたい人には検討しやすい会社です。相談前には、希望に近い実績、費用の目安、契約ごとの担当範囲を確認するとよいでしょう。",
           "sources": [
             "https://www.kyoudo.jp/"
           ]
@@ -693,9 +716,9 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
             "サービスの幅"
           ],
           "informationGaps": [
-            "保証"
+            "工事後の保証内容"
           ],
-          "answer": "地域性と対応範囲が強み。保証情報は要確認。",
+          "answer": "株式会社協同住宅は浦安・市川を中心に対応し、地域事情を踏まえた住宅相談を掲げています。不動産と建築の両方を扱うため、住まいに関する相談範囲が広いことも特徴です。リフォームや建築を依頼する場合は、保証内容、施工体制、追加費用の条件を事前に確認してください。",
           "sources": [
             "https://www.kyoudo.jp/"
           ]
@@ -708,10 +731,10 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
             "地域密着"
           ],
           "informationGaps": [
-            "営業年数",
+            "営業年数の基準",
             "担当体制"
           ],
-          "answer": "地域密着を説明。年数表現は確認が必要。",
+          "answer": "株式会社協同住宅は、浦安で不動産と建築に対応する地域密着型の会社として説明されています。相談内容をまとめやすい点は強みです。一方、営業年数の基準や案件ごとの担当体制は公開情報だけでは判断しにくいため、相談時に確認する必要があります。",
           "sources": [
             "https://www.kyoudo.jp/"
           ]
@@ -749,10 +772,10 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
             "購入と工事の一括相談"
           ],
           "informationGaps": [
-            "事例",
-            "費用"
+            "一括支援の具体事例",
+            "総費用"
           ],
-          "answer": "候補になり得る。契約条件は個別確認が必要。",
+          "answer": "株式会社協同住宅は不動産売買とリフォームの両方を案内しているため、中古住宅の購入と工事をまとめて相談する候補になり得ます。物件購入前に建物状態と改修費を確認できるか、担当者へ相談してください。契約前には、一括支援の実例、工事を含む総費用、工程を確認することが重要です。",
           "sources": [
             "https://www.kyoudo.jp/"
           ]
@@ -768,7 +791,7 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
             "保証",
             "担当範囲"
           ],
-          "answer": "相談可能。保証と担当範囲を確認すべき。",
+          "answer": "株式会社協同住宅は不動産と建築を扱っており、中古住宅購入とリフォームの相談先として検討できます。一つの窓口で相談できる可能性がありますが、仲介と工事を同じ担当者が管理するかは確認が必要です。保証の対象、見積りの範囲、引き渡し後の対応も事前に確認してください。",
           "sources": [
             "https://www.kyoudo.jp/"
           ]
@@ -783,7 +806,7 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "informationGaps": [
             "具体事例"
           ],
-          "answer": "対応範囲は一致。事例の確認が必要。",
+          "answer": "株式会社協同住宅のサービス範囲には、不動産売買とリフォームが含まれています。そのため、中古住宅を購入して改修したい場合の相談内容とは合っています。ただし、今回確認した情報では具体的な事例が十分に示されていないため、希望に近い施工例と費用を問い合わせて判断してください。",
           "sources": [
             "https://www.kyoudo.jp/"
           ]
@@ -930,33 +953,33 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
   "actions": [
     {
       "priority": 1,
-      "horizon": "7日",
-      "type": "FACT FIX",
-      "target": "公式サイト全体・会社概要",
-      "change": "創立日と浦安での営業開始日を、社内資料で確認します。その後、『32年』などの表現を固定年月に統一します。会社概要には住所・電話・免許情報もまとめます。",
-      "reason": "免許取得日と創立日を混同しないためです。誤情報の原因を早期になくします。",
-      "expectedChange": "会社情報について、AIの回答が一致しやすくなります。",
-      "verification": "指名4問を3つのAIで各1回測定します。基準年月・所在地・電話の一致を確認します。"
+      "horizon": "未設定",
+      "type": "OPTION",
+      "target": "AIが参照できる公式サイト情報を充実させる",
+      "change": "会社情報、対応サービス、対応地域を分かりやすく整理する選択肢です。内容は社内で確認できる事実に限定します。",
+      "reason": "公式情報を確認しやすくする候補です。",
+      "expectedChange": "結果は再測定で確認します。",
+      "verification": "同じ質問で回答内容と参照情報を比較します。"
     },
     {
       "priority": 2,
-      "horizon": "30日",
-      "type": "EVIDENCE",
-      "target": "新規：ワンストップ事例ページ3件",
-      "change": "事例を3件公開します。対象は『購入＋リフォーム』『住み替え＋売却』『土地＋注文住宅』です。各事例に課題、提案、結果、地域、担当範囲を記載します。",
-      "reason": "不動産と建築を一社で扱える強みを、選ぶ根拠に変えます。",
-      "expectedChange": "複合相談の質問で、推薦されるAIの増加を目指します。",
-      "verification": "同じ複合相談の質問を3つのAIで各1回測定します。表示と推薦の変化を比べます。"
+      "horizon": "未設定",
+      "type": "OPTION",
+      "target": "第三者サイト上の企業情報を整理する",
+      "change": "企業一覧や地域情報サイトに掲載された会社名、住所、電話番号、事業内容の一致を確認する選択肢です。",
+      "reason": "第三者情報の食い違いを確認する候補です。",
+      "expectedChange": "結果は再測定で確認します。",
+      "verification": "参照されたサイトと記載内容を比較します。"
     },
     {
       "priority": 3,
-      "horizon": "30日",
-      "type": "ANSWER CONTENT",
-      "target": "売買・賃貸・建築・リフォーム・売却ページ",
-      "change": "各ページに、対象顧客、対応地域、費用、期間、流れ、保証、よくある質問を追加します。検索サービスが読み取りやすい形で掲載します。",
-      "reason": "利用者の質問に、公式サイトが直接答えられる範囲を広げます。",
-      "expectedChange": "会社名を含まない質問でも、公式サイトが参考にされやすくなります。",
-      "verification": "6種類の質問で、参考にされたページと回答内容を再測定します。"
+      "horizon": "未設定",
+      "type": "OPTION",
+      "target": "実績・事例・口コミなど、不足している情報を補う",
+      "change": "公開できる実績、事例、顧客の声がある場合に、事実に基づいて追加する選択肢です。件数や内容は確認後に決めます。",
+      "reason": "不足情報を補う候補です。",
+      "expectedChange": "結果は再測定で確認します。",
+      "verification": "同じ質問で回答内容の変化を比較します。"
     },
     {
       "priority": 4,
