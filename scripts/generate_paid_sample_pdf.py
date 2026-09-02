@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -12,7 +13,7 @@ from reportlab.platypus import BaseDocTemplate, Frame, KeepTogether, NextPageTem
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / 'data' / 'samples' / 'kyoudo-housing-paid-diagnosis.json'
-OUTPUT = ROOT / 'output' / 'pdf' / 'madoha-kyoudo-paid-diagnosis-v1.pdf'
+OUTPUT = Path(os.environ.get('MADOHA_PDF_OUTPUT', ROOT / 'output' / 'pdf' / 'madoha-kyoudo-paid-diagnosis-v1.pdf'))
 CHANNELS = {'chatgpt': 'ChatGPT', 'gemini': 'Gemini', 'google_ai_mode': 'Google AI Mode'}
 CHANNEL_CODES = {'chatgpt': '01', 'gemini': '02', 'google_ai_mode': '03'}
 SITE_NAMES = {'kyoudo.jp':'協同住宅 公式サイト','shinurayasu.chiba.jp':'新浦安ナビ','hot2.jp':'HOT2 浦安駅おすすめ8選','e-fudou.com':'不動産ドットコム','property-bank.co.jp':'プロパティバンク','urayasu-senmon.com':'浦安専門ドットコム'}
@@ -79,10 +80,9 @@ def status_bar(subject,row):
     cells=[]
     for label,value in items:
         color=ACCENT_DARK if label=='掲載' and value=='あり' else INK
-        value_style=ParagraphStyle('status',parent=styles['MetaJP'],fontSize=9.2,leading=12,textColor=color)
-        cells.append([p(label,'MicroJP'),Paragraph(esc(value),value_style)])
+        cells.append(Paragraph(f'<font size="7" color="#647078">{esc(label)}</font>　<font size="9.4" color="{color.hexval()}"><b>{esc(value)}</b></font>',styles['MetaJP']))
     table=Table([cells],colWidths=[41*mm]*4)
-    table.setStyle(TableStyle([('LINEABOVE',(0,0),(-1,-1),.35,LINE),('LINEBELOW',(0,0),(-1,-1),.35,LINE),('LINEBEFORE',(1,0),(-1,-1),.3,LINE),('LEFTPADDING',(0,0),(-1,-1),7),('RIGHTPADDING',(0,0),(-1,-1),7),('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5)]))
+    table.setStyle(TableStyle([('LINEBEFORE',(1,0),(-1,-1),.3,LINE),('VALIGN',(0,0),(-1,-1),'MIDDLE'),('LEFTPADDING',(0,0),(-1,-1),7),('RIGHTPADDING',(0,0),(-1,-1),7),('TOPPADDING',(0,0),(-1,-1),3),('BOTTOMPADDING',(0,0),(-1,-1),3)]))
     return table
 
 def result_block(data,query,row):
@@ -108,7 +108,7 @@ def result_block(data,query,row):
     if row.get('comment'): parts += [Spacer(1,1.5*mm),p('MADOHA NOTE','LabelJP'),p(row['comment'])]
     parts += [Spacer(1,2*mm)]
     box=Table([[parts]],colWidths=[178*mm])
-    box.setStyle(TableStyle([('BOX',(0,0),(-1,-1),.45,LINE),('LEFTPADDING',(0,0),(-1,-1),7*mm),('RIGHTPADDING',(0,0),(-1,-1),7*mm),('TOPPADDING',(0,0),(-1,-1),5*mm),('BOTTOMPADDING',(0,0),(-1,-1),4*mm)]))
+    box.setStyle(TableStyle([('BOX',(0,0),(-1,-1),.45,LINE),('LEFTPADDING',(0,0),(-1,-1),5*mm),('RIGHTPADDING',(0,0),(-1,-1),5*mm),('TOPPADDING',(0,0),(-1,-1),5*mm),('BOTTOMPADDING',(0,0),(-1,-1),4*mm)]))
     return box
 
 def section_intro(number,english,title,description,queries,metrics):
@@ -127,18 +127,16 @@ def section_intro(number,english,title,description,queries,metrics):
     content=[p(f'{number} / {english}','CoverMetaJP'),Spacer(1,5*mm),p(title,'SectionWhiteJP'),p(description,'IntroBodyJP'),Spacer(1,5*mm)]
     rule=Table([['']],colWidths=[148*mm],rowHeights=[1])
     rule.setStyle(TableStyle([('LINEABOVE',(0,0),(-1,-1),1,ACCENT)]))
-    content += [rule,Spacer(1,5*mm),p('この検索で分かること','IntroLabelJP')]
+    content += [rule,Spacer(1,7*mm),p('WHAT WE CHECK','IntroLabelJP')]
     content += [p(f'・{item}','IntroBodyJP') for item in learn]
-    content += [Spacer(1,4*mm),p(f"今回確認する{len(queries)}つの{'場面' if number == '01' else '視点'}",'IntroLabelJP')]
+    content += [Spacer(1,7*mm),p(f"{len(queries)} SEARCH {'SCENARIOS' if number == '01' else 'PERSPECTIVES'}",'IntroLabelJP')]
     theme_rows=[]
     for index,query in enumerate(queries,1):
-        detail=[p(query['intent'],'IntroItemJP')]
-        if number == '02': detail.append(p(f"「{query['query']}」",'IntroReasonJP'))
-        detail.append(p(query['selection_reason'],'IntroReasonJP'))
-        theme_rows.append([p(f'{index:02d}','IntroLabelJP'),detail])
+        theme_rows.append([p(f'{index:02d}','IntroLabelJP'),p(query['intent'],'IntroItemJP')])
     themes=Table(theme_rows,colWidths=[12*mm,136*mm])
     themes.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),('LINEBELOW',(0,0),(-1,-2),.3,colors.HexColor('#405159')),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0),('TOPPADDING',(0,0),(-1,-1),3),('BOTTOMPADDING',(0,0),(-1,-1),3)]))
-    content += [themes,Spacer(1,4*mm),p('質問の選定について','IntroLabelJP'),p('今回の質問は、対象企業のサービス、対応地域、公式サイトの情報、検索需要、関連検索、FAQ、地域・比較ページなどをもとに作成しています。会社名とサービス名を機械的に組み合わせず、実際の利用者がAIへ相談するときの聞き方を基準に選んでいます。','IntroReasonJP'),Spacer(1,4*mm),p(metrics,'CoverMetaJP')]
+    why='対象企業のサービスと対応地域、検索需要や関連検索、地域・比較ページなどから、実際の利用者がAIへ聞きそうな質問を選定しています。' if number == '01' else '会社名を直接AIへ聞いたときに、企業理解・評価・利用判断まで一通り確認できる4つの視点を選定しています。'
+    content += [themes,Spacer(1,8*mm),p('WHY THESE QUESTIONS?','IntroLabelJP'),p(why,'IntroBodyJP'),Spacer(1,8*mm),p(metrics,'CoverMetaJP')]
     panel=Table([[content]],colWidths=[178*mm],rowHeights=[247*mm])
     panel.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),INK),('LEFTPADDING',(0,0),(-1,-1),15*mm),('RIGHTPADDING',(0,0),(-1,-1),15*mm),('TOPPADDING',(0,0),(-1,-1),13*mm),('BOTTOMPADDING',(0,0),(-1,-1),10*mm),('VALIGN',(0,0),(-1,-1),'TOP')]))
     return [panel,PageBreak()]
