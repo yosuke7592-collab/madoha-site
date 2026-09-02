@@ -19,7 +19,7 @@ test('Kyoudo paid sample is explicit fixture and covers purchase-value sections'
   assert.equal(sample.queries.length, 10);
   assert.equal(sample.queries.filter(item => item.kind === 'nonbrand').length, 6);
   assert.equal(sample.queries.filter(item => item.kind === 'branded').length, 4);
-  assert.ok(sample.queries.every(item => item.query && item.discoveryEvidence.length && item.qa.natural && item.qa.neutral && item.qa.relevant && item.qa.distinct && item.channels.length === 3 && item.sampleAnswer && /^https:\/\//.test(item.evidenceUrl) && item.gap));
+  assert.ok(sample.queries.every(item => item.query && item.intent && item.selection_reason && item.source_signals.length >= 3 && item.discoveryEvidence.length && item.qa.natural && item.qa.neutral && item.qa.relevant && item.qa.distinct && item.channels.length === 3 && item.sampleAnswer && /^https:\/\//.test(item.evidenceUrl) && item.gap));
   assert.ok(sample.competitors.length >= 3);
   assert.ok(sample.comparison.length >= 4 && sample.comparison.every(item => item.mentions && item.recommendations && item.confirmedDifference));
   assert.ok(sample.sources.length >= 5 && sample.sources.every(item => /^https:\/\//.test(item.url)));

@@ -99,7 +99,7 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
     {
       "id": "nb-buy",
       "kind": "nonbrand",
-      "intent": "地域×売買",
+      "intent": "住宅購入",
       "query": "浦安で家を買うとき相談できる不動産会社は？",
       "discoveryEvidence": [
         "商圏",
@@ -169,12 +169,19 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           ],
           "comment": "3つのAIで掲載結果が分かれました。公式情報を参照した回答では掲載され、地域一覧中心の回答では掲載されない例があります。"
         }
+      ],
+      "selection_reason": "協同住宅の主要サービスであり、浦安で住宅購入を検討する人がAIへ相談しやすいテーマです。",
+      "source_signals": [
+        "対象企業のサービス",
+        "商圏",
+        "地域ページ",
+        "比較ページ"
       ]
     },
     {
       "id": "nb-rent",
       "kind": "nonbrand",
-      "intent": "地域×賃貸",
+      "intent": "賃貸",
       "query": "浦安駅でおすすめの賃貸不動産会社は？",
       "discoveryEvidence": [
         "浦安駅",
@@ -242,6 +249,13 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
             "https://hot2.jp/urayasu/shop_view.php?cid=24"
           ]
         }
+      ],
+      "selection_reason": "浦安駅周辺で住まいと不動産会社を探す、代表的な利用場面だからです。",
+      "source_signals": [
+        "対象企業のサービス",
+        "商圏",
+        "検索需要",
+        "比較ページ"
       ]
     },
     {
@@ -311,6 +325,13 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           "sources": [],
           "comment": "3つの回答すべてで協同住宅は掲載されませんでした。回答内では、比較できる施工事例や住宅性能の情報が中心に扱われています。"
         }
+      ],
+      "selection_reason": "公式サイトにある建築対応が、AIにも相談先として認識されているか確認するためです。",
+      "source_signals": [
+        "対象企業のサービス",
+        "商圏",
+        "公式サイト情報",
+        "関連検索"
       ]
     },
     {
@@ -378,12 +399,19 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           ],
           "sources": []
         }
+      ],
+      "selection_reason": "住宅購入以外の建築サービスも、地域の相談先として認識されているか確認するためです。",
+      "source_signals": [
+        "対象企業のサービス",
+        "商圏",
+        "公式サイト情報",
+        "FAQ"
       ]
     },
     {
       "id": "nb-sell",
       "kind": "nonbrand",
-      "intent": "売却相談",
+      "intent": "売却",
       "query": "浦安市の家を売却するとき、どこへ相談すればよい？",
       "discoveryEvidence": [
         "売却相談サービス",
@@ -451,12 +479,19 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
             "https://www.shinurayasu.chiba.jp/navi/realestate/shop.html"
           ]
         }
+      ],
+      "selection_reason": "不動産売買の売却側でも、地域の相談先として候補に入るか確認するためです。",
+      "source_signals": [
+        "対象企業のサービス",
+        "商圏",
+        "検索需要",
+        "地域ページ"
       ]
     },
     {
       "id": "nb-combined",
       "kind": "nonbrand",
-      "intent": "購入＋リフォーム",
+      "intent": "中古住宅＋リフォーム",
       "query": "中古住宅の購入とリフォームをまとめて相談できる浦安の会社は？",
       "discoveryEvidence": [
         "売買と建築の両サービス",
@@ -521,6 +556,13 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           ],
           "comment": "3つのAIすべてで掲載されましたが、推薦の表現には差があります。具体的な一括支援事例は、どの回答でも確認材料として示されていません。"
         }
+      ],
+      "selection_reason": "協同住宅の「不動産と建築を一緒に相談できる」という特徴がAIに伝わるか確認するためです。",
+      "source_signals": [
+        "対象企業のサービス",
+        "商圏",
+        "公式サイト情報",
+        "関連検索"
       ]
     },
     {
@@ -593,12 +635,18 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
           ],
           "comment": "営業年数に関する説明だけ、公式サイトと第三者情報で基準を揃えて確認する必要があります。"
         }
+      ],
+      "selection_reason": "AIが会社の基本情報と事業内容を正しく理解しているか確認するためです。",
+      "source_signals": [
+        "会社名",
+        "公式サイト情報",
+        "対象企業のサービス"
       ]
     },
     {
       "id": "br-reputation",
       "kind": "branded",
-      "intent": "評判・信頼",
+      "intent": "評判・信頼性",
       "query": "株式会社協同住宅の評判や信頼性は？",
       "discoveryEvidence": [
         "指名検索の基本タイプ",
@@ -661,6 +709,13 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
             "https://hot2.jp/urayasu/shop_view.php?cid=24"
           ]
         }
+      ],
+      "selection_reason": "AIが第三者評価や口コミ情報をどのように扱っているか確認するためです。",
+      "source_signals": [
+        "会社名",
+        "比較ページ",
+        "地域ページ",
+        "口コミ情報"
       ]
     },
     {
@@ -734,6 +789,13 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
             "https://www.kyoudo.jp/"
           ]
         }
+      ],
+      "selection_reason": "AIが何を強みとして認識し、どの情報を不足と判断しているか確認するためです。",
+      "source_signals": [
+        "会社名",
+        "対象企業のサービス",
+        "公式サイト情報",
+        "FAQ"
       ]
     },
     {
@@ -806,6 +868,13 @@ globalThis.MADOHA_KYOUDO_SAMPLE = {
             "https://www.kyoudo.jp/"
           ]
         }
+      ],
+      "selection_reason": "実際に利用を検討する人へ、AIがどのような判断材料を示すか確認するためです。",
+      "source_signals": [
+        "会社名",
+        "対象企業のサービス",
+        "検索需要",
+        "関連検索"
       ]
     }
   ],

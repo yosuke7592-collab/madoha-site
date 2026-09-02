@@ -34,6 +34,10 @@ styles.add(ParagraphStyle(name='LabelJP',fontName='HeiseiKakuGo-W5',fontSize=7.8
 styles.add(ParagraphStyle(name='TargetNameJP',parent=styles['BodyJP'],textColor=ACCENT_DARK,fontSize=10.8,leading=15.5))
 styles.add(ParagraphStyle(name='SectionJP',fontName='HeiseiKakuGo-W5',fontSize=22,leading=30,textColor=INK,spaceAfter=12))
 styles.add(ParagraphStyle(name='SectionWhiteJP',fontName='HeiseiKakuGo-W5',fontSize=25,leading=34,textColor=WHITE,spaceAfter=10))
+styles.add(ParagraphStyle(name='IntroBodyJP',fontName='HeiseiKakuGo-W5',fontSize=9.4,leading=14.5,textColor=colors.HexColor('#e4ecee'),spaceAfter=4))
+styles.add(ParagraphStyle(name='IntroLabelJP',fontName='HeiseiKakuGo-W5',fontSize=7.8,leading=10.5,textColor=colors.HexColor('#8fd5c5'),spaceAfter=5))
+styles.add(ParagraphStyle(name='IntroItemJP',fontName='HeiseiKakuGo-W5',fontSize=9.1,leading=13.5,textColor=WHITE,spaceAfter=1))
+styles.add(ParagraphStyle(name='IntroReasonJP',fontName='HeiseiKakuGo-W5',fontSize=7.5,leading=11,textColor=colors.HexColor('#b9c9cc')))
 styles.add(ParagraphStyle(name='NoticeJP',parent=styles['BodyJP'],fontSize=9,leading=14,backColor=colors.HexColor('#f8f3e8'),borderColor=colors.HexColor('#d7c59d'),borderWidth=.5,borderPadding=8))
 
 def esc(text): return str(text).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
@@ -101,10 +105,37 @@ def result_block(data,query,row):
     box.setStyle(TableStyle([('BOX',(0,0),(-1,-1),.45,LINE),('LEFTPADDING',(0,0),(-1,-1),7*mm),('RIGHTPADDING',(0,0),(-1,-1),7*mm),('TOPPADDING',(0,0),(-1,-1),5*mm),('BOTTOMPADDING',(0,0),(-1,-1),4*mm)]))
     return box
 
-def section_intro(number,title,description,metrics):
-    panel=Table([[p(f'{number} / SECTION','CoverMetaJP')],[p(title,'SectionWhiteJP')],[p(description,'CoverSubJP')],[Spacer(1,12*mm)],[p(metrics,'CoverMetaJP')]],colWidths=[178*mm],rowHeights=[22*mm,42*mm,42*mm,20*mm,24*mm])
-    panel.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),INK),('LINEABOVE',(0,4),(-1,4),1,ACCENT),('LEFTPADDING',(0,0),(-1,-1),18*mm),('RIGHTPADDING',(0,0),(-1,-1),18*mm),('TOPPADDING',(0,0),(-1,-1),5*mm),('BOTTOMPADDING',(0,0),(-1,-1),5*mm),('VALIGN',(0,0),(-1,-1),'MIDDLE')]))
-    return [Spacer(1,28*mm),panel,PageBreak()]
+def section_intro(number,english,title,description,queries,metrics):
+    learn = [
+        '会社名を知らない人がAIに相談したとき、自社が候補に入るか',
+        '競合として、どの会社が一緒に表示されるか',
+        '自社が何社中何番目に表示されるか',
+        'AIがどのWeb情報を参照しているか',
+    ] if number == '01' else [
+        'AIが自社をどのような会社として説明しているか',
+        '強みとして何を認識しているか',
+        '評判や信頼性をどのように扱っているか',
+        '情報不足や誤解がないか',
+        'どの情報源をもとに説明しているか',
+    ]
+    content=[p(f'{number} / {english}','CoverMetaJP'),Spacer(1,5*mm),p(title,'SectionWhiteJP'),p(description,'IntroBodyJP'),Spacer(1,5*mm)]
+    rule=Table([['']],colWidths=[148*mm],rowHeights=[1])
+    rule.setStyle(TableStyle([('LINEABOVE',(0,0),(-1,-1),1,ACCENT)]))
+    content += [rule,Spacer(1,5*mm),p('この検索で分かること','IntroLabelJP')]
+    content += [p(f'・{item}','IntroBodyJP') for item in learn]
+    content += [Spacer(1,4*mm),p(f"今回確認する{len(queries)}つの{'場面' if number == '01' else '視点'}",'IntroLabelJP')]
+    theme_rows=[]
+    for index,query in enumerate(queries,1):
+        detail=[p(query['intent'],'IntroItemJP')]
+        if number == '02': detail.append(p(f"「{query['query']}」",'IntroReasonJP'))
+        detail.append(p(query['selection_reason'],'IntroReasonJP'))
+        theme_rows.append([p(f'{index:02d}','IntroLabelJP'),detail])
+    themes=Table(theme_rows,colWidths=[12*mm,136*mm])
+    themes.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),('LINEBELOW',(0,0),(-1,-2),.3,colors.HexColor('#405159')),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0),('TOPPADDING',(0,0),(-1,-1),3),('BOTTOMPADDING',(0,0),(-1,-1),3)]))
+    content += [themes,Spacer(1,4*mm),p('質問の選定について','IntroLabelJP'),p('今回の質問は、対象企業のサービス、対応地域、公式サイトの情報、検索需要、関連検索、FAQ、地域・比較ページなどをもとに作成しています。会社名とサービス名を機械的に組み合わせず、実際の利用者がAIへ相談するときの聞き方を基準に選んでいます。','IntroReasonJP'),Spacer(1,4*mm),p(metrics,'CoverMetaJP')]
+    panel=Table([[content]],colWidths=[178*mm],rowHeights=[247*mm])
+    panel.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),INK),('LEFTPADDING',(0,0),(-1,-1),15*mm),('RIGHTPADDING',(0,0),(-1,-1),15*mm),('TOPPADDING',(0,0),(-1,-1),13*mm),('BOTTOMPADDING',(0,0),(-1,-1),10*mm),('VALIGN',(0,0),(-1,-1),'TOP')]))
+    return [panel,PageBreak()]
 
 def build():
     data=json.loads(DATA.read_text(encoding='utf-8')); OUTPUT.parent.mkdir(parents=True,exist_ok=True)
@@ -116,11 +147,13 @@ def build():
     cover=Table([[p('MADOHA PAID DIAGNOSIS','CoverMetaJP')],[p('AI検索調査レポート','CoverTitleJP')],[p(data['subject']['name'],'CoverTitleJP')],[p('AIで自社を検索すると、実際にどのように表示されるかを確認するレポート','CoverSubJP')],[metrics],[p(f"MEASURED {data['measurement']['snapshotDate']} / SAMPLE FIXTURE",'CoverMetaJP')]],colWidths=[178*mm],rowHeights=[18*mm,28*mm,36*mm,31*mm,37*mm,18*mm])
     cover.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),INK),('LEFTPADDING',(0,0),(-1,-1),16*mm),('RIGHTPADDING',(0,0),(-1,-1),16*mm),('VALIGN',(0,0),(-1,-1),'MIDDLE')]))
     story += [Spacer(1,12*mm),cover,Spacer(1,9*mm),p('このレポートで確認できること','AIJP'),p('実際に検索した質問、自社の掲載有無、掲載順、推薦の有無、AIの説明、同時に掲載された企業、参照されたWeb情報を検索結果ごとに整理しています。'),p('商品確認用サンプルです。30件の結果は画面・PDF確認用の仮データで、株式会社協同住宅の実測値ではありません。','NoticeJP'),PageBreak()]
-    story += section_intro('01','会社名を入れない検索','あなたの会社を知らない人がAIに相談したとき、候補として表示されるかを確認します。','6 QUESTIONS / 18 RESULTS')
+    nonbrand_queries=[query for query in data['queries'] if query['kind']=='nonbrand']
+    branded_queries=[query for query in data['queries'] if query['kind']=='branded']
+    story += section_intro('01','DISCOVERY','AIに候補として選ばれるか','あなたの会社をまだ知らない人がAIに相談したとき、候補として表示されるかを確認します。',nonbrand_queries,'6 QUESTIONS / 18 RESULTS')
 
     for index,query in enumerate(data['queries'],1):
         if index==7:
-            story += [PageBreak()] + section_intro('02','会社名を入れた検索','あなたの会社名をAIに直接聞いたとき、どのように説明・評価されるかを確認します。','4 QUESTIONS / 12 RESULTS')
+            story += [PageBreak()] + section_intro('02','BRAND UNDERSTANDING','AIに自社がどう理解されているか','会社名を直接AIに聞いたとき、自社がどのように説明され、判断材料として何が示されるかを確認します。',branded_queries,'4 QUESTIONS / 12 RESULTS')
         customer_kind='会社名を入れない検索' if query['kind']=='nonbrand' else '会社名を入れた検索'
         heading=[p(f'QUESTION {index:02d} / 10   {customer_kind.upper()}','MetaJP'),p(query['query'],'QuestionJP'),p('同じ質問をChatGPT、Gemini、Google AI Modeで各1回検索しました。','MetaJP'),Spacer(1,3*mm)]
         blocks=[result_block(data,query,row) for row in query['channels']]
