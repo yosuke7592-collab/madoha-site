@@ -108,7 +108,7 @@ def result_block(data,query,row):
     if row.get('comment'): parts += [Spacer(1,1.5*mm),p('MADOHA NOTE','LabelJP'),p(row['comment'])]
     parts += [Spacer(1,2*mm)]
     box=Table([[parts]],colWidths=[178*mm])
-    box.setStyle(TableStyle([('BOX',(0,0),(-1,-1),.45,LINE),('LEFTPADDING',(0,0),(-1,-1),5*mm),('RIGHTPADDING',(0,0),(-1,-1),5*mm),('TOPPADDING',(0,0),(-1,-1),5*mm),('BOTTOMPADDING',(0,0),(-1,-1),4*mm)]))
+    box.setStyle(TableStyle([('LINEBELOW',(0,0),(-1,-1),.35,LINE),('LEFTPADDING',(0,0),(-1,-1),5*mm),('RIGHTPADDING',(0,0),(-1,-1),5*mm),('TOPPADDING',(0,0),(-1,-1),5*mm),('BOTTOMPADDING',(0,0),(-1,-1),4*mm)]))
     return box
 
 def section_intro(number,english,title,description,queries,metrics):
@@ -161,8 +161,8 @@ def build():
     for index,query in enumerate(data['queries'],1):
         if index==7:
             story += [PageBreak()] + section_intro('02','BRAND UNDERSTANDING','AIに自社がどう理解されているか','会社名を直接AIに聞いたとき、自社がどのように説明され、判断材料として何が示されるかを確認します。',branded_queries,'4 QUESTIONS / 12 RESULTS')
-        customer_kind='会社名を入れない検索' if query['kind']=='nonbrand' else '会社名を入れた検索'
-        heading=[p(f'QUESTION {index:02d} / 10   {customer_kind.upper()}','MetaJP'),p(query['query'],'QuestionJP'),p('同じ質問をChatGPT、Gemini、Google AI Modeで各1回検索しました。','MetaJP'),Spacer(1,3*mm)]
+        customer_kind='AIに候補として選ばれるか' if query['kind']=='nonbrand' else 'AIに自社がどう理解されているか'
+        heading=[p(f'QUESTION {index:02d} / 10   {customer_kind}','MetaJP'),p(query['query'],'QuestionJP'),p('同じ質問をChatGPT、Gemini、Google AI Modeで各1回検索しました。','MetaJP'),Spacer(1,3*mm)]
         blocks=[result_block(data,query,row) for row in query['channels']]
         story.append(KeepTogether(heading+[blocks[0]])); story.extend(blocks[1:]); story.append(Spacer(1,9*mm))
 
