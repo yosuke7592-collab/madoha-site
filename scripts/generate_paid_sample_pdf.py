@@ -8,7 +8,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.cidfonts import UnicodeCIDFont
-from reportlab.platypus import BaseDocTemplate, Frame, KeepTogether, PageBreak, PageTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import BaseDocTemplate, Frame, KeepTogether, NextPageTemplate, PageBreak, PageTemplate, Paragraph, Spacer, Table, TableStyle
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / 'data' / 'samples' / 'kyoudo-housing-paid-diagnosis.json'
@@ -38,7 +38,7 @@ styles.add(ParagraphStyle(name='IntroBodyJP',fontName='HeiseiKakuGo-W5',fontSize
 styles.add(ParagraphStyle(name='IntroLabelJP',fontName='HeiseiKakuGo-W5',fontSize=7.8,leading=10.5,textColor=colors.HexColor('#8fd5c5'),spaceAfter=5))
 styles.add(ParagraphStyle(name='IntroItemJP',fontName='HeiseiKakuGo-W5',fontSize=9.1,leading=13.5,textColor=WHITE,spaceAfter=1))
 styles.add(ParagraphStyle(name='IntroReasonJP',fontName='HeiseiKakuGo-W5',fontSize=7.5,leading=11,textColor=colors.HexColor('#b9c9cc')))
-styles.add(ParagraphStyle(name='NoticeJP',parent=styles['BodyJP'],fontSize=9,leading=14,backColor=colors.HexColor('#f8f3e8'),borderColor=colors.HexColor('#d7c59d'),borderWidth=.5,borderPadding=8))
+styles.add(ParagraphStyle(name='NoticeJP',parent=styles['BodyJP'],fontSize=9,leading=14,textColor=MUTED,borderColor=LINE,borderWidth=.4,borderPadding=8))
 
 def esc(text): return str(text).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
 def p(text,style='BodyJP'): return Paragraph(esc(text),styles[style])
@@ -67,16 +67,22 @@ def footer(canvas,doc):
     canvas.drawRightString(194*mm,8.5*mm,f'PAGE {doc.page:02d}')
     canvas.restoreState()
 
+def cover_page(canvas,doc):
+    canvas.saveState()
+    canvas.setFillColor(INK)
+    canvas.rect(0,0,A4[0],A4[1],fill=1,stroke=0)
+    canvas.restoreState()
+
 def status_bar(subject,row):
     companies=company_list(subject,row); pos=position(subject,row)
-    items=[('掲載','あり' if row.get('appeared') else 'なし'),('掲載位置',f'{len(companies)}社中{pos}番目' if pos else '対象企業なし'),('推薦','あり' if row.get('recommended') else 'なし'),('AIの順位付け',ai_rank(row))]
+    items=[('掲載','あり' if row.get('appeared') else 'なし'),('掲載位置',f'{len(companies)}社中{pos}番目' if pos else '対象企業なし'),('推薦','あり' if row.get('recommended') else 'なし'),('AI順位',ai_rank(row))]
     cells=[]
     for label,value in items:
         color=ACCENT_DARK if label=='掲載' and value=='あり' else INK
         value_style=ParagraphStyle('status',parent=styles['MetaJP'],fontSize=9.2,leading=12,textColor=color)
         cells.append([p(label,'MicroJP'),Paragraph(esc(value),value_style)])
     table=Table([cells],colWidths=[41*mm]*4)
-    table.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),PALE),('BOX',(0,0),(-1,-1),.4,LINE),('INNERGRID',(0,0),(-1,-1),.35,LINE),('LEFTPADDING',(0,0),(-1,-1),7),('RIGHTPADDING',(0,0),(-1,-1),7),('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5)]))
+    table.setStyle(TableStyle([('LINEABOVE',(0,0),(-1,-1),.35,LINE),('LINEBELOW',(0,0),(-1,-1),.35,LINE),('LINEBEFORE',(1,0),(-1,-1),.3,LINE),('LEFTPADDING',(0,0),(-1,-1),7),('RIGHTPADDING',(0,0),(-1,-1),7),('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5)]))
     return table
 
 def result_block(data,query,row):
@@ -140,13 +146,16 @@ def section_intro(number,english,title,description,queries,metrics):
 def build():
     data=json.loads(DATA.read_text(encoding='utf-8')); OUTPUT.parent.mkdir(parents=True,exist_ok=True)
     doc=BaseDocTemplate(str(OUTPUT),pagesize=A4,leftMargin=16*mm,rightMargin=16*mm,topMargin=16*mm,bottomMargin=18*mm,title='MADOHA Paid Diagnosis v1 - 株式会社協同住宅')
-    doc.addPageTemplates(PageTemplate(id='report',frames=[Frame(doc.leftMargin,doc.bottomMargin,doc.width,doc.height,id='main')],onPage=footer))
+    frame=Frame(doc.leftMargin,doc.bottomMargin,doc.width,doc.height,id='main')
+    doc.addPageTemplates([PageTemplate(id='cover',frames=[frame],onPage=cover_page),PageTemplate(id='report',frames=[frame],onPage=footer)])
     story=[]
     metrics=Table([[p('10','CoverTitleJP'),p('3','CoverTitleJP'),p('30','CoverTitleJP')],[p('QUESTIONS','CoverMetaJP'),p('AI CHANNELS','CoverMetaJP'),p('RESULTS','CoverMetaJP')]],colWidths=[48*mm]*3)
     metrics.setStyle(TableStyle([('LINEABOVE',(0,0),(-1,0),1,ACCENT),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0),('TOPPADDING',(0,0),(-1,-1),7),('BOTTOMPADDING',(0,0),(-1,-1),3)]))
-    cover=Table([[p('MADOHA PAID DIAGNOSIS','CoverMetaJP')],[p('AI検索調査レポート','CoverTitleJP')],[p(data['subject']['name'],'CoverTitleJP')],[p('AIで自社を検索すると、実際にどのように表示されるかを確認するレポート','CoverSubJP')],[metrics],[p(f"MEASURED {data['measurement']['snapshotDate']} / SAMPLE FIXTURE",'CoverMetaJP')]],colWidths=[178*mm],rowHeights=[18*mm,28*mm,36*mm,31*mm,37*mm,18*mm])
-    cover.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),INK),('LEFTPADDING',(0,0),(-1,-1),16*mm),('RIGHTPADDING',(0,0),(-1,-1),16*mm),('VALIGN',(0,0),(-1,-1),'MIDDLE')]))
-    story += [Spacer(1,12*mm),cover,Spacer(1,9*mm),p('このレポートで確認できること','AIJP'),p('実際に検索した質問、自社の掲載有無、掲載順、推薦の有無、AIの説明、同時に掲載された企業、参照されたWeb情報を検索結果ごとに整理しています。'),p('商品確認用サンプルです。30件の結果は画面・PDF確認用の仮データで、株式会社協同住宅の実測値ではありません。','NoticeJP'),PageBreak()]
+    cover_rule=Table([['']],colWidths=[160*mm],rowHeights=[1])
+    cover_rule.setStyle(TableStyle([('LINEABOVE',(0,0),(-1,-1),.8,ACCENT)]))
+    date_block=Table([[p('MEASURED','CoverMetaJP'),p('SAMPLE REPORT','CoverMetaJP')],[p(data['measurement']['snapshotDate'],'CoverSubJP'),p('MADOHA / AI SEARCH INTELLIGENCE','CoverMetaJP')]],colWidths=[62*mm,98*mm])
+    date_block.setStyle(TableStyle([('LINEABOVE',(0,0),(-1,0),.4,colors.HexColor('#405159')),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0),('TOPPADDING',(0,0),(-1,-1),8),('BOTTOMPADDING',(0,0),(-1,-1),4),('VALIGN',(0,0),(-1,-1),'TOP')]))
+    story += [Spacer(1,22*mm),p('MADOHA PAID DIAGNOSIS','CoverMetaJP'),Spacer(1,8*mm),p('AI検索調査レポート','CoverTitleJP'),Spacer(1,6*mm),p(data['subject']['name'],'CoverTitleJP'),Spacer(1,8*mm),p('AIで自社を検索すると、実際にどのように表示されるかを確認するレポート','CoverSubJP'),Spacer(1,18*mm),cover_rule,Spacer(1,7*mm),metrics,Spacer(1,30*mm),date_block,NextPageTemplate('report'),PageBreak()]
     nonbrand_queries=[query for query in data['queries'] if query['kind']=='nonbrand']
     branded_queries=[query for query in data['queries'] if query['kind']=='branded']
     story += section_intro('01','DISCOVERY','AIに候補として選ばれるか','あなたの会社をまだ知らない人がAIに相談したとき、候補として表示されるかを確認します。',nonbrand_queries,'6 QUESTIONS / 18 RESULTS')
