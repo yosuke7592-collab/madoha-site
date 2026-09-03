@@ -1,0 +1,117 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { D1MeasurementStore, FixturePaidAdapter, LIVE_LOCK_MESSAGE, MemoryMeasurementStore, PaidAdapter, derivePaidEntities, measurementsToPaidReport, runPaidMeasurements, sourceObjects, validatePaidMeasurement } from '../paid-pipeline.mjs';
+import { OpenAiPaidAdapter } from '../openai-paid.mjs';
+import { GeminiPaidAdapter } from '../gemini.mjs';
+import { GoogleAiModePaidAdapter } from '../google-ai-mode.mjs';
+
+const entity = { id: 'kyoudo', name: '株式会社協同住宅', aliases: ['協同住宅'] };
+const registry = [entity, { id: 'a', name: '明和地所', canonicalName: '明和地所' }, { id: 'b', name: '富士屋商事', canonicalName: '富士屋商事' }];
+const questions = Array.from({ length: 10 }, (_, index) => ({ id: `q${index + 1}`, query: `質問${index + 1}`, intent: index < 6 ? 'discovery' : 'brand', selection_reason: '利用者の検索場面', source_signals: ['official_site'], order: index + 1 }));
+const diagnosis = { id: 'd1', run_id: 'r1', entity, locale: 'ja-JP', location: '千葉県浦安市' };
+const fixture = input => ({ raw_answer: input.question_id === 'q2' ? '明和地所を確認できます。' : 'おすすめは明和地所です。\n株式会社協同住宅も相談できます。\n富士屋商事もあります。', sources: input.question_id === 'q3' ? [] : [{ url: 'https://kyoudo.jp/about', title: '協同住宅', evidence: 'citation' }], usage: { fixture: true }, raw_response_ref: `raw-${input.channel}-${input.question_id}` });
+const adapters = () => Object.fromEntries(['chatgpt', 'gemini', 'google_ai_mode'].map(channel => [channel, new FixturePaidAdapter({ channel, registry, fixtures: fixture })]));
+
+test('common runner creates 30 compatible measurements and preserves query discovery fields', async () => {
+  const store = new MemoryMeasurementStore();
+  const result = await runPaidMeasurements({ diagnosis, questions, adapters: adapters(), store, maxCost: 1 });
+  assert.equal(result.status, 'complete'); assert.equal(result.measurements.length, 30);
+  assert.deepEqual(result.cost_by_channel, { chatgpt: 0, gemini: 0, google_ai_mode: 0 }); assert.equal(Object.keys(result.cost_by_question).length, 10);
+  assert.ok(result.measurements.every(row => validatePaidMeasurement(row) && row.selection_reason && row.source_signals.length));
+  assert.equal(result.measurements.find(row => row.question_id === 'q3').sources.length, 0);
+  assert.equal(result.measurements.find(row => row.question_id === 'q2').target_present, false);
+});
+
+test('first appearance is position, explicit numbered list alone is rank, and weak candidate wording is not recommendation', () => {
+  const ordered = derivePaidEntities('富士屋商事を確認。株式会社協同住宅は候補です。明和地所も対応。', entity, registry);
+  assert.equal(ordered.target_position, 2); assert.equal(ordered.company_count, 3); assert.equal(ordered.explicit_rank, null); assert.equal(ordered.recommendation, false);
+  const ranked = derivePaidEntities('1. 明和地所\n2. 株式会社協同住宅 — 第一候補としておすすめです。', entity, registry);
+  assert.equal(ranked.explicit_rank, 2); assert.equal(ranked.recommendation, true);
+});
+
+test('only provider sources are stored and missing citations remain empty', () => {
+  assert.equal(sourceObjects([], registry).length, 0);
+  assert.equal(sourceObjects([{ url: 'https://kyoudo.jp/a', title: '公式' }, { url: 'https://kyoudo.jp/a', title: '重複' }], registry).length, 1);
+});
+
+test('resume skips completed measurements without duplicate calls', async () => {
+  const store = new MemoryMeasurementStore(); const firstAdapters = adapters();
+  await runPaidMeasurements({ diagnosis, questions, adapters: firstAdapters, store, maxCost: 1 });
+  const secondAdapters = adapters(); await runPaidMeasurements({ diagnosis, questions, adapters: secondAdapters, store, maxCost: 1 });
+  assert.equal(Object.values(secondAdapters).reduce((sum, adapter) => sum + adapter.calls, 0), 0);
+});
+
+test('temporary failure retries twice and then saves a localized failure', async () => {
+  let calls = 0;
+  class RetryAdapter extends FixturePaidAdapter { async execute(input) { calls += 1; if (calls < 3) { const error = new Error('temporary'); error.retryable = true; throw error; } return super.execute(input); } }
+  const custom = adapters(); custom.chatgpt = new RetryAdapter({ channel: 'chatgpt', registry, fixtures: fixture });
+  const result = await runPaidMeasurements({ diagnosis, questions: questions.slice(0, 1), adapters: custom, store: new MemoryMeasurementStore(), maxCost: 1 });
+  assert.equal(calls, 3); assert.equal(result.measurements.length, 3);
+});
+
+test('cost cap stops before the next call and preserves completed rows', async () => {
+  class CostAdapter extends PaidAdapter { estimateCost() { return .1; } async execute(input) { return this.normalize(input, { raw_answer: '株式会社協同住宅', estimated_cost: .1 }); } }
+  const costAdapters = Object.fromEntries(['chatgpt', 'gemini', 'google_ai_mode'].map(channel => [channel, new CostAdapter({ channel, registry })]));
+  const result = await runPaidMeasurements({ diagnosis, questions: questions.slice(0, 2), adapters: costAdapters, store: new MemoryMeasurementStore(), maxCost: .25 });
+  assert.equal(result.status, 'stopped'); assert.equal(result.stopped.code, 'cost_cap_exceeded'); assert.equal(result.measurements.length, 2);
+});
+
+test('all live adapters fail closed before network access', async () => {
+  let network = 0; const fetchImpl = async () => { network += 1; throw new Error('must not run'); };
+  const input = { diagnosis_id: 'd', entity, question_id: 'q', question_text: 'q', channel: 'chatgpt', run_id: 'r', max_cost: 1 };
+  for (const adapter of [new OpenAiPaidAdapter({ registry, fetchImpl }), new GeminiPaidAdapter({ registry, fetchImpl }), new GoogleAiModePaidAdapter({ registry, fetchImpl })]) {
+    await assert.rejects(() => adapter.execute({ ...input, channel: adapter.channel }, {}), new RegExp(LIVE_LOCK_MESSAGE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
+  assert.equal(network, 0);
+});
+
+test('mocked live adapters normalize answers, citations, usage and provider references', async () => {
+  const openai = new OpenAiPaidAdapter({ registry, fetchImpl: async () => ({ ok: true, json: async () => ({ id: 'o1', model: 'gpt-5.6-luna', usage: { input_tokens: 10, output_tokens: 5 }, output: [{ type: 'web_search_call', action: { sources: [{ url: 'https://kyoudo.jp', title: '公式' }] } }, { type: 'message', content: [{ type: 'output_text', text: '株式会社協同住宅をおすすめします。', annotations: [] }] }] }) }) });
+  const gemini = new GeminiPaidAdapter({ registry, fetchImpl: async () => ({ ok: true, json: async () => ({ responseId: 'g1', candidates: [{ content: { parts: [{ text: '株式会社協同住宅を推奨します。' }] }, groundingMetadata: { groundingChunks: [{ web: { uri: 'https://kyoudo.jp', title: '公式' } }], groundingSupports: [] } }], usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5 } }) }) });
+  const google = new GoogleAiModePaidAdapter({ registry, retrievalMode: 'live', fetchImpl: async () => ({ ok: true, json: async () => ({ status_code: 20000, tasks: [{ id: 'a1', cost: .004, result: [{ items: [{ type: 'ai_overview', text: '株式会社協同住宅は有力候補です。', references: [{ url: 'https://kyoudo.jp', title: '公式', text: '引用' }] }] }] }] }) }) });
+  const env = { MADOHA_ENABLE_LIVE_MEASUREMENT: 'true', OPENAI_API_KEY: 'mock', GEMINI_API_KEY: 'mock', DATAFORSEO_LOGIN: 'mock', DATAFORSEO_PASSWORD: 'mock' };
+  for (const adapter of [openai, gemini, google]) {
+    const row = await adapter.execute({ diagnosis_id: 'd', entity, question_id: 'q', question_text: '質問', channel: adapter.channel, run_id: 'r', max_cost: 1 }, env);
+    assert.ok(row.raw_answer); assert.equal(row.target_present, true); assert.equal(row.sources.length, 1); assert.ok(row.raw_response_ref);
+  }
+});
+
+test('common measurements adapt to the unchanged Web/PDF report shape', async () => {
+  const store = new MemoryMeasurementStore();
+  const result = await runPaidMeasurements({ diagnosis, questions, adapters: adapters(), store, maxCost: 1 });
+  const base = { subject: { name: entity.name }, queries: questions.map((question, index) => ({ id: question.id, query: question.query, kind: index < 6 ? 'nonbrand' : 'branded', channels: [] })) };
+  const report = measurementsToPaidReport(base, result.measurements);
+  assert.equal(report.queries.length, 10); assert.ok(report.queries.every(query => query.channels.length === 3));
+  assert.equal(typeof report.queries[0].channels[0].answer, 'string'); assert.ok(Array.isArray(report.queries[0].channels[0].sources));
+});
+
+test('DataForSEO standard mode stores a task and resumes by polling it', async () => {
+  const urls = [];
+  const adapter = new GoogleAiModePaidAdapter({ registry, retrievalMode: 'standard', fetchImpl: async url => {
+    urls.push(url);
+    if (urls.length === 1) return { ok: true, json: async () => ({ status_code: 20000, tasks: [{ id: 'task-1', cost: .0012 }] }) };
+    return { ok: true, json: async () => ({ status_code: 20000, tasks: [{ id: 'task-1', cost: 0, result: [{ items: [{ type: 'ai_overview', text: '株式会社協同住宅を確認できます。', references: [] }] }] }] }) };
+  } });
+  const env = { MADOHA_ENABLE_LIVE_MEASUREMENT: 'true', DATAFORSEO_LOGIN: 'mock', DATAFORSEO_PASSWORD: 'mock' };
+  const input = { diagnosis_id: 'd', entity, question_id: 'q', question_text: '質問', channel: 'google_ai_mode', run_id: 'r', max_cost: 1 };
+  const pending = await adapter.execute(input, env); assert.equal(pending.provider_metadata.pending, true);
+  const complete = await adapter.execute({ ...input, existing_measurement: pending }, env);
+  assert.equal(complete.target_present, true); assert.match(urls[1], /task_get\/advanced\/task-1$/);
+});
+
+test('D1 store writes and reads the common measurement JSON with an idempotent key', async () => {
+  let stored = null; const statements = [];
+  const db = { prepare(sql) { statements.push(sql); return { bind(...values) { return { async run() { stored = JSON.parse(values[8]); return { success: true }; }, async first() { return stored ? { measurement_json: JSON.stringify(stored) } : null; }, async all() { return { results: stored ? [{ measurement_json: JSON.stringify(stored) }] : [] }; } }; } }; } };
+  const store = new D1MeasurementStore(db);
+  const row = (await runPaidMeasurements({ diagnosis, questions: questions.slice(0, 1), adapters: adapters(), store: new MemoryMeasurementStore(), maxCost: 1 })).measurements[0];
+  await store.save(row); const read = await store.get(row.diagnosis_id, row.question_id, row.channel);
+  assert.equal(read.raw_answer, row.raw_answer); assert.ok(statements.some(sql => sql.includes('ON CONFLICT(diagnosis_id,question_id,channel)')));
+});
+
+test('permanent provider failure is saved once and stops without retrying later channels', async () => {
+  let calls = 0;
+  class FatalAdapter extends PaidAdapter { estimateCost() { return 0; } async execute() { calls += 1; const error = new Error('bad credentials'); error.code = 'authentication'; error.fatal = true; throw error; } }
+  const fatalAdapters = adapters(); fatalAdapters.chatgpt = new FatalAdapter({ channel: 'chatgpt', registry });
+  const result = await runPaidMeasurements({ diagnosis, questions: questions.slice(0, 1), adapters: fatalAdapters, store: new MemoryMeasurementStore(), maxCost: 1 });
+  assert.equal(calls, 1); assert.equal(result.status, 'stopped'); assert.equal(result.measurements.length, 1); assert.equal(result.measurements[0].error.code, 'authentication');
+});
