@@ -1,5 +1,6 @@
 import { normalizePublicUrl, runFreeCheck } from './free-check.mjs';
-import { applyStripeEvent, createCheckout, runPaidDiagnosis, verifyCheckoutAccess, verifyStripeSignature } from './paid-diagnosis.mjs';
+import { applyStripeEvent, createCheckout, verifyCheckoutAccess, verifyStripeSignature } from './paid-diagnosis.mjs';
+import { getBuyerDiagnosis, processDiagnosisQueueMessage } from './diagnosis-pipeline.mjs';
 
 const json = (body, status = 200, extra = {}) => new Response(JSON.stringify(body), {
   status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...extra }
@@ -35,14 +36,14 @@ export default {
       if (!env.DB) return json({ ok: false, error: '診断機能は準備中です。' }, 503);
       const sessionId = request.headers.get('x-checkout-session');
       if (!await verifyCheckoutAccess(env, paidMatch[1], sessionId)) return json({ ok: false, error: '閲覧権限を確認できません。' }, 403);
-      const order = await env.DB.prepare('SELECT id,target_url,payment_status,diagnosis_status,report_markdown,error_message,created_at,paid_at,completed_at FROM diagnosis_orders WHERE id=?').bind(paidMatch[1]).first();
+      const order = await getBuyerDiagnosis(env.DB, paidMatch[1]);
       return order ? json({ ok: true, order }) : json({ ok: false, error: '診断申込が見つかりません。' }, 404);
     }
     if (paidMatch?.[2] === 'start' && request.method === 'POST') {
       if (!env.DB || !env.DIAGNOSIS_QUEUE) return json({ ok: false, error: '診断機能は準備中です。' }, 503);
       const sessionId = request.headers.get('x-checkout-session');
       if (!await verifyCheckoutAccess(env, paidMatch[1], sessionId)) return json({ ok: false, error: '決済を確認できません。' }, 403);
-      const queued = await env.DB.prepare("UPDATE diagnosis_orders SET diagnosis_status='queued',updated_at=datetime('now') WHERE id=? AND payment_status='paid' AND diagnosis_status='paid'").bind(paidMatch[1]).run();
+      const queued = await env.DB.prepare("UPDATE diagnosis_orders SET diagnosis_status='queued',pipeline_state='queued',updated_at=datetime('now') WHERE id=? AND payment_status='paid' AND diagnosis_status='paid'").bind(paidMatch[1]).run();
       if (Number(queued.meta?.changes || 0) === 1) await env.DIAGNOSIS_QUEUE.send({ orderId: paidMatch[1] });
       const order = await env.DB.prepare('SELECT id,diagnosis_status FROM diagnosis_orders WHERE id=?').bind(paidMatch[1]).first();
       return json({ ok: true, result: order });
@@ -52,12 +53,8 @@ export default {
   },
   async queue(batch, env) {
     for (const message of batch.messages) {
-      const order = await env.DB.prepare('SELECT * FROM diagnosis_orders WHERE id=?').bind(message.body?.orderId).first();
-      try { await runPaidDiagnosis(env, order); message.ack(); }
-      catch (error) {
-        if (order?.diagnosis_status === 'complete' || /処理済み/.test(error.message)) message.ack();
-        else message.retry({ delaySeconds: 60 });
-      }
+      try { const result = await processDiagnosisQueueMessage(env, message.body); if (result.action === 'ack') message.ack(); else message.retry({ delaySeconds: 60 }); }
+      catch { message.retry({ delaySeconds: 60 }); }
     }
   }
 };

@@ -51,7 +51,7 @@ function render(data){
   const branded=data.queries.filter(query=>query.kind==='branded');
   document.querySelector('#report').innerHTML=`
   <section class="hero compact-hero"><p>MADOHA PAID DIAGNOSIS v1 / AI検索調査レポート</p><h1>${e(data.subject.name)}</h1><span>${e(data.subject.area)} · ${e(data.subject.category)}</span><dl><dt>検索質問</dt><dd>10問</dd><dt>AI検索</dt><dd>3チャネル</dd><dt>検索結果</dt><dd>30件</dd><dt>測定日</dt><dd>${e(data.measurement.snapshotDate)}</dd></dl></section>
-  <nav class="report-tools"><a class="pdf-button" href="output/pdf/madoha-kyoudo-paid-diagnosis-v1.pdf" download>PDFレポートをダウンロード</a><span>各検索結果の回答・掲載順・参照情報を収録しています。</span></nav>
+  <nav class="report-tools">${data.sample?'<a class="pdf-button" href="output/pdf/madoha-kyoudo-paid-diagnosis-v1.pdf" download>PDFレポートをダウンロード</a>':''}<span>各検索結果の回答・掲載順・参照情報を収録しています。</span></nav>
   <main class="search-report">
     <header class="report-intro"><b class="section-index">01 / DISCOVERY</b><p>6 QUESTIONS / 18 RESULTS</p><h2>会社名を入れない検索</h2><p>あなたの会社を知らない人がAIに相談したとき、候補として表示されるかを確認します。</p></header>
     <section class="query-list">${nonbrand.map((query,index)=>queryBlock(data,query,index)).join('')}</section>
@@ -62,4 +62,10 @@ function render(data){
     <section class="measurement-note"><h2>測定条件・注意書き</h2><p>非指名6問と指名4問を、ChatGPT、Gemini、Google AI Modeで各1回検索しました。合計30件の検索結果です。</p><p>本診断は測定時点におけるAI検索の回答を観測したものです。AIの回答は変動するため、同じ質問でも結果が異なる場合があります。また、改善施策による特定の表示・推薦結果を保証するものではありません。</p><p class="sample-caution"><b>商品確認用サンプル：</b>この画面の30件は表示確認用の仮データです。株式会社協同住宅の実測値ではありません。</p></section>
   </main><footer class="end"><b>MADOHA</b><p>検索結果 + 参照情報 + 必要最小限の見解</p><a href="index.html">無料チェックへ戻る</a></footer>`;
 }
-if(globalThis.MADOHA_KYOUDO_SAMPLE)render(globalThis.MADOHA_KYOUDO_SAMPLE);else fetch('./data/samples/kyoudo-housing-paid-diagnosis.json').then(response=>response.ok?response.json():Promise.reject()).then(render).catch(()=>document.querySelector('#report').innerHTML='<p class="loading">サンプルを読み込めませんでした。</p>');
+const paidParams=new URLSearchParams(location.search);
+if(paidParams.get('diagnosis')&&paidParams.get('session_id')){
+  document.querySelector('.topbar b').textContent='PAID DIAGNOSIS';document.querySelector('.topbar span').textContent='購入者向け実測レポート';
+  fetch(`/api/paid-diagnosis/${encodeURIComponent(paidParams.get('diagnosis'))}`,{headers:{'x-checkout-session':paidParams.get('session_id')}})
+    .then(response=>response.ok?response.json():Promise.reject()).then(payload=>payload.order?.report?render(payload.order.report):Promise.reject())
+    .catch(()=>document.querySelector('#report').innerHTML='<p class="loading">診断結果を読み込めませんでした。</p>');
+}else if(globalThis.MADOHA_KYOUDO_SAMPLE)render(globalThis.MADOHA_KYOUDO_SAMPLE);else fetch('./data/samples/kyoudo-housing-paid-diagnosis.json').then(response=>response.ok?response.json():Promise.reject()).then(render).catch(()=>document.querySelector('#report').innerHTML='<p class="loading">サンプルを読み込めませんでした。</p>');

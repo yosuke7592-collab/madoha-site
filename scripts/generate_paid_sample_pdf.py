@@ -12,7 +12,7 @@ from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 from reportlab.platypus import BaseDocTemplate, Frame, KeepTogether, NextPageTemplate, PageBreak, PageTemplate, Paragraph, Spacer, Table, TableStyle
 
 ROOT = Path(__file__).resolve().parents[1]
-DATA = ROOT / 'data' / 'samples' / 'kyoudo-housing-paid-diagnosis.json'
+DATA = Path(os.environ.get('MADOHA_PDF_DATA', ROOT / 'data' / 'samples' / 'kyoudo-housing-paid-diagnosis.json'))
 OUTPUT = Path(os.environ.get('MADOHA_PDF_OUTPUT', ROOT / 'output' / 'pdf' / 'madoha-kyoudo-paid-diagnosis-v1.pdf'))
 CHANNELS = {'chatgpt': 'ChatGPT', 'gemini': 'Gemini', 'google_ai_mode': 'Google AI Mode'}
 CHANNEL_CODES = {'chatgpt': '01', 'gemini': '02', 'google_ai_mode': '03'}

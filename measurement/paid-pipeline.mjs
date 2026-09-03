@@ -173,10 +173,11 @@ export class D1MeasurementStore {
     return row?.measurement_json ? JSON.parse(row.measurement_json) : null;
   }
   async save(row) {
+    const state = row.error ? 'failed' : row.provider_metadata?.pending ? 'submitted' : 'complete';
     await this.db.prepare(`INSERT INTO paid_measurements (diagnosis_id,question_id,channel,question_order,channel_order,run_id,status,estimated_cost_usd,measurement_json,measured_at,updated_at)
       VALUES (?,?,?,?,?,?,?,?,?,?,datetime('now')) ON CONFLICT(diagnosis_id,question_id,channel) DO UPDATE SET
       question_order=excluded.question_order,channel_order=excluded.channel_order,run_id=excluded.run_id,status=excluded.status,estimated_cost_usd=excluded.estimated_cost_usd,measurement_json=excluded.measurement_json,measured_at=excluded.measured_at,updated_at=datetime('now')`)
-      .bind(row.diagnosis_id, row.question_id, row.channel, row.question_order, row.channel_order, row.run_id, row.error ? 'failed' : 'complete', row.estimated_cost, JSON.stringify(row), row.measured_at).run();
+      .bind(row.diagnosis_id, row.question_id, row.channel, row.question_order, row.channel_order, row.run_id, state, row.estimated_cost, JSON.stringify(row), row.measured_at).run();
   }
   async list(diagnosisId) {
     const result = await this.db.prepare('SELECT measurement_json FROM paid_measurements WHERE diagnosis_id=? ORDER BY question_order, channel_order').bind(diagnosisId).all();
@@ -184,14 +185,15 @@ export class D1MeasurementStore {
   }
 }
 
-export async function runPaidMeasurements({ diagnosis, questions, adapters, store, env = {}, maxCost }) {
+export async function runPaidMeasurements({ diagnosis, questions, adapters, store, env = {}, maxCost, maxMeasurements = Infinity, onSaved = null }) {
   const cap = Number(maxCost ?? env.MADOHA_PAID_DIAGNOSIS_MAX_COST_USD ?? 1);
   if (!Number.isFinite(cap) || cap < 0) throw new TypeError('Invalid diagnosis cost cap.');
   let total = (await store.list(diagnosis.id)).reduce((sum, row) => sum + (row.estimated_cost || 0), 0);
-  const completed = []; let stopped = null;
+  const completed = []; let stopped = null; let processed = 0; let yielded = false;
   measurementLoop: for (const [questionIndex, question] of questions.entries()) for (const channel of PAID_CHANNELS) {
     const existing = await store.get(diagnosis.id, question.id, channel);
     if (existing && !existing.error && !existing.provider_metadata?.pending) { completed.push(existing); continue; }
+    if (processed >= maxMeasurements) { yielded = true; break measurementLoop; }
     const adapter = adapters[channel];
     if (!adapter) throw new Error(`Missing adapter: ${channel}`);
     const input = {
@@ -209,9 +211,13 @@ export async function runPaidMeasurements({ diagnosis, questions, adapters, stor
       const costDelta = measurement.estimated_cost - (existing?.estimated_cost || 0);
       if (total + costDelta > cap) { stopped = { code: COST_CAP_CODE, next: { question_id: question.id, channel }, total_estimated_cost: round(total), cap }; break measurementLoop; }
       await store.save(measurement); completed.push(measurement); total = round(total + costDelta);
+      processed += 1;
+      if (onSaved) await onSaved(measurement);
     } catch (error) {
       const failed = commonMeasurement(input, { raw_answer: '', sources: [], estimated_cost: 0, error: { code: error.code || 'provider_error', message: error.message, retryable: Boolean(error.retryable) } }, adapter.registry);
       await store.save(failed); completed.push(failed);
+      processed += 1;
+      if (onSaved) await onSaved(failed);
       if (error.fatal) { stopped = { code: error.code || 'fatal_provider_error', next: { question_id: question.id, channel }, total_estimated_cost: total, cap }; break measurementLoop; }
     }
   }
@@ -220,5 +226,5 @@ export async function runPaidMeasurements({ diagnosis, questions, adapters, stor
   const addCosts = (result, row, key) => ({ ...result, [row[key]]: round((result[row[key]] || 0) + row.estimated_cost) });
   const cost_by_channel = stored.reduce((result, row) => addCosts(result, row, 'channel'), {});
   const cost_by_question = stored.reduce((result, row) => addCosts(result, row, 'question_id'), {});
-  return { diagnosis_id: diagnosis.id, status: stopped ? 'stopped' : completeCount === questions.length * 3 ? 'complete' : 'partial', measurements: stored, cost_by_channel, cost_by_question, total_estimated_cost: round(total), stopped };
+  return { diagnosis_id: diagnosis.id, status: stopped ? 'stopped' : completeCount === questions.length * 3 ? 'complete' : 'partial', measurements: stored, cost_by_channel, cost_by_question, total_estimated_cost: round(total), processed, yielded, stopped };
 }

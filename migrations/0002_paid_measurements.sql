@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS paid_measurements (
   question_order INTEGER,
   channel_order INTEGER,
   run_id TEXT NOT NULL,
-  status TEXT NOT NULL CHECK (status IN ('complete','failed')),
+  status TEXT NOT NULL CHECK (status IN ('submitted','processing','complete','failed')),
   estimated_cost_usd REAL NOT NULL DEFAULT 0,
   measurement_json TEXT NOT NULL,
   measured_at TEXT NOT NULL,

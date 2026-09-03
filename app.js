@@ -384,15 +384,19 @@ async function resumePaidDiagnosis(orderId, sessionId) {
     async function poll() {
       order = await readOrder();
       if (order.diagnosis_status === 'complete') {
-        $('#paid-progress').hidden = true; $('#paid-report').hidden = false;
-        $('#paid-report-body').innerHTML = markdownToSafeHtml(order.report_markdown);
+        location.assign(`sample-kyoudo.html?diagnosis=${encodeURIComponent(orderId)}&session_id=${encodeURIComponent(sessionId)}`);
         return;
       }
-      if (order.diagnosis_status === 'failed') {
+      if (order.pipeline_state === 'paused_cost_limit') {
+        setText('#paid-status-title', '費用上限のため診断を一時停止しています');
+        setText('#paid-status-body', `${order.progress.completed} / ${order.progress.total} 測定完了。追加のAPI実行は停止しています。`); return;
+      }
+      if (order.diagnosis_status === 'failed' || order.pipeline_state === 'failed') {
         setText('#paid-status-title', '診断を完了できませんでした');
-        setText('#paid-status-body', '追加料金なしで再実行できます。サポートへお問い合わせください。'); return;
+        setText('#paid-status-body', `${order.progress.completed} / ${order.progress.total} 測定完了。追加料金なしで再確認します。`); return;
       }
       setText('#paid-status-title', order.diagnosis_status === 'running' ? 'AI詳細診断を実行しています' : '診断を開始する準備をしています');
+      setText('#paid-status-body', `${order.progress.completed} / ${order.progress.total} 測定完了。画面を閉じても診断は継続されます。`);
       timers.push(setTimeout(poll, 5000));
     }
   } catch (error) { setText('#paid-status-title', '診断を表示できません'); setText('#paid-status-body', error.message); }
