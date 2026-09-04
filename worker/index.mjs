@@ -1,5 +1,5 @@
 import { normalizePublicUrl, runFreeCheck } from './free-check.mjs';
-import { applyStripeEvent, createCheckout, verifyCheckoutAccess, verifyStripeSignature } from './paid-diagnosis.mjs';
+import { applyStripeEvent, createCheckout, isIsolatedTestEnvironment, secureTextEqual, verifyCheckoutAccess, verifyStripeSignature } from './paid-diagnosis.mjs';
 import { getBuyerDiagnosis, processDiagnosisQueueMessage } from './diagnosis-pipeline.mjs';
 
 const json = (body, status = 200, extra = {}) => new Response(JSON.stringify(body), {
@@ -10,8 +10,8 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === '/api/integration/enqueue' && request.method === 'POST') {
-      if (env.ENVIRONMENT !== 'integration' || !env.MADOHA_INTEGRATION_ACCESS_TOKEN) return json({ ok: false, error: 'Not found' }, 404);
-      if (request.headers.get('authorization') !== `Bearer ${env.MADOHA_INTEGRATION_ACCESS_TOKEN}`) return json({ ok: false, error: 'Forbidden' }, 403);
+      if (!isIsolatedTestEnvironment(env) || !env.MADOHA_INTEGRATION_ACCESS_TOKEN) return json({ ok: false, error: 'Not found' }, 404);
+      if (!await secureTextEqual(request.headers.get('authorization'), `Bearer ${env.MADOHA_INTEGRATION_ACCESS_TOKEN}`)) return json({ ok: false, error: 'Forbidden' }, 403);
       const body = await request.json();
       if (!/^[0-9a-f-]{36}$/i.test(body?.diagnosis_id || '')) return json({ ok: false, error: 'Invalid diagnosis id' }, 400);
       await env.DIAGNOSIS_QUEUE.send({ orderId: body.diagnosis_id });

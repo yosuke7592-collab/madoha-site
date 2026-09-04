@@ -1,0 +1,36 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "madoha-paid-diagnosis-staging",
+  "main": "worker/index.mjs",
+  "compatibility_date": "2026-09-04",
+  "workers_dev": true,
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"],
+    "not_found_handling": "single-page-application"
+  },
+  "vars": {
+    "ENVIRONMENT": "staging",
+    "MADOHA_MEASUREMENT_MODE": "mock",
+    "MADOHA_ENABLE_LIVE_MEASUREMENT": "false",
+    "MADOHA_PAID_DIAGNOSIS_MAX_COST_USD": "1"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "madoha-paid-diagnosis-staging",
+      "database_id": "286da060-a211-4d30-8e62-15c3a5a3ba32",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "queues": {
+    "producers": [
+      { "binding": "DIAGNOSIS_QUEUE", "queue": "madoha-diagnosis-staging" }
+    ],
+    "consumers": [
+      { "queue": "madoha-diagnosis-staging", "max_batch_size": 1, "max_batch_timeout": 1 }
+    ]
+  },
+  "observability": { "enabled": true }
+}

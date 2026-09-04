@@ -33,6 +33,7 @@ test('Stripe-free access is restricted to a paid order in the integration enviro
   const DB = { prepare: () => ({ bind: orderId => ({ first: async () => orderId === 'paid-id' ? { id: orderId } : null }) }) };
   const integration = { ENVIRONMENT: 'integration', MADOHA_INTEGRATION_ACCESS_TOKEN: 'local-token', DB };
   assert.equal(await verifyCheckoutAccess(integration, 'paid-id', 'local-token'), true);
+  assert.equal(await verifyCheckoutAccess({ ...integration, ENVIRONMENT: 'staging' }, 'paid-id', 'local-token'), true);
   assert.equal(await verifyCheckoutAccess(integration, 'missing-id', 'local-token'), false);
   assert.equal(await verifyCheckoutAccess({ ...integration, ENVIRONMENT: 'production' }, 'paid-id', 'local-token'), false);
   assert.equal(await verifyCheckoutAccess(integration, 'paid-id', 'wrong-token'), false);

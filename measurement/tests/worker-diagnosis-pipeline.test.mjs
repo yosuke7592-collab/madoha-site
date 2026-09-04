@@ -132,5 +132,6 @@ test('manual integration enqueue is hidden in production and requires its bearer
   assert.equal((await worker.fetch(request('token'), { ENVIRONMENT: 'production', MADOHA_INTEGRATION_ACCESS_TOKEN: 'token', DIAGNOSIS_QUEUE: queue })).status, 404);
   assert.equal((await worker.fetch(request(), { ENVIRONMENT: 'integration', MADOHA_INTEGRATION_ACCESS_TOKEN: 'token', DIAGNOSIS_QUEUE: queue })).status, 403);
   assert.equal((await worker.fetch(request('token'), { ENVIRONMENT: 'integration', MADOHA_INTEGRATION_ACCESS_TOKEN: 'token', DIAGNOSIS_QUEUE: queue })).status, 200);
-  assert.equal(queue.sent.length, 1);
+  assert.equal((await worker.fetch(request('token'), { ENVIRONMENT: 'staging', MADOHA_INTEGRATION_ACCESS_TOKEN: 'token', DIAGNOSIS_QUEUE: queue })).status, 200);
+  assert.equal(queue.sent.length, 2);
 });

@@ -8,5 +8,11 @@ measurement
 migrations
 wrangler.jsonc
 wrangler.integration.jsonc
+wrangler.staging.jsonc
 integration
+scripts
+docs
+output
+.gitignore
+.gitattributes
 **/*.test.mjs

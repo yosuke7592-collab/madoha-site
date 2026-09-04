@@ -5,6 +5,21 @@ const encode = value => new TextEncoder().encode(value);
 const hex = bytes => [...new Uint8Array(bytes)].map(byte => byte.toString(16).padStart(2, '0')).join('');
 const safeEqual = (left, right) => left.length === right.length && [...left].every((char, index) => char === right[index]);
 
+export const isIsolatedTestEnvironment = env => env?.ENVIRONMENT === 'integration' || env?.ENVIRONMENT === 'staging';
+
+export async function secureTextEqual(left, right) {
+  if (typeof left !== 'string' || typeof right !== 'string') return false;
+  const [leftHash, rightHash] = await Promise.all([
+    crypto.subtle.digest('SHA-256', encode(left)),
+    crypto.subtle.digest('SHA-256', encode(right))
+  ]);
+  const leftBytes = new Uint8Array(leftHash);
+  const rightBytes = new Uint8Array(rightHash);
+  let difference = 0;
+  for (let index = 0; index < leftBytes.length; index += 1) difference |= leftBytes[index] ^ rightBytes[index];
+  return difference === 0;
+}
+
 export async function verifyStripeSignature(payload, header, secret, nowSeconds = Math.floor(Date.now() / 1000)) {
   if (!secret || !header) return false;
   const pairs = Object.fromEntries(header.split(',').map(part => part.split('=', 2)));
@@ -62,7 +77,7 @@ export async function applyStripeEvent(env, event) {
 }
 
 export async function verifyCheckoutAccess(env, orderId, sessionId) {
-  if (env.ENVIRONMENT === 'integration' && env.DB && env.MADOHA_INTEGRATION_ACCESS_TOKEN && sessionId === env.MADOHA_INTEGRATION_ACCESS_TOKEN) {
+  if (isIsolatedTestEnvironment(env) && env.DB && env.MADOHA_INTEGRATION_ACCESS_TOKEN && await secureTextEqual(sessionId, env.MADOHA_INTEGRATION_ACCESS_TOKEN)) {
     const order = await env.DB.prepare("SELECT id FROM diagnosis_orders WHERE id=? AND payment_status='paid'").bind(orderId).first();
     return Boolean(order);
   }
