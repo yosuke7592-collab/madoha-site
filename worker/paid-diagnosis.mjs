@@ -62,6 +62,10 @@ export async function applyStripeEvent(env, event) {
 }
 
 export async function verifyCheckoutAccess(env, orderId, sessionId) {
+  if (env.ENVIRONMENT === 'integration' && env.DB && env.MADOHA_INTEGRATION_ACCESS_TOKEN && sessionId === env.MADOHA_INTEGRATION_ACCESS_TOKEN) {
+    const order = await env.DB.prepare("SELECT id FROM diagnosis_orders WHERE id=? AND payment_status='paid'").bind(orderId).first();
+    return Boolean(order);
+  }
   if (!sessionId || !env.STRIPE_SECRET_KEY) return false;
   const response = await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(sessionId)}`, { headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` } });
   if (!response.ok) return false;

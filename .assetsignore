@@ -7,4 +7,6 @@ worker
 measurement
 migrations
 wrangler.jsonc
+wrangler.integration.jsonc
+integration
 **/*.test.mjs

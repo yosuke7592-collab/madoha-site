@@ -9,6 +9,14 @@ const json = (body, status = 200, extra = {}) => new Response(JSON.stringify(bod
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname === '/api/integration/enqueue' && request.method === 'POST') {
+      if (env.ENVIRONMENT !== 'integration' || !env.MADOHA_INTEGRATION_ACCESS_TOKEN) return json({ ok: false, error: 'Not found' }, 404);
+      if (request.headers.get('authorization') !== `Bearer ${env.MADOHA_INTEGRATION_ACCESS_TOKEN}`) return json({ ok: false, error: 'Forbidden' }, 403);
+      const body = await request.json();
+      if (!/^[0-9a-f-]{36}$/i.test(body?.diagnosis_id || '')) return json({ ok: false, error: 'Invalid diagnosis id' }, 400);
+      await env.DIAGNOSIS_QUEUE.send({ orderId: body.diagnosis_id });
+      return json({ ok: true, queued: body.diagnosis_id });
+    }
     if (url.pathname === '/api/free-check' && request.method === 'POST') {
       try {
         const body = await request.json();

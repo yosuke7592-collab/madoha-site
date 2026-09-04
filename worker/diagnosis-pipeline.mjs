@@ -14,8 +14,29 @@ const fixture = input => ({
   provider_metadata: input.channel === 'google_ai_mode' ? { retrieval_mode: 'standard', mock: true } : { mock: true }
 });
 
+class WorkerMockPaidAdapter extends FixturePaidAdapter {
+  estimateCost(input) { return Number(input.entity.mock_cost_usd || 0); }
+  async execute(input) {
+    this.calls += 1;
+    if (input.entity.mock_fatal_channel === input.channel) {
+      const error = new Error(`${input.channel} mock permanent error`);
+      error.code = 'mock_permanent_error'; error.fatal = true; throw error;
+    }
+    if (input.channel === 'google_ai_mode' && input.entity.mock_google_wait && input.question_order === 1 && !input.existing_measurement?.provider_metadata?.pending) {
+      return this.normalize(input, { raw_answer: '', sources: [], usage: { queued: true, mock: true }, estimated_cost: this.estimateCost(input),
+        raw_response_ref: `mock-task-${input.diagnosis_id}-${input.question_id}`, measured_at: this.now(),
+        provider_metadata: { retrieval_mode: 'standard', pending: true, state: 'submitted', mock: true } });
+    }
+    const value = structuredClone(this.fixtures(input));
+    return this.normalize(input, { ...value, estimated_cost: this.estimateCost(input),
+      raw_response_ref: input.existing_measurement?.raw_response_ref || value.raw_response_ref,
+      measured_at: value.measured_at || this.now(),
+      provider_metadata: { ...value.provider_metadata, state: 'completed', mock: true } });
+  }
+}
+
 export function createWorkerAdapters(env, registry, options = {}) {
-  if ((options.mode || env.MADOHA_MEASUREMENT_MODE) === 'mock') return Object.fromEntries(PAID_CHANNELS.map(channel => [channel, new FixturePaidAdapter({ channel, registry, fixtures: options.fixture || fixture })]));
+  if ((options.mode || env.MADOHA_MEASUREMENT_MODE) === 'mock') return Object.fromEntries(PAID_CHANNELS.map(channel => [channel, new WorkerMockPaidAdapter({ channel, registry, fixtures: options.fixture || fixture })]));
   return {
     chatgpt: new OpenAiPaidAdapter({ registry }), gemini: new GeminiPaidAdapter({ registry }),
     google_ai_mode: new GoogleAiModePaidAdapter({ registry, retrievalMode: env.DATAFORSEO_RETRIEVAL_MODE || 'standard' })

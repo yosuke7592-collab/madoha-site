@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { FixturePaidAdapter, MemoryMeasurementStore, PaidAdapter } from '../paid-pipeline.mjs';
-import { getBuyerDiagnosis, processDiagnosisQueueMessage } from '../../worker/diagnosis-pipeline.mjs';
+import worker from '../../worker/index.mjs';
+import { createWorkerAdapters, getBuyerDiagnosis, processDiagnosisQueueMessage } from '../../worker/diagnosis-pipeline.mjs';
 
 const entity = { id: 'kyoudo', name: '株式会社協同住宅', official_url: 'https://www.kyoudo.jp/', aliases: ['協同住宅'], category: '不動産・建築' };
 const questionRows = Array.from({ length: 10 }, (_, index) => ({ question_id: `q${index + 1}`, question_order: index + 1, question_text: `質問${index + 1}`, intent: `意図${index + 1}`, selection_reason: '利用場面から選定', source_signals_json: '["official_site"]', question_kind: index < 6 ? 'nonbrand' : 'branded' }));
@@ -106,4 +107,30 @@ test('concurrent duplicate queue delivery cannot acquire the active diagnosis le
   const db = new FakeDb(); const env = createEnv(db); db.order.runner_lock_token = 'active-lock';
   const result = await processDiagnosisQueueMessage(env, { orderId: 'd1' }, { adapters: createAdapters([]), store: db.measurements });
   assert.equal(result.state, 'already_processing'); assert.equal((await db.measurements.list('d1')).length, 0);
+});
+
+test('built-in Worker mock preserves a queued DataForSEO task id through completion', async () => {
+  const db = new FakeDb(); const env = createEnv(db);
+  db.order.entity_json = JSON.stringify({ ...entity, mock_google_wait: true });
+  const adapters = createWorkerAdapters(env, [entity]);
+  await processDiagnosisQueueMessage(env, { orderId: 'd1' }, { adapters, store: db.measurements });
+  const submitted = await db.measurements.get('d1', 'q1', 'google_ai_mode');
+  assert.equal(submitted.provider_metadata.state, 'submitted');
+  assert.match(submitted.raw_response_ref, /^mock-task-/);
+  await processDiagnosisQueueMessage(env, { orderId: 'd1' }, { adapters, store: db.measurements });
+  const completed = await db.measurements.get('d1', 'q1', 'google_ai_mode');
+  assert.equal(completed.provider_metadata.state, 'completed');
+  assert.equal(completed.raw_response_ref, submitted.raw_response_ref);
+});
+
+test('manual integration enqueue is hidden in production and requires its bearer token', async () => {
+  const queue = { sent: [], async send(body) { this.sent.push(body); } };
+  const request = token => new Request('https://example.test/api/integration/enqueue', {
+    method: 'POST', headers: token ? { authorization: `Bearer ${token}`, 'content-type': 'application/json' } : { 'content-type': 'application/json' },
+    body: JSON.stringify({ diagnosis_id: 'a1111111-1111-4111-8111-111111111111' })
+  });
+  assert.equal((await worker.fetch(request('token'), { ENVIRONMENT: 'production', MADOHA_INTEGRATION_ACCESS_TOKEN: 'token', DIAGNOSIS_QUEUE: queue })).status, 404);
+  assert.equal((await worker.fetch(request(), { ENVIRONMENT: 'integration', MADOHA_INTEGRATION_ACCESS_TOKEN: 'token', DIAGNOSIS_QUEUE: queue })).status, 403);
+  assert.equal((await worker.fetch(request('token'), { ENVIRONMENT: 'integration', MADOHA_INTEGRATION_ACCESS_TOKEN: 'token', DIAGNOSIS_QUEUE: queue })).status, 200);
+  assert.equal(queue.sent.length, 1);
 });
