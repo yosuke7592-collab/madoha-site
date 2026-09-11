@@ -44,16 +44,15 @@ export function createWorkerAdapters(env, registry, options = {}) {
 }
 
 export async function loadConfirmedQuestions(db, diagnosisId) {
-  const result = await db.prepare(`SELECT question_id,question_order,question_text,intent,selection_reason,source_signals_json,question_kind
+  const result = await db.prepare(`SELECT question_id,question_order,question_text,intent,selection_reason,source_signals_json,question_kind,measurement_purpose,confirmed
     FROM diagnosis_questions WHERE diagnosis_id=? ORDER BY question_order`).bind(diagnosisId).all();
   const questions = (result.results || []).map(row => ({
     id: row.question_id, order: row.question_order, query: row.question_text, intent: row.intent,
-    selection_reason: row.selection_reason, source_signals: parseJson(row.source_signals_json, []), kind: row.question_kind
+    selection_reason: row.selection_reason, measurement_purpose: row.measurement_purpose || row.selection_reason, source_signals: parseJson(row.source_signals_json, []), kind: row.question_kind, confirmed: Number(row.confirmed) === 1
   }));
-  const nonbrand = questions.filter(question => question.kind === 'nonbrand').length;
-  const branded = questions.filter(question => question.kind === 'branded').length;
-  const valid = questions.length === 10 && nonbrand === 6 && branded === 4 && questions.every((question, index) => question.order === index + 1 && question.query && question.selection_reason && Array.isArray(question.source_signals));
-  if (!valid) throw Object.assign(new Error(`確定済み質問が不足しています（${questions.length}/10、非指名${nonbrand}/6、指名${branded}/4）。`), { code: QUESTION_ERROR, fatal: true });
+  const confirmed = questions.filter(question => question.confirmed).length;
+  const valid = questions.length === 10 && confirmed === 10 && questions.every((question, index) => question.order === index + 1 && question.query && question.selection_reason && Array.isArray(question.source_signals));
+  if (!valid) throw Object.assign(new Error(`確定済み質問が不足しています（質問${questions.length}/10、確定${confirmed}/10）。`), { code: QUESTION_ERROR, fatal: true });
   return questions;
 }
 
@@ -64,7 +63,7 @@ function baseReport(order, questions) {
     subject: { ...entity, area: order.location || '', category: entity.category || '' },
     measurement: { snapshotDate: new Date().toISOString().slice(0, 10), queryCount: 10, repetitions: 1 },
     queryDiscovery: { method: '対象企業のサービス、地域、検索需要、関連情報から確定した10問を使用' },
-    queries: questions.map(question => ({ id: question.id, query: question.query, intent: question.intent, kind: question.kind, channels: [] })),
+    queries: questions.map(question => ({ id: question.id, query: question.query, intent: question.intent, kind: question.kind, selectionReason: question.selection_reason, measurementPurpose: question.measurement_purpose, channels: [] })),
     sources: [], actions: [
       { target: 'AIが参照できる公式サイト情報を充実させる', change: '会社情報、対応サービス、対応地域を事実に基づいて整理する選択肢です。' },
       { target: '第三者サイト上の企業情報を整理する', change: '公開されている会社情報の名称や内容を確認する選択肢です。' },
@@ -84,7 +83,7 @@ async function failDiagnosis(db, diagnosisId, error) {
 
 export async function getBuyerDiagnosis(db, diagnosisId) {
   const order = await db.prepare(`SELECT id,target_url,payment_status,diagnosis_status,pipeline_state,completed_measurements,total_measurements,
-    pipeline_error_code,error_message,report_json,created_at,paid_at,started_at,completed_at FROM diagnosis_orders WHERE id=?`).bind(diagnosisId).first();
+    pipeline_error_code,error_message,report_json,questions_confirmed_at,created_at,paid_at,started_at,completed_at FROM diagnosis_orders WHERE id=?`).bind(diagnosisId).first();
   if (!order) return null;
   return { ...order, progress: { completed: Number(order.completed_measurements || 0), total: Number(order.total_measurements || 30) }, report: parseJson(order.report_json, null) };
 }

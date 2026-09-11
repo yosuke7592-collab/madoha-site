@@ -369,17 +369,10 @@ async function resumePaidDiagnosis(orderId, sessionId) {
     setText('#paid-target-url', order.target_url);
     if (order.diagnosis_status === 'paid') {
       setText('#paid-status-title', '決済を確認しました');
-      setText('#paid-status-body', 'ボタンを押すとAI詳細診断を開始します。追加料金は発生しません。');
+      setText('#paid-status-body', 'MADOHAが提案した10質問を確認してから、AI詳細診断を開始します。');
       $('#start-paid-diagnosis').hidden = false;
-      $('#start-paid-diagnosis').onclick = async () => {
-        $('#start-paid-diagnosis').hidden = true;
-        const response = await fetch(`/api/paid-diagnosis/${orderId}/start`, { method: 'POST', headers });
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || '診断を開始できませんでした。');
-        setText('#paid-status-title', 'AI詳細診断を実行しています');
-        setText('#paid-status-body', '通常は数分で完了します。この画面で自動更新します。');
-        poll();
-      };
+      $('#start-paid-diagnosis').textContent = order.questions_confirmed_at ? '確定した質問を確認する →' : '診断する10質問を確認する →';
+      $('#start-paid-diagnosis').onclick = () => location.assign(`questions.html?diagnosis=${encodeURIComponent(orderId)}&session_id=${encodeURIComponent(sessionId)}`);
     } else poll();
     async function poll() {
       order = await readOrder();

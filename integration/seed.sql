@@ -22,8 +22,33 @@ INSERT INTO diagnosis_questions (diagnosis_id,question_id,question_order,questio
 ('a1111111-1111-4111-8111-111111111111','br-strength',9,'株式会社協同住宅の強みと、相談前の注意点は？','強み・注意点','強みと不足情報を確認するため。','["会社名","公式サイト","比較ページ"]','branded',datetime('now')),
 ('a1111111-1111-4111-8111-111111111111','br-decision',10,'株式会社協同住宅に中古住宅の購入とリフォームを相談して大丈夫？','利用判断','利用判断に必要な情報を確認するため。','["会社名","対象企業のサービス","利用場面"]','branded',datetime('now'));
 
-INSERT INTO diagnosis_questions SELECT 'b2222222-2222-4222-8222-222222222222',question_id,question_order,question_text,intent,selection_reason,source_signals_json,question_kind,datetime('now') FROM diagnosis_questions WHERE diagnosis_id='a1111111-1111-4111-8111-111111111111';
-INSERT INTO diagnosis_questions SELECT 'd4444444-4444-4444-8444-444444444444',question_id,question_order,question_text,intent,selection_reason,source_signals_json,question_kind,datetime('now') FROM diagnosis_questions WHERE diagnosis_id='a1111111-1111-4111-8111-111111111111';
-INSERT INTO diagnosis_questions SELECT 'e5555555-5555-4555-8555-555555555555',question_id,question_order,question_text,intent,selection_reason,source_signals_json,question_kind,datetime('now') FROM diagnosis_questions WHERE diagnosis_id='a1111111-1111-4111-8111-111111111111';
-INSERT INTO diagnosis_questions SELECT 'c3333333-3333-4333-8333-333333333333',question_id,question_order,question_text,intent,selection_reason,source_signals_json,question_kind,datetime('now') FROM diagnosis_questions WHERE diagnosis_id='a1111111-1111-4111-8111-111111111111' AND question_order < 10;
+INSERT INTO diagnosis_questions (diagnosis_id,question_id,question_order,question_text,intent,selection_reason,source_signals_json,question_kind,created_at) SELECT 'b2222222-2222-4222-8222-222222222222',question_id,question_order,question_text,intent,selection_reason,source_signals_json,question_kind,datetime('now') FROM diagnosis_questions WHERE diagnosis_id='a1111111-1111-4111-8111-111111111111';
+INSERT INTO diagnosis_questions (diagnosis_id,question_id,question_order,question_text,intent,selection_reason,source_signals_json,question_kind,created_at) SELECT 'd4444444-4444-4444-8444-444444444444',question_id,question_order,question_text,intent,selection_reason,source_signals_json,question_kind,datetime('now') FROM diagnosis_questions WHERE diagnosis_id='a1111111-1111-4111-8111-111111111111';
+INSERT INTO diagnosis_questions (diagnosis_id,question_id,question_order,question_text,intent,selection_reason,source_signals_json,question_kind,created_at) SELECT 'e5555555-5555-4555-8555-555555555555',question_id,question_order,question_text,intent,selection_reason,source_signals_json,question_kind,datetime('now') FROM diagnosis_questions WHERE diagnosis_id='a1111111-1111-4111-8111-111111111111';
+INSERT INTO diagnosis_questions (diagnosis_id,question_id,question_order,question_text,intent,selection_reason,source_signals_json,question_kind,created_at) SELECT 'c3333333-3333-4333-8333-333333333333',question_id,question_order,question_text,intent,selection_reason,source_signals_json,question_kind,datetime('now') FROM diagnosis_questions WHERE diagnosis_id='a1111111-1111-4111-8111-111111111111' AND question_order < 10;
+
+UPDATE diagnosis_questions SET
+  measurement_purpose=CASE question_id
+    WHEN 'nb-buy' THEN '住宅購入の相談先としてAIの候補に入るか'
+    WHEN 'nb-rent' THEN '賃貸探しの相談先として認識されるか'
+    WHEN 'nb-build' THEN '注文住宅への対応がAIへ伝わっているか'
+    WHEN 'nb-renovate' THEN 'リフォーム会社の候補に入るか'
+    WHEN 'nb-sell' THEN '売却相談の候補に入るか'
+    WHEN 'nb-combined' THEN '不動産と建築の一体対応が伝わるか'
+    WHEN 'br-company' THEN '会社の基本情報と事業内容が正しく説明されるか'
+    WHEN 'br-reputation' THEN '評判や第三者評価をAIがどう扱うか'
+    WHEN 'br-strength' THEN '強みと不足情報をAIがどう説明するか'
+    ELSE '利用判断に必要な材料をAIが提示できるか' END,
+  alternatives_json=CASE question_id
+    WHEN 'nb-buy' THEN '["浦安市で住宅購入を相談できる地域密着の会社は？","浦安で戸建て購入に強い不動産会社を教えて"]'
+    WHEN 'br-company' THEN '["株式会社協同住宅の事業内容と対応地域を教えて","協同住宅はどのような相談ができる会社？"]'
+    ELSE '[]' END,
+  proposed_question_text=question_text,
+  proposed_question_kind=question_kind,
+  confirmed=1,
+  confirmed_at=datetime('now');
+
+UPDATE diagnosis_orders SET
+  question_mix_reason='地域内で複数の住宅関連サービスを提供しているため、会社名を知らない顧客がAIへ相談する場面をやや多めに調査します。',
+  questions_confirmed_at=CASE WHEN id='c3333333-3333-4333-8333-333333333333' THEN NULL ELSE datetime('now') END;
 

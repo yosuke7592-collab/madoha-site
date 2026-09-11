@@ -1,6 +1,7 @@
 import { normalizePublicUrl, runFreeCheck } from './free-check.mjs';
 import { applyStripeEvent, createCheckout, isIsolatedTestEnvironment, secureTextEqual, verifyCheckoutAccess, verifyStripeSignature } from './paid-diagnosis.mjs';
 import { getBuyerDiagnosis, processDiagnosisQueueMessage } from './diagnosis-pipeline.mjs';
+import { confirmQuestionSet, getQuestionReview, saveQuestionDraft } from './question-review.mjs';
 
 const json = (body, status = 200, extra = {}) => new Response(JSON.stringify(body), {
   status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...extra }
@@ -39,6 +40,25 @@ export default {
       try { return json({ ok: true, ...(await applyStripeEvent(env, JSON.parse(raw))) }); }
       catch (error) { return json({ ok: false, error: error.message }, 400); }
     }
+    const questionsMatch = url.pathname.match(/^\/api\/paid-diagnosis\/([0-9a-f-]{36})\/questions(?:\/(confirm))?$/i);
+    if (questionsMatch) {
+      if (!env.DB) return json({ ok: false, error: '診断機能は準備中です。' }, 503);
+      const sessionId = request.headers.get('x-checkout-session');
+      if (!await verifyCheckoutAccess(env, questionsMatch[1], sessionId)) return json({ ok: false, error: '閲覧権限を確認できません。' }, 403);
+      try {
+        if (request.method === 'GET' && !questionsMatch[2]) return json({ ok: true, review: await getQuestionReview(env.DB, questionsMatch[1]) });
+        const body = await request.json();
+        if (request.method === 'PUT' && !questionsMatch[2]) {
+          const result = await saveQuestionDraft(env.DB, questionsMatch[1], body?.questions);
+          return json({ ok: result.saved, result }, result.saved ? 200 : 422);
+        }
+        if (request.method === 'POST' && questionsMatch[2] === 'confirm') {
+          const result = await confirmQuestionSet(env.DB, questionsMatch[1], body?.acknowledged_warning_codes);
+          return json({ ok: result.confirmed, result }, result.confirmed ? 200 : 422);
+        }
+      } catch (error) { return json({ ok: false, error: error.message }, error.status || 400); }
+      return json({ ok: false, error: 'Not found' }, 404);
+    }
     const paidMatch = url.pathname.match(/^\/api\/paid-diagnosis\/([0-9a-f-]{36})(?:\/(start))?$/i);
     if (paidMatch && request.method === 'GET' && !paidMatch[2]) {
       if (!env.DB) return json({ ok: false, error: '診断機能は準備中です。' }, 503);
@@ -51,7 +71,9 @@ export default {
       if (!env.DB || !env.DIAGNOSIS_QUEUE) return json({ ok: false, error: '診断機能は準備中です。' }, 503);
       const sessionId = request.headers.get('x-checkout-session');
       if (!await verifyCheckoutAccess(env, paidMatch[1], sessionId)) return json({ ok: false, error: '決済を確認できません。' }, 403);
-      const queued = await env.DB.prepare("UPDATE diagnosis_orders SET diagnosis_status='queued',pipeline_state='queued',updated_at=datetime('now') WHERE id=? AND payment_status='paid' AND diagnosis_status='paid'").bind(paidMatch[1]).run();
+      const confirmation = await env.DB.prepare("SELECT questions_confirmed_at,(SELECT COUNT(*) FROM diagnosis_questions WHERE diagnosis_id=? AND confirmed=1) AS confirmed_count FROM diagnosis_orders WHERE id=?").bind(paidMatch[1], paidMatch[1]).first();
+      if (!confirmation?.questions_confirmed_at || Number(confirmation.confirmed_count) !== 10) return json({ ok: false, error: '診断する10質問を確認・確定してください。' }, 409);
+      const queued = await env.DB.prepare("UPDATE diagnosis_orders SET diagnosis_status='queued',pipeline_state='queued',updated_at=datetime('now') WHERE id=? AND payment_status='paid' AND diagnosis_status='paid' AND questions_confirmed_at IS NOT NULL").bind(paidMatch[1]).run();
       if (Number(queued.meta?.changes || 0) === 1) await env.DIAGNOSIS_QUEUE.send({ orderId: paidMatch[1] });
       const order = await env.DB.prepare('SELECT id,diagnosis_status FROM diagnosis_orders WHERE id=?').bind(paidMatch[1]).first();
       return json({ ok: true, result: order });

@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>診断する質問を確認｜MADOHA</title><link rel="stylesheet" href="questions.css"></head>
+<body><header class="top"><a href="index.html" aria-label="MADOHAトップ">MADOHA</a><span>PAID DIAGNOSIS / QUESTION DESIGN</span></header>
+<main>
+  <section class="intro"><p>BEFORE MEASUREMENT</p><h1>診断する質問を確認</h1><p>MADOHAが御社向けに設計した10問です。実際の顧客がAIへ相談する場面として適切か、測定前に確認してください。</p></section>
+  <section class="composition"><div><p>今回の質問構成</p><strong><span id="nonbrand-count">—</span><small>AIに候補として選ばれるか</small></strong><i></i><strong><span id="branded-count">—</span><small>AIに自社がどう理解されているか</small></strong></div><h2>なぜこの構成なのか</h2><p id="mix-reason">質問構成を読み込んでいます。</p></section>
+  <div class="notice" id="page-notice" hidden></div>
+  <section class="questions" id="questions" aria-live="polite"><p class="loading">御社向けの調査内容を読み込んでいます。</p></section>
+  <section class="confirmation">
+    <p>MEASUREMENT VOLUME</p><div class="formula"><strong>10<small>QUESTIONS</small></strong><b>×</b><strong>3<small>AI CHANNELS</small></strong><b>=</b><strong>30<small>RESULTS</small></strong></div>
+    <p>確定後、この診断では質問を変更できません。</p><button id="confirm" type="button" disabled>この10問でAI検索診断を開始する</button>
+  </section>
+</main><template id="question-template"><article class="question"><header><span></span><select aria-label="検索の種類"><option value="nonbrand">候補として選ばれるか</option><option value="branded">自社がどう理解されているか</option></select></header><label>AIへ聞く質問<textarea rows="2" maxlength="400"></textarea></label><div class="explain"><p><b>選定理由</b><span data-field="reason"></span></p><p><b>この質問で分かること</b><span data-field="purpose"></span></p></div><div class="alternatives" hidden><b>別の質問候補</b><div></div></div><button class="replace" type="button">別の質問候補を見る</button><div class="warnings"></div></article></template><script src="questions.js"></script></body></html>

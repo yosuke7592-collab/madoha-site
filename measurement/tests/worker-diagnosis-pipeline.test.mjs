@@ -5,7 +5,7 @@ import worker from '../../worker/index.mjs';
 import { createWorkerAdapters, getBuyerDiagnosis, processDiagnosisQueueMessage } from '../../worker/diagnosis-pipeline.mjs';
 
 const entity = { id: 'kyoudo', name: '株式会社協同住宅', official_url: 'https://www.kyoudo.jp/', aliases: ['協同住宅'], category: '不動産・建築' };
-const questionRows = Array.from({ length: 10 }, (_, index) => ({ question_id: `q${index + 1}`, question_order: index + 1, question_text: `質問${index + 1}`, intent: `意図${index + 1}`, selection_reason: '利用場面から選定', source_signals_json: '["official_site"]', question_kind: index < 6 ? 'nonbrand' : 'branded' }));
+const questionRows = Array.from({ length: 10 }, (_, index) => ({ question_id: `q${index + 1}`, question_order: index + 1, question_text: `質問${index + 1}`, intent: `意図${index + 1}`, selection_reason: '利用場面から選定', measurement_purpose: 'AI上の見え方を確認', source_signals_json: '["official_site"]', question_kind: index < 6 ? 'nonbrand' : 'branded', confirmed: 1 }));
 
 class FakeDb {
   constructor(questions = questionRows) {
@@ -62,6 +62,20 @@ test('worker interruption resumes remaining measurements and duplicate delivery 
 
 test('missing confirmed questions fails before any provider call', async () => {
   const db = new FakeDb(questionRows.slice(0, 9)); const env = createEnv(db); const calls = [];
+  const result = await processDiagnosisQueueMessage(env, { orderId: 'd1' }, { adapters: createAdapters(calls), store: db.measurements });
+  assert.equal(result.state, 'failed'); assert.equal(db.order.pipeline_error_code, 'confirmed_questions_incomplete'); assert.equal(calls.length, 0);
+});
+
+test('arbitrary 10:0 question ratio is accepted when all ten questions are confirmed', async () => {
+  const rows = questionRows.map(row => ({ ...row, question_kind: 'nonbrand' }));
+  const db = new FakeDb(rows); const env = createEnv(db); const calls = [];
+  const result = await processDiagnosisQueueMessage(env, { orderId: 'd1' }, { adapters: createAdapters(calls), store: db.measurements });
+  assert.equal(result.state, 'measuring'); assert.equal(calls.length, 3); assert.equal(db.order.pipeline_error_code, undefined);
+});
+
+test('ten questions are rejected when even one is not confirmed', async () => {
+  const rows = questionRows.map((row, index) => ({ ...row, confirmed: index === 9 ? 0 : 1 }));
+  const db = new FakeDb(rows); const env = createEnv(db); const calls = [];
   const result = await processDiagnosisQueueMessage(env, { orderId: 'd1' }, { adapters: createAdapters(calls), store: db.measurements });
   assert.equal(result.state, 'failed'); assert.equal(db.order.pipeline_error_code, 'confirmed_questions_incomplete'); assert.equal(calls.length, 0);
 });
