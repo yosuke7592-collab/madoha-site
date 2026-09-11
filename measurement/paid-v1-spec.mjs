@@ -2,7 +2,7 @@ export const PAID_V1 = Object.freeze({
   priceJpy: 4980,
   entityTypes: ['company', 'service', 'product', 'brand'],
   channels: ['chatgpt', 'gemini', 'google_ai_mode'],
-  queryCounts: { nonbrand: 6, branded: 4, total: 10 },
+  queryCounts: { total: 10 },
   repetitions: 1,
   totalMeasurements: 30,
 });
@@ -31,8 +31,6 @@ export function auditQueries(queries, subjectName) {
   if (!Array.isArray(queries) || queries.length !== PAID_V1.queryCounts.total) failures.push('質問は合計10問必要です。');
   const nonbrand = (queries || []).filter(query => query.kind === 'nonbrand');
   const branded = (queries || []).filter(query => query.kind === 'branded');
-  if (nonbrand.length !== 6) failures.push('非指名質問は6問必要です。');
-  if (branded.length !== 4) failures.push('指名質問は4問必要です。');
   if (nonbrand.some(query => normalized(query.query).includes(normalized(subjectName)))) failures.push('非指名質問に対象名を含められません。');
   if (branded.some(query => !normalized(query.query).includes(normalized(subjectName)))) failures.push('指名質問には対象名が必要です。');
   const unique = new Set((queries || []).map(query => normalized(query.query)));

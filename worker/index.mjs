@@ -2,6 +2,7 @@ import { normalizePublicUrl, runFreeCheck } from './free-check.mjs';
 import { applyStripeEvent, createCheckout, isIsolatedTestEnvironment, secureTextEqual, verifyCheckoutAccess, verifyStripeSignature } from './paid-diagnosis.mjs';
 import { getBuyerDiagnosis, processDiagnosisQueueMessage } from './diagnosis-pipeline.mjs';
 import { confirmQuestionSet, getQuestionReview, saveQuestionDraft } from './question-review.mjs';
+import { generateAndSaveQuestionDiscovery } from './question-discovery.mjs';
 
 const json = (body, status = 200, extra = {}) => new Response(JSON.stringify(body), {
   status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...extra }
@@ -40,7 +41,7 @@ export default {
       try { return json({ ok: true, ...(await applyStripeEvent(env, JSON.parse(raw))) }); }
       catch (error) { return json({ ok: false, error: error.message }, 400); }
     }
-    const questionsMatch = url.pathname.match(/^\/api\/paid-diagnosis\/([0-9a-f-]{36})\/questions(?:\/(confirm))?$/i);
+    const questionsMatch = url.pathname.match(/^\/api\/paid-diagnosis\/([0-9a-f-]{36})\/questions(?:\/(confirm|discover))?$/i);
     if (questionsMatch) {
       if (!env.DB) return json({ ok: false, error: '診断機能は準備中です。' }, 503);
       const sessionId = request.headers.get('x-checkout-session');
@@ -55,6 +56,10 @@ export default {
         if (request.method === 'POST' && questionsMatch[2] === 'confirm') {
           const result = await confirmQuestionSet(env.DB, questionsMatch[1], body?.acknowledged_warning_codes);
           return json({ ok: result.confirmed, result }, result.confirmed ? 200 : 422);
+        }
+        if (request.method === 'POST' && questionsMatch[2] === 'discover') {
+          const discovery = await generateAndSaveQuestionDiscovery(env.DB, questionsMatch[1], body?.discovery || body);
+          return json({ ok: true, mix: { discovery_count: discovery.mix.discovery_count, brand_count: discovery.mix.brand_count, reason: discovery.mix.reason }, review: await getQuestionReview(env.DB, questionsMatch[1]) });
         }
       } catch (error) { return json({ ok: false, error: error.message }, error.status || 400); }
       return json({ ok: false, error: 'Not found' }, 404);
