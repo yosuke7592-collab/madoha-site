@@ -36,6 +36,13 @@ test('company extraction recognizes candidate headings without treating prose as
   assert.equal(result.company_count, 4); assert.equal(result.target_position, 1);
 });
 
+test('company extraction recognizes bold company bullets followed by a feature label', () => {
+  const answer = `*   **協同住宅（きょうどうじゅうたく）**\n    *   **特徴**: 地域密着です。\n*   **豊友ハウジング（ほうゆうはうじんぐ）**\n    *   **特徴**: 一貫対応です。\n*   **積水ハウス / 三井ホームなど**\n    *   **特徴**: 大手です。`;
+  const result = derivePaidEntities(answer, entity, registry);
+  assert.deepEqual(result.mentioned_entities.map(item => item.name), ['株式会社協同住宅', '豊友ハウジング', '積水ハウス', '三井ホーム']);
+  assert.equal(result.company_count, 4); assert.equal(result.explicit_rank, null);
+});
+
 test('only provider sources are stored and missing citations remain empty', () => {
   assert.equal(sourceObjects([], registry).length, 0);
   assert.equal(sourceObjects([{ url: 'https://kyoudo.jp/a', title: '公式' }, { url: 'https://kyoudo.jp/a', title: '重複' }], registry).length, 1);

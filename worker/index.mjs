@@ -1,6 +1,6 @@
 import { normalizePublicUrl, runFreeCheck } from './free-check.mjs';
 import { applyStripeEvent, createCheckout, isIsolatedTestEnvironment, secureTextEqual, verifyCheckoutAccess, verifyStripeSignature } from './paid-diagnosis.mjs';
-import { getBuyerDiagnosis, processDiagnosisQueueMessage, resumePendingGoogleAiMode } from './diagnosis-pipeline.mjs';
+import { getBuyerDiagnosis, processDiagnosisQueueMessage, resumePendingGoogleAiMode, retryFailedGemini } from './diagnosis-pipeline.mjs';
 import { confirmQuestionSet, getQuestionReview, saveQuestionDraft } from './question-review.mjs';
 import { generateAndSaveQuestionDiscovery } from './question-discovery.mjs';
 
@@ -28,6 +28,16 @@ export default {
         const measurement = await resumePendingGoogleAiMode(env, body.diagnosis_id, body.question_id);
         return json({ ok: true, status: measurement.status, pending: Boolean(measurement.provider_metadata?.pending) });
       } catch (error) { return json({ ok: false, error: error.message }, error.status || 400); }
+    }
+    if (url.pathname === '/api/integration/retry-gemini' && request.method === 'POST') {
+      if (!isIsolatedTestEnvironment(env) || !env.MADOHA_INTEGRATION_ACCESS_TOKEN) return json({ ok: false, error: 'Not found' }, 404);
+      if (!await secureTextEqual(request.headers.get('authorization'), `Bearer ${env.MADOHA_INTEGRATION_ACCESS_TOKEN}`)) return json({ ok: false, error: 'Forbidden' }, 403);
+      try {
+        const body = await request.json();
+        if (!/^[0-9a-f-]{36}$/i.test(body?.diagnosis_id || '') || !body?.question_id) return json({ ok: false, error: 'Invalid request' }, 400);
+        const measurement = await retryFailedGemini(env, body.diagnosis_id, body.question_id);
+        return json({ ok: true, status: measurement.status });
+      } catch (error) { return json({ ok: false, error: error.message, code: error.code || null, provider_metadata: error.providerMetadata || null }, error.status || 400); }
     }
     if (url.pathname === '/api/free-check' && request.method === 'POST') {
       try {

@@ -112,6 +112,34 @@ export async function resumePendingGoogleAiMode(env, diagnosisId, questionId) {
   return measurement;
 }
 
+export async function retryFailedGemini(env, diagnosisId, questionId) {
+  const order = await env.DB.prepare('SELECT * FROM diagnosis_orders WHERE id=?').bind(diagnosisId).first();
+  if (!order) throw Object.assign(new Error('診断が見つかりません。'), { status: 404 });
+  const question = await env.DB.prepare(`SELECT question_id,question_order,question_text,intent,selection_reason,source_signals_json,question_kind,measurement_purpose
+    FROM diagnosis_questions WHERE diagnosis_id=? AND question_id=?`).bind(diagnosisId, questionId).first();
+  if (!question) throw Object.assign(new Error('質問が見つかりません。'), { status: 404 });
+  const entity = parseJson(order.entity_json, { id: diagnosisId, name: order.target_url, official_url: order.target_url });
+  const registry = [{ id: entity.id || diagnosisId, canonicalName: entity.name, displayName: entity.name, aliases: entity.aliases || [], officialDomains: entity.official_url ? [new URL(entity.official_url).hostname.replace(/^www\./, '')] : [] }];
+  const store = new D1MeasurementStore(env.DB);
+  const existing = await store.get(diagnosisId, questionId, 'gemini');
+  if (!existing?.error) throw Object.assign(new Error('再実行可能なGemini失敗測定がありません。'), { status: 409 });
+  const adapter = new GeminiPaidAdapter({ registry });
+  const costRow = await env.DB.prepare('SELECT COALESCE(SUM(estimated_cost_usd),0) AS total FROM paid_measurements WHERE diagnosis_id=?').bind(diagnosisId).first();
+  const costCap = Number(env.MADOHA_PAID_DIAGNOSIS_MAX_COST_USD || 0.2);
+  if (Number(costRow?.total || 0) + adapter.estimateCost() > costCap) throw Object.assign(new Error('費用上限を超えるため実行できません。'), { code: 'cost_cap_exceeded', status: 409 });
+  const input = { diagnosis_id: diagnosisId, run_id: order.run_id || `paid-${diagnosisId}`, entity,
+    question_id: question.question_id, question_order: question.question_order, question_text: question.question_text,
+    intent: question.intent, selection_reason: question.selection_reason, measurement_purpose: question.measurement_purpose || question.selection_reason,
+    source_signals: parseJson(question.source_signals_json, []), question_kind: question.question_kind,
+    channel: 'gemini', channel_order: 2, locale: order.locale || 'ja-JP', location: order.location || '',
+    existing_measurement: existing, max_cost: costCap };
+  const measurement = await adapter.execute(input, env);
+  if (!measurement.raw_answer?.trim()) throw Object.assign(new Error('Gemini returned no answer text.'), { code: 'empty_response', status: 502 });
+  await store.save(measurement);
+  await updateProgress(env.DB, diagnosisId);
+  return measurement;
+}
+
 export async function processDiagnosisQueueMessage(env, body, options = {}) {
   const diagnosisId = body?.orderId;
   if (!diagnosisId) return { action: 'ack', state: 'invalid_message' };

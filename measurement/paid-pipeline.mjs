@@ -71,6 +71,14 @@ export function derivePaidEntities(answer, entity, registry = []) {
   for (const match of text.matchAll(/(?:^|\n)\s*#{1,6}\s*(?:第[一二三四五六七八九十0-9]+候補|候補|性能[^：:\n]{0,20})\s*[：:]\s*([^\n]+)/gu)) {
     addMention(match[1], match.index + match[0].indexOf(match[1]));
   }
+  const lines = text.split(/\r?\n/u); let lineOffset = 0;
+  for (let index = 0; index < lines.length; index += 1) {
+    const match = lines[index].match(/^\s*[*+-]\s*\*{2}([^*]+)\*{2}\s*$/u);
+    if (match && /^\s*[*+-]\s*\*{2}特徴\*{2}/u.test(lines[index + 1] || '')) {
+      for (const name of match[1].split(/\s*[／/]\s*/u)) addMention(name.replace(/など$/u, ''), lineOffset + lines[index].indexOf(match[1]));
+    }
+    lineOffset += lines[index].length + 1;
+  }
   for (const match of text.matchAll(/(?:^|\n)\s*\d+[.)、．]\s*([^—\-、,。\n]+?)(?:\s*[—\-]|$)/gu)) {
     addMention(match[1], match.index + match[0].indexOf(match[1]));
   }
