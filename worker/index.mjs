@@ -1,6 +1,6 @@
 import { normalizePublicUrl, runFreeCheck } from './free-check.mjs';
 import { applyStripeEvent, createCheckout, isIsolatedTestEnvironment, secureTextEqual, verifyCheckoutAccess, verifyStripeSignature } from './paid-diagnosis.mjs';
-import { getBuyerDiagnosis, processDiagnosisQueueMessage, resumePendingGoogleAiMode, retryFailedGemini } from './diagnosis-pipeline.mjs';
+import { finalizeLiveSmoke, getBuyerDiagnosis, processDiagnosisQueueMessage, resumePendingGoogleAiMode, retryFailedGemini, retryGoogleAiModeLive } from './diagnosis-pipeline.mjs';
 import { confirmQuestionSet, getQuestionReview, saveQuestionDraft } from './question-review.mjs';
 import { generateAndSaveQuestionDiscovery } from './question-discovery.mjs';
 
@@ -39,6 +39,25 @@ export default {
         return json({ ok: true, status: measurement.status });
       } catch (error) { return json({ ok: false, error: error.message, code: error.code || null, provider_metadata: error.providerMetadata || null }, error.status || 400); }
     }
+    if (url.pathname === '/api/integration/retry-google-ai-mode-live' && request.method === 'POST') {
+      if (!isIsolatedTestEnvironment(env) || !env.MADOHA_INTEGRATION_ACCESS_TOKEN) return json({ ok: false, error: 'Not found' }, 404);
+      if (!await secureTextEqual(request.headers.get('authorization'), `Bearer ${env.MADOHA_INTEGRATION_ACCESS_TOKEN}`)) return json({ ok: false, error: 'Forbidden' }, 403);
+      try {
+        const body = await request.json();
+        if (!/^[0-9a-f-]{36}$/i.test(body?.diagnosis_id || '') || !body?.question_id) return json({ ok: false, error: 'Invalid request' }, 400);
+        return json({ ok: true, measurement: await retryGoogleAiModeLive(env, body.diagnosis_id, body.question_id) });
+      } catch (error) { return json({ ok: false, error: error.message, code: error.code || null, provider_metadata: error.providerMetadata || null }, error.status || 400); }
+    }
+    if (url.pathname === '/api/integration/finalize-live-smoke' && request.method === 'POST') {
+      if (!isIsolatedTestEnvironment(env) || !env.MADOHA_INTEGRATION_ACCESS_TOKEN) return json({ ok: false, error: 'Not found' }, 404);
+      if (!await secureTextEqual(request.headers.get('authorization'), `Bearer ${env.MADOHA_INTEGRATION_ACCESS_TOKEN}`)) return json({ ok: false, error: 'Forbidden' }, 403);
+      try {
+        const body = await request.json();
+        if (!/^[0-9a-f-]{36}$/i.test(body?.diagnosis_id || '') || !body?.question_id) return json({ ok: false, error: 'Invalid request' }, 400);
+        const result = await finalizeLiveSmoke(env, body.diagnosis_id, body.question_id);
+        return json({ ok: true, report_query_count: result.report.queries.length, measurement_count: result.measurements.length });
+      } catch (error) { return json({ ok: false, error: error.message }, error.status || 400); }
+    }
     if (url.pathname === '/api/integration/inspect-dataforseo' && request.method === 'POST') {
       if (!isIsolatedTestEnvironment(env) || !env.MADOHA_INTEGRATION_ACCESS_TOKEN) return json({ ok: false, error: 'Not found' }, 404);
       if (!await secureTextEqual(request.headers.get('authorization'), `Bearer ${env.MADOHA_INTEGRATION_ACCESS_TOKEN}`)) return json({ ok: false, error: 'Forbidden' }, 403);
@@ -59,6 +78,22 @@ export default {
         return json({ ok: true, task_id: measurement.raw_response_ref,
           tasks_ready_http_status: readyResponse.status, tasks_ready: await readyResponse.json(),
           task_get_http_status: taskResponse.status, task_get: await taskResponse.json() });
+      } catch (error) { return json({ ok: false, error: error.message }, 502); }
+    }
+    if (url.pathname === '/api/integration/dataforseo-catalog' && request.method === 'POST') {
+      if (!isIsolatedTestEnvironment(env) || !env.MADOHA_INTEGRATION_ACCESS_TOKEN) return json({ ok: false, error: 'Not found' }, 404);
+      if (!await secureTextEqual(request.headers.get('authorization'), `Bearer ${env.MADOHA_INTEGRATION_ACCESS_TOKEN}`)) return json({ ok: false, error: 'Forbidden' }, 403);
+      if (!env.DATAFORSEO_LOGIN || !env.DATAFORSEO_PASSWORD) return json({ ok: false, error: 'DataForSEO credentials are not configured' }, 503);
+      try {
+        const authorization = `Basic ${btoa(`${env.DATAFORSEO_LOGIN}:${env.DATAFORSEO_PASSWORD}`)}`; const headers = { authorization };
+        const [locationsResponse, languagesResponse] = await Promise.all([
+          fetch('https://api.dataforseo.com/v3/serp/google/locations/jp', { method: 'GET', headers }),
+          fetch('https://api.dataforseo.com/v3/serp/google/ai_mode/languages', { method: 'GET', headers })
+        ]);
+        const locationsPayload = await locationsResponse.json(); const languagesPayload = await languagesResponse.json();
+        const locations = (locationsPayload.tasks?.[0]?.result || []).filter(item => /Urayasu|Ichikawa|Chiba/i.test(item.location_name || ''));
+        const languages = (languagesPayload.tasks?.[0]?.result || []).filter(item => item.language_code === 'ja');
+        return json({ ok: locationsResponse.ok && languagesResponse.ok, locations_status: locationsPayload.status_code, languages_status: languagesPayload.status_code, locations, languages });
       } catch (error) { return json({ ok: false, error: error.message }, 502); }
     }
     if (url.pathname === '/api/free-check' && request.method === 'POST') {

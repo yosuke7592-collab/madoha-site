@@ -55,8 +55,14 @@ export function derivePaidEntities(answer, entity, registry = []) {
   }
   const mentions = [];
   const addMention = (name, index) => {
-    const cleaned = String(name || '').replace(/[*_`]/g, '').split(/[：:（(]/u)[0].trim();
-    if (!cleaned || cleaned.length < 2 || cleaned.length > 40 || mentions.some(item => normalizeCompanyName(item.name) === normalizeCompanyName(cleaned))) return;
+    const cleaned = String(name || '').replace(/[*_`]/g, '').split(/[：:（(]/u)[0].trim().replace(/^スーモカウンター/u, 'SUUMOカウンター');
+    if (!cleaned || cleaned.length < 2 || cleaned.length > 40) return;
+    const normalized = normalizeCompanyName(cleaned);
+    const existing = mentions.find(item => { const known = normalizeCompanyName(item.name); return known === normalized || known.startsWith(normalized) || normalized.startsWith(known); });
+    if (existing) {
+      if (cleaned.length > existing.name.length) { existing.name = cleaned; existing.raw_name = cleaned; }
+      existing.first_index = Math.min(existing.first_index, index); return;
+    }
     mentions.push({ entity_id: null, name: cleaned, raw_name: cleaned, first_index: index, target: normalizeCompanyName(cleaned) === normalizeCompanyName(entity.name) });
   };
   for (const company of candidates) {
@@ -81,6 +87,13 @@ export function derivePaidEntities(answer, entity, registry = []) {
   }
   for (const match of text.matchAll(/(?:^|\n)\s*\d+[.)、．]\s*([^—\-、,。\n]+?)(?:\s*[—\-]|$)/gu)) {
     addMention(match[1], match.index + match[0].indexOf(match[1]));
+  }
+  for (const match of text.matchAll(/(?:詳細は\s+)([^\n]{2,50}?)(?:\s+から確認|\s+をチェック)/gu)) {
+    addMention(match[1], match.index + match[0].indexOf(match[1]));
+  }
+  for (const match of text.matchAll(/(?:^|\n)([^\n]{2,40}?)(?:\s+\d(?:\.\d)?\s*\(\d+\))?\s*(?:特徴\s*[：:]|不動産コンサルタント)/gu)) {
+    const name = match[1].replace(/^\d+[.)、．]\s*/u, '').trim();
+    if (!/^(この地域|土地探し|地域密着型|市川・浦安エリア|千葉県北西部|詳細は)/u.test(name)) addMention(name, match.index + match[0].indexOf(match[1]));
   }
   mentions.sort((a, b) => a.first_index - b.first_index);
   const targetIndex = mentions.findIndex(item => item.target);

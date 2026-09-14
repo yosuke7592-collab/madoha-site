@@ -1,4 +1,4 @@
-import { FixturePaidAdapter, D1MeasurementStore, PAID_CHANNELS, measurementsToPaidReport, runPaidMeasurements } from '../measurement/paid-pipeline.mjs';
+import { FixturePaidAdapter, D1MeasurementStore, PAID_CHANNELS, derivePaidEntities, measurementsToPaidReport, runPaidMeasurements } from '../measurement/paid-pipeline.mjs';
 import { OpenAiPaidAdapter } from '../measurement/openai-paid.mjs';
 import { GeminiPaidAdapter } from '../measurement/gemini.mjs';
 import { GoogleAiModePaidAdapter } from '../measurement/google-ai-mode.mjs';
@@ -39,7 +39,7 @@ export function createWorkerAdapters(env, registry, options = {}) {
   if ((options.mode || env.MADOHA_MEASUREMENT_MODE) === 'mock') return Object.fromEntries(PAID_CHANNELS.map(channel => [channel, new WorkerMockPaidAdapter({ channel, registry, fixtures: options.fixture || fixture })]));
   return {
     chatgpt: new OpenAiPaidAdapter({ registry }), gemini: new GeminiPaidAdapter({ registry }),
-    google_ai_mode: new GoogleAiModePaidAdapter({ registry, retrievalMode: env.DATAFORSEO_RETRIEVAL_MODE || 'standard' })
+    google_ai_mode: new GoogleAiModePaidAdapter({ registry, retrievalMode: env.DATAFORSEO_RETRIEVAL_MODE || 'live' })
   };
 }
 
@@ -138,6 +138,45 @@ export async function retryFailedGemini(env, diagnosisId, questionId) {
   await store.save(measurement);
   await updateProgress(env.DB, diagnosisId);
   return measurement;
+}
+
+export async function retryGoogleAiModeLive(env, diagnosisId, questionId) {
+  const order = await env.DB.prepare('SELECT * FROM diagnosis_orders WHERE id=?').bind(diagnosisId).first();
+  if (!order) throw Object.assign(new Error('診断が見つかりません。'), { status: 404 });
+  const question = await env.DB.prepare(`SELECT question_id,question_order,question_text,intent,selection_reason,source_signals_json,question_kind,measurement_purpose FROM diagnosis_questions WHERE diagnosis_id=? AND question_id=?`).bind(diagnosisId, questionId).first();
+  if (!question) throw Object.assign(new Error('質問が見つかりません。'), { status: 404 });
+  const entity = parseJson(order.entity_json, { id: diagnosisId, name: order.target_url, official_url: order.target_url });
+  const registry = [{ id: entity.id || diagnosisId, canonicalName: entity.name, displayName: entity.name, aliases: entity.aliases || [], officialDomains: entity.official_url ? [new URL(entity.official_url).hostname.replace(/^www\./, '')] : [] }];
+  const store = new D1MeasurementStore(env.DB); const existing = await store.get(diagnosisId, questionId, 'google_ai_mode');
+  if (!existing?.error) throw Object.assign(new Error('再実行可能なGoogle AI Mode失敗測定がありません。'), { status: 409 });
+  const adapter = new GoogleAiModePaidAdapter({ registry, retrievalMode: 'live' });
+  const costRow = await env.DB.prepare('SELECT COALESCE(SUM(estimated_cost_usd),0) AS total FROM paid_measurements WHERE diagnosis_id=?').bind(diagnosisId).first();
+  const costCap = Number(env.MADOHA_PAID_DIAGNOSIS_MAX_COST_USD || 0.2);
+  if (Number(costRow?.total || 0) + adapter.estimateCost() > costCap) throw Object.assign(new Error('費用上限を超えるため実行できません。'), { code: 'cost_cap_exceeded', status: 409 });
+  const measurement = await adapter.execute({ diagnosis_id: diagnosisId, run_id: order.run_id || `paid-${diagnosisId}`, entity,
+    question_id: question.question_id, question_order: question.question_order, question_text: question.question_text, intent: question.intent,
+    selection_reason: question.selection_reason, measurement_purpose: question.measurement_purpose || question.selection_reason,
+    source_signals: parseJson(question.source_signals_json, []), question_kind: question.question_kind, channel: 'google_ai_mode', channel_order: 3,
+    locale: order.locale || 'ja-JP', location: order.location || '', existing_measurement: existing, max_cost: costCap }, env);
+  await store.save(measurement); await updateProgress(env.DB, diagnosisId); return measurement;
+}
+
+export async function finalizeLiveSmoke(env, diagnosisId, questionId) {
+  const order = await env.DB.prepare('SELECT * FROM diagnosis_orders WHERE id=?').bind(diagnosisId).first();
+  const question = await env.DB.prepare(`SELECT question_id,question_order,question_text,intent,selection_reason,source_signals_json,question_kind,measurement_purpose FROM diagnosis_questions WHERE diagnosis_id=? AND question_id=?`).bind(diagnosisId, questionId).first();
+  if (!order || !question) throw Object.assign(new Error('smoke testデータが見つかりません。'), { status: 404 });
+  const entity = parseJson(order.entity_json, {}); const registry = [{ id: entity.id || diagnosisId, canonicalName: entity.name, displayName: entity.name, aliases: entity.aliases || [] }];
+  const store = new D1MeasurementStore(env.DB); const all = await store.list(diagnosisId);
+  const measurements = all.filter(row => row.question_id === questionId && PAID_CHANNELS.includes(row.channel));
+  if (measurements.length !== 3 || measurements.some(row => row.error || !row.raw_answer?.trim())) throw Object.assign(new Error('3チャネルの実回答が揃っていません。'), { status: 409 });
+  for (const row of measurements) { Object.assign(row, derivePaidEntities(row.raw_answer, entity, registry)); await store.save(row); }
+  const report = measurementsToPaidReport(baseReport(order, [{ id: question.question_id, order: question.question_order, query: question.question_text,
+    intent: question.intent, selection_reason: question.selection_reason, measurement_purpose: question.measurement_purpose || question.selection_reason,
+    source_signals: parseJson(question.source_signals_json, []), kind: question.question_kind }]), measurements);
+  report.measurement.queryCount = 1; report.measurement.channelCount = 3; report.measurement.resultCount = 3; report.measurement.smokeTest = true;
+  report.sources = [...new Map(measurements.flatMap(row => row.sources).map(source => [source.url, { name: source.title || source.domain, role: source.citation_text || 'AI回答が参照したWeb情報', url: source.url }])).values()];
+  await env.DB.prepare(`UPDATE diagnosis_orders SET diagnosis_status='complete',pipeline_state='completed',report_json=?,pipeline_error_code=NULL,error_message=NULL,completed_at=datetime('now'),runner_lock_token=NULL,runner_lock_until=NULL,updated_at=datetime('now') WHERE id=?`).bind(JSON.stringify(report), diagnosisId).run();
+  return { report, measurements };
 }
 
 export async function processDiagnosisQueueMessage(env, body, options = {}) {

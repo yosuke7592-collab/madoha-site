@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { D1MeasurementStore, FixturePaidAdapter, LIVE_LOCK_MESSAGE, MemoryMeasurementStore, PaidAdapter, derivePaidEntities, executeWithRetry, measurementsToPaidReport, runPaidMeasurements, sourceObjects, validatePaidMeasurement } from '../paid-pipeline.mjs';
 import { OpenAiPaidAdapter } from '../openai-paid.mjs';
 import { GeminiPaidAdapter } from '../gemini.mjs';
-import { GoogleAiModePaidAdapter } from '../google-ai-mode.mjs';
+import { GoogleAiModePaidAdapter, resolveDataForSeoTarget } from '../google-ai-mode.mjs';
 
-const entity = { id: 'kyoudo', name: '株式会社協同住宅', aliases: ['協同住宅'] };
+const entity = { id: 'kyoudo', name: '株式会社協同住宅', aliases: ['協同住宅'], display_region: '千葉県浦安市・市川市', api_location_name: 'Urayasu,Chiba,Japan', api_location_code: 1009274, api_language_code: 'ja' };
 const registry = [entity, { id: 'a', name: '明和地所', canonicalName: '明和地所' }, { id: 'b', name: '富士屋商事', canonicalName: '富士屋商事' }];
 const questions = Array.from({ length: 10 }, (_, index) => ({ id: `q${index + 1}`, query: `質問${index + 1}`, intent: index < 6 ? 'discovery' : 'brand', selection_reason: '利用者の検索場面', source_signals: ['official_site'], order: index + 1 }));
 const diagnosis = { id: 'd1', run_id: 'r1', entity, locale: 'ja-JP', location: '千葉県浦安市' };
@@ -41,6 +41,12 @@ test('company extraction recognizes bold company bullets followed by a feature l
   const result = derivePaidEntities(answer, entity, registry);
   assert.deepEqual(result.mentioned_entities.map(item => item.name), ['株式会社協同住宅', '豊友ハウジング', '積水ハウス', '三井ホーム']);
   assert.equal(result.company_count, 4); assert.equal(result.explicit_rank, null);
+});
+
+test('company extraction recognizes Google AI Mode detail links and local result labels', () => {
+  const answer = '不動産SHOPナカジツ（市川・浦安店）特徴 : ワンストップです。\n詳細は 不動産SHOPナカジツ 市川・浦安店 から確認できます。\nスーモカウンター 5.0 (4) 不動産コンサルタント 営業時間外';
+  const result = derivePaidEntities(answer, entity, registry);
+  assert.deepEqual(result.mentioned_entities.map(item => item.name), ['不動産SHOPナカジツ 市川・浦安店', 'SUUMOカウンター']);
 });
 
 test('only provider sources are stored and missing citations remain empty', () => {
@@ -82,7 +88,11 @@ test('all live adapters fail closed before network access', async () => {
 test('mocked live adapters normalize answers, citations, usage and provider references', async () => {
   const openai = new OpenAiPaidAdapter({ registry, fetchImpl: async () => ({ ok: true, json: async () => ({ id: 'o1', model: 'gpt-5.6-luna', usage: { input_tokens: 10, output_tokens: 5 }, output: [{ type: 'web_search_call', action: { sources: [{ url: 'https://kyoudo.jp', title: '公式' }] } }, { type: 'message', content: [{ type: 'output_text', text: '株式会社協同住宅をおすすめします。', annotations: [] }] }] }) }) });
   const gemini = new GeminiPaidAdapter({ registry, fetchImpl: async () => ({ ok: true, json: async () => ({ responseId: 'g1', candidates: [{ content: { parts: [{ text: '株式会社協同住宅を推奨します。' }] }, groundingMetadata: { groundingChunks: [{ web: { uri: 'https://kyoudo.jp', title: '公式' } }], groundingSupports: [] } }], usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5 } }) }) });
-  const google = new GoogleAiModePaidAdapter({ registry, retrievalMode: 'live', fetchImpl: async () => ({ ok: true, json: async () => ({ status_code: 20000, tasks: [{ id: 'a1', cost: .004, result: [{ items: [{ type: 'ai_overview', text: '株式会社協同住宅は有力候補です。', references: [{ url: 'https://kyoudo.jp', title: '公式', text: '引用' }] }] }] }] }) }) });
+  const google = new GoogleAiModePaidAdapter({ registry, retrievalMode: 'live', fetchImpl: async url => {
+    if (url.includes('/locations/')) return { ok: true, json: async () => ({ tasks: [{ result: [{ location_code: 1009274, location_name: 'Urayasu,Chiba,Japan' }] }] }) };
+    if (url.endsWith('/languages')) return { ok: true, json: async () => ({ tasks: [{ result: [{ language_code: 'ja' }] }] }) };
+    return { ok: true, json: async () => ({ status_code: 20000, tasks: [{ id: 'a1', cost: .004, result: [{ items: [{ type: 'ai_overview', text: '株式会社協同住宅は有力候補です。', references: [{ url: 'https://kyoudo.jp', title: '公式', text: '引用' }] }] }] }] }) };
+  } });
   const env = { MADOHA_ENABLE_LIVE_MEASUREMENT: 'true', OPENAI_API_KEY: 'mock', GEMINI_API_KEY: 'mock', DATAFORSEO_LOGIN: 'mock', DATAFORSEO_PASSWORD: 'mock' };
   for (const adapter of [openai, gemini, google]) {
     const row = await adapter.execute({ diagnosis_id: 'd', entity, question_id: 'q', question_text: '質問', channel: adapter.channel, run_id: 'r', max_cost: 1 }, env);
@@ -146,14 +156,48 @@ test('DataForSEO standard mode stores a task and resumes by polling it', async (
   const urls = [];
   const adapter = new GoogleAiModePaidAdapter({ registry, retrievalMode: 'standard', fetchImpl: async url => {
     urls.push(url);
-    if (urls.length === 1) return { ok: true, json: async () => ({ status_code: 20000, tasks: [{ id: 'task-1', cost: .0012 }] }) };
+    if (url.includes('/locations/')) return { ok: true, json: async () => ({ tasks: [{ result: [{ location_code: 1009274, location_name: 'Urayasu,Chiba,Japan' }] }] }) };
+    if (url.endsWith('/languages')) return { ok: true, json: async () => ({ tasks: [{ result: [{ language_code: 'ja' }] }] }) };
+    if (url.endsWith('/task_post')) return { ok: true, json: async () => ({ status_code: 20000, tasks: [{ id: 'task-1', cost: .0012 }] }) };
     return { ok: true, json: async () => ({ status_code: 20000, tasks: [{ id: 'task-1', cost: 0, result: [{ items: [{ type: 'ai_overview', text: '株式会社協同住宅を確認できます。', references: [] }] }] }] }) };
   } });
   const env = { MADOHA_ENABLE_LIVE_MEASUREMENT: 'true', DATAFORSEO_LOGIN: 'mock', DATAFORSEO_PASSWORD: 'mock' };
   const input = { diagnosis_id: 'd', entity, question_id: 'q', question_text: '質問', channel: 'google_ai_mode', run_id: 'r', max_cost: 1 };
   const pending = await adapter.execute(input, env); assert.equal(pending.provider_metadata.pending, true);
   const complete = await adapter.execute({ ...input, existing_measurement: pending }, env);
-  assert.equal(complete.target_present, true); assert.match(urls[1], /task_get\/advanced\/task-1$/);
+  assert.equal(complete.target_present, true); assert.ok(urls.some(url => /task_get\/advanced\/task-1$/.test(url)));
+});
+
+test('DataForSEO separates display region from validated API location and posts Live once', async () => {
+  const calls = []; const adapter = new GoogleAiModePaidAdapter({ registry, fetchImpl: async (url, init) => {
+    calls.push({ url, init });
+    if (url.includes('/locations/')) return { ok: true, json: async () => ({ tasks: [{ result: [{ location_code: 1009274, location_name: 'Urayasu,Chiba,Japan' }] }] }) };
+    if (url.endsWith('/languages')) return { ok: true, json: async () => ({ tasks: [{ result: [{ language_code: 'ja' }] }] }) };
+    return { ok: true, json: async () => ({ status_code: 20000, tasks: [{ id: 'live-1', status_code: 20000, cost: .004, result: [{ items: [{ type: 'ai_overview', markdown: '## 回答\n株式会社協同住宅を候補として確認できます。', items: [{ text: '重複させない本文', references: [{ url: 'https://kyoudo.jp/', source: '協同住宅' }] }] }] }] }] }) };
+  } });
+  const input = { diagnosis_id: 'd', entity, question_id: 'q', question_text: '質問', channel: 'google_ai_mode', run_id: 'r', max_cost: 1, locale: 'ja-JP', location: '千葉県浦安市・市川市' };
+  assert.deepEqual(resolveDataForSeoTarget(input), { displayRegion: '千葉県浦安市・市川市', locationName: 'Urayasu,Chiba,Japan', locationCode: 1009274, languageCode: 'ja' });
+  const row = await adapter.execute(input, { MADOHA_ENABLE_LIVE_MEASUREMENT: 'true', DATAFORSEO_LOGIN: 'mock', DATAFORSEO_PASSWORD: 'mock' });
+  const paidCalls = calls.filter(call => call.url.endsWith('/live/advanced')); assert.equal(paidCalls.length, 1);
+  const body = JSON.parse(paidCalls[0].init.body)[0]; assert.equal(body.location_code, 1009274); assert.equal(body.location_name, undefined);
+  assert.equal(row.provider_metadata.display_region, '千葉県浦安市・市川市'); assert.equal(row.provider_metadata.api_location_name, 'Urayasu,Chiba,Japan');
+  assert.match(row.raw_answer, /^## 回答/u); assert.doesNotMatch(row.raw_answer, /重複させない本文/u); assert.equal(row.sources.length, 1);
+});
+
+test('DataForSEO rejects an invalid API location before a paid Live call', async () => {
+  const calls = []; const bad = { ...entity, api_location_code: 9999999 };
+  const adapter = new GoogleAiModePaidAdapter({ registry, fetchImpl: async url => { calls.push(url); return { ok: true, json: async () => ({ tasks: [{ result: url.includes('/locations/') ? [{ location_code: 1009274, location_name: 'Urayasu,Chiba,Japan' }] : [{ language_code: 'ja' }] }] }) }; } });
+  await assert.rejects(() => adapter.execute({ diagnosis_id: 'd', entity: bad, question_id: 'q', question_text: '質問', channel: 'google_ai_mode', run_id: 'r', max_cost: 1 }, { MADOHA_ENABLE_LIVE_MEASUREMENT: 'true', DATAFORSEO_LOGIN: 'mock', DATAFORSEO_PASSWORD: 'mock' }), error => error.code === 'invalid_location');
+  assert.equal(calls.some(url => url.endsWith('/live/advanced')), false);
+});
+
+test('DataForSEO Live task errors are fatal and do not become measurements', async () => {
+  const adapter = new GoogleAiModePaidAdapter({ registry, fetchImpl: async url => {
+    if (url.includes('/locations/')) return { ok: true, json: async () => ({ tasks: [{ result: [{ location_code: 1009274, location_name: 'Urayasu,Chiba,Japan' }] }] }) };
+    if (url.endsWith('/languages')) return { ok: true, json: async () => ({ tasks: [{ result: [{ language_code: 'ja' }] }] }) };
+    return { ok: true, json: async () => ({ status_code: 20000, tasks: [{ status_code: 40501, status_message: 'Invalid Field' }] }) };
+  } });
+  await assert.rejects(() => adapter.execute({ diagnosis_id: 'd', entity, question_id: 'q', question_text: '質問', channel: 'google_ai_mode', run_id: 'r', max_cost: 1 }, { MADOHA_ENABLE_LIVE_MEASUREMENT: 'true', DATAFORSEO_LOGIN: 'mock', DATAFORSEO_PASSWORD: 'mock' }), error => error.code === 'provider_task_error');
 });
 
 test('DataForSEO task-level 40401 is fatal instead of remaining pending', async () => {

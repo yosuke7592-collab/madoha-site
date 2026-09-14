@@ -14,7 +14,8 @@
     "ENVIRONMENT": "staging",
     "MADOHA_MEASUREMENT_MODE": "mock",
     "MADOHA_ENABLE_LIVE_MEASUREMENT": "false",
-    "MADOHA_PAID_DIAGNOSIS_MAX_COST_USD": "1"
+    "MADOHA_PAID_DIAGNOSIS_MAX_COST_USD": "0.20",
+    "DATAFORSEO_RETRIEVAL_MODE": "live"
   },
   "d1_databases": [
     {
