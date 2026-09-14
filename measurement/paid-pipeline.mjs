@@ -54,6 +54,11 @@ export function derivePaidEntities(answer, entity, registry = []) {
     candidates.push({ id: entity.id || 'target', canonicalName: entity.name, displayName: entity.name, aliases: entity.aliases || [] });
   }
   const mentions = [];
+  const addMention = (name, index) => {
+    const cleaned = String(name || '').replace(/[*_`]/g, '').split(/[：:（(]/u)[0].trim();
+    if (!cleaned || cleaned.length < 2 || cleaned.length > 40 || mentions.some(item => normalizeCompanyName(item.name) === normalizeCompanyName(cleaned))) return;
+    mentions.push({ entity_id: null, name: cleaned, raw_name: cleaned, first_index: index, target: normalizeCompanyName(cleaned) === normalizeCompanyName(entity.name) });
+  };
   for (const company of candidates) {
     const names = [...new Set([company.canonicalName, company.displayName, company.name, ...(company.aliases || [])].filter(Boolean))];
     const hits = names.map(name => ({ name, index: text.indexOf(name) })).filter(hit => hit.index >= 0).sort((a, b) => a.index - b.index);
@@ -63,10 +68,11 @@ export function derivePaidEntities(answer, entity, registry = []) {
       raw_name: hits[0].name, first_index: hits[0].index, target: normalizeCompanyName(company.canonicalName || company.name) === normalizeCompanyName(entity.name)
     });
   }
+  for (const match of text.matchAll(/(?:^|\n)\s*#{1,6}\s*(?:第[一二三四五六七八九十0-9]+候補|候補|性能[^：:\n]{0,20})\s*[：:]\s*([^\n]+)/gu)) {
+    addMention(match[1], match.index + match[0].indexOf(match[1]));
+  }
   for (const match of text.matchAll(/(?:^|\n)\s*\d+[.)、．]\s*([^—\-、,。\n]+?)(?:\s*[—\-]|$)/gu)) {
-    const name = match[1]?.trim();
-    if (!name || name.length < 2 || mentions.some(item => normalizeCompanyName(item.name) === normalizeCompanyName(name))) continue;
-    mentions.push({ entity_id: null, name, raw_name: name, first_index: match.index + match[0].indexOf(name), target: normalizeCompanyName(name) === normalizeCompanyName(entity.name) });
+    addMention(match[1], match.index + match[0].indexOf(match[1]));
   }
   mentions.sort((a, b) => a.first_index - b.first_index);
   const targetIndex = mentions.findIndex(item => item.target);
@@ -124,10 +130,10 @@ export function measurementsToPaidReport(baseReport, measurements) {
 export function liveEnabled(env) { return env?.MADOHA_ENABLE_LIVE_MEASUREMENT === 'true'; }
 
 export class PaidAdapter {
-  constructor({ channel, registry = [], fetchImpl, now = nowIso, sleepImpl = sleep }) {
+  constructor({ channel, registry = [], fetchImpl, now = nowIso, sleepImpl = sleep, randomImpl = Math.random }) {
     this.channel = channel; this.registry = registry;
     this.fetchImpl = fetchImpl || ((...args) => globalThis.fetch(...args));
-    this.now = now; this.sleep = sleepImpl;
+    this.now = now; this.sleep = sleepImpl; this.random = randomImpl;
   }
   assertLive(env) { if (!liveEnabled(env)) throw new Error(LIVE_LOCK_MESSAGE); }
   estimateCost() { throw new Error('estimateCost must be implemented.'); }
@@ -146,7 +152,7 @@ export class FixturePaidAdapter extends PaidAdapter {
   }
 }
 
-export async function executeWithRetry(adapter, input, env, { retries = 2 } = {}) {
+export async function executeWithRetry(adapter, input, env, { retries = 2, baseDelayMs = 5_000, maxDelayMs = 30_000 } = {}) {
   let attempt = 0;
   while (true) {
     try {
@@ -155,8 +161,13 @@ export async function executeWithRetry(adapter, input, env, { retries = 2 } = {}
       return result;
     } catch (error) {
       attempt += 1;
-      if (!error.retryable || attempt > retries) throw error;
-      await adapter.sleep(100 * attempt);
+      if (!error.retryable || attempt > retries) {
+        if (error.retryable && attempt > retries) { error.retry_exhausted = true; error.fatal = true; }
+        throw error;
+      }
+      const exponential = Math.min(maxDelayMs, baseDelayMs * (3 ** (attempt - 1)));
+      const delayMs = Number.isFinite(error.retryAfterMs) ? error.retryAfterMs : Math.round(exponential * (1 + adapter.random() * .25));
+      await adapter.sleep(delayMs);
     }
   }
 }
@@ -194,7 +205,7 @@ export async function runPaidMeasurements({ diagnosis, questions, adapters, stor
   const completed = []; let stopped = null; let processed = 0; let yielded = false;
   measurementLoop: for (const [questionIndex, question] of questions.entries()) for (const channel of PAID_CHANNELS) {
     const existing = await store.get(diagnosis.id, question.id, channel);
-    if (existing && !existing.error && !existing.provider_metadata?.pending) { completed.push(existing); continue; }
+    if (existing && !existing.error && !existing.provider_metadata?.pending && existing.raw_answer?.trim()) { completed.push(existing); continue; }
     if (processed >= maxMeasurements) { yielded = true; break measurementLoop; }
     const adapter = adapters[channel];
     if (!adapter) throw new Error(`Missing adapter: ${channel}`);
@@ -216,7 +227,10 @@ export async function runPaidMeasurements({ diagnosis, questions, adapters, stor
       processed += 1;
       if (onSaved) await onSaved(measurement);
     } catch (error) {
-      const failed = commonMeasurement(input, { raw_answer: '', sources: [], estimated_cost: 0, error: { code: error.code || 'provider_error', message: error.message, retryable: Boolean(error.retryable) } }, adapter.registry);
+      const failed = commonMeasurement(input, { raw_answer: '', sources: [], estimated_cost: 0,
+        error: { code: error.code || 'provider_error', message: error.message, retryable: Boolean(error.retryable) },
+        provider_metadata: { ...(error.providerMetadata || {}), retry_after_ms: error.retryAfterMs ?? null, retry_exhausted: Boolean(error.retry_exhausted) }
+      }, adapter.registry);
       await store.save(failed); completed.push(failed);
       processed += 1;
       if (onSaved) await onSaved(failed);

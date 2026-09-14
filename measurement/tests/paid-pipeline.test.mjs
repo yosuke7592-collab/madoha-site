@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { D1MeasurementStore, FixturePaidAdapter, LIVE_LOCK_MESSAGE, MemoryMeasurementStore, PaidAdapter, derivePaidEntities, measurementsToPaidReport, runPaidMeasurements, sourceObjects, validatePaidMeasurement } from '../paid-pipeline.mjs';
+import { D1MeasurementStore, FixturePaidAdapter, LIVE_LOCK_MESSAGE, MemoryMeasurementStore, PaidAdapter, derivePaidEntities, executeWithRetry, measurementsToPaidReport, runPaidMeasurements, sourceObjects, validatePaidMeasurement } from '../paid-pipeline.mjs';
 import { OpenAiPaidAdapter } from '../openai-paid.mjs';
 import { GeminiPaidAdapter } from '../gemini.mjs';
 import { GoogleAiModePaidAdapter } from '../google-ai-mode.mjs';
@@ -29,6 +29,13 @@ test('first appearance is position, explicit numbered list alone is rank, and we
   assert.equal(ranked.explicit_rank, 2); assert.equal(ranked.recommendation, true);
 });
 
+test('company extraction recognizes candidate headings without treating prose as a company', () => {
+  const answer = `## 第一候補：協同住宅（浦安市）\n有力です。\n## 第二候補：アービックグループ（市川市）\n比較候補です。\n## 第三候補：アイ・シー・ジー（浦安市）\n素材重視です。\n## 性能・自然素材重視なら：DAISHU（市川市）\n別の候補です。`;
+  const result = derivePaidEntities(answer, entity, registry);
+  assert.deepEqual(result.mentioned_entities.map(item => item.name), ['株式会社協同住宅', 'アービックグループ', 'アイ・シー・ジー', 'DAISHU']);
+  assert.equal(result.company_count, 4); assert.equal(result.target_position, 1);
+});
+
 test('only provider sources are stored and missing citations remain empty', () => {
   assert.equal(sourceObjects([], registry).length, 0);
   assert.equal(sourceObjects([{ url: 'https://kyoudo.jp/a', title: '公式' }, { url: 'https://kyoudo.jp/a', title: '重複' }], registry).length, 1);
@@ -44,7 +51,7 @@ test('resume skips completed measurements without duplicate calls', async () => 
 test('temporary failure retries twice and then saves a localized failure', async () => {
   let calls = 0;
   class RetryAdapter extends FixturePaidAdapter { async execute(input) { calls += 1; if (calls < 3) { const error = new Error('temporary'); error.retryable = true; throw error; } return super.execute(input); } }
-  const custom = adapters(); custom.chatgpt = new RetryAdapter({ channel: 'chatgpt', registry, fixtures: fixture });
+  const custom = adapters(); custom.chatgpt = new RetryAdapter({ channel: 'chatgpt', registry, fixtures: fixture, sleepImpl: async () => {} });
   const result = await runPaidMeasurements({ diagnosis, questions: questions.slice(0, 1), adapters: custom, store: new MemoryMeasurementStore(), maxCost: 1 });
   assert.equal(calls, 3); assert.equal(result.measurements.length, 3);
 });
@@ -74,6 +81,49 @@ test('mocked live adapters normalize answers, citations, usage and provider refe
     const row = await adapter.execute({ diagnosis_id: 'd', entity, question_id: 'q', question_text: '質問', channel: adapter.channel, run_id: 'r', max_cost: 1 }, env);
     assert.ok(row.raw_answer); assert.equal(row.target_present, true); assert.equal(row.sources.length, 1); assert.ok(row.raw_response_ref);
   }
+});
+
+test('OpenAI records response diagnostics, uses 2000 output tokens and rejects incomplete empty answers', async () => {
+  let requestBody;
+  const adapter = new OpenAiPaidAdapter({ registry, fetchImpl: async (_url, init) => {
+    requestBody = JSON.parse(init.body);
+    return { ok: true, json: async () => ({ id: 'o-empty', model: 'gpt-5.6-luna', status: 'incomplete',
+      incomplete_details: { reason: 'max_output_tokens' }, max_output_tokens: 600,
+      usage: { input_tokens: 100, output_tokens: 600 }, output: [{ type: 'web_search_call', action: { sources: [{ url: 'https://kyoudo.jp' }] } }] }) };
+  } });
+  await assert.rejects(() => adapter.execute({ diagnosis_id: 'd', entity, question_id: 'q', question_text: '質問', channel: 'chatgpt', run_id: 'r', max_cost: 1 }, { MADOHA_ENABLE_LIVE_MEASUREMENT: 'true', OPENAI_API_KEY: 'mock' }), error => {
+    assert.equal(error.code, 'incomplete_response'); assert.equal(error.providerMetadata.response_status, 'incomplete');
+    assert.deepEqual(error.providerMetadata.output_types, ['web_search_call']); return true;
+  });
+  assert.equal(requestBody.max_output_tokens, 2000);
+});
+
+test('OpenAI accepts top-level output_text and preserves response status metadata', async () => {
+  const adapter = new OpenAiPaidAdapter({ registry, fetchImpl: async () => ({ ok: true, json: async () => ({
+    id: 'o-text', model: 'gpt-5.6-luna', status: 'completed', output_text: '株式会社協同住宅を候補として確認できます。',
+    usage: { input_tokens: 10, output_tokens: 20 }, output: [{ type: 'message', content: [] }]
+  }) }) });
+  const row = await adapter.execute({ diagnosis_id: 'd', entity, question_id: 'q', question_text: '質問', channel: 'chatgpt', run_id: 'r', max_cost: 1 }, { MADOHA_ENABLE_LIVE_MEASUREMENT: 'true', OPENAI_API_KEY: 'mock' });
+  assert.match(row.raw_answer, /協同住宅/); assert.equal(row.provider_metadata.response_status, 'completed');
+});
+
+test('retry honors Retry-After and otherwise uses exponential backoff with jitter', async () => {
+  const waits = []; let attempts = 0;
+  class RetryTiming extends PaidAdapter {
+    estimateCost() { return 0; }
+    async execute(input) { attempts += 1; if (attempts < 3) { const error = new Error('retry'); error.retryable = true; if (attempts === 1) error.retryAfterMs = 7000; throw error; } return this.normalize(input, { raw_answer: entity.name, estimated_cost: 0 }); }
+  }
+  const adapter = new RetryTiming({ channel: 'gemini', registry, sleepImpl: async ms => waits.push(ms), randomImpl: () => 0 });
+  await executeWithRetry(adapter, { diagnosis_id: 'd', entity, question_id: 'q', question_text: '質問', channel: 'gemini', run_id: 'r', max_cost: 1 }, {}, { baseDelayMs: 5000 });
+  assert.deepEqual(waits, [7000, 15000]);
+});
+
+test('Gemini daily quota 429 is classified as permanent and retains provider details', async () => {
+  const adapter = new GeminiPaidAdapter({ registry, fetchImpl: async () => ({ ok: false, status: 429, headers: { get: () => null }, json: async () => ({ error: { code: 429, status: 'RESOURCE_EXHAUSTED', message: 'Per day quota exceeded', details: [{ reason: 'RATE_LIMIT_EXCEEDED' }] } }) }) });
+  await assert.rejects(() => adapter.execute({ diagnosis_id: 'd', entity, question_id: 'q', question_text: '質問', channel: 'gemini', run_id: 'r', max_cost: 1 }, { MADOHA_ENABLE_LIVE_MEASUREMENT: 'true', GEMINI_API_KEY: 'mock' }), error => {
+    assert.equal(error.code, 'rate_limit'); assert.equal(error.retryable, false); assert.equal(error.fatal, true);
+    assert.equal(error.providerMetadata.permanent_quota, true); return true;
+  });
 });
 
 test('common measurements adapt to the unchanged Web/PDF report shape', async () => {

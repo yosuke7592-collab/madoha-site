@@ -88,6 +88,30 @@ export async function getBuyerDiagnosis(db, diagnosisId) {
   return { ...order, progress: { completed: Number(order.completed_measurements || 0), total: Number(order.total_measurements || 30) }, report: parseJson(order.report_json, null) };
 }
 
+export async function resumePendingGoogleAiMode(env, diagnosisId, questionId) {
+  const order = await env.DB.prepare('SELECT * FROM diagnosis_orders WHERE id=?').bind(diagnosisId).first();
+  if (!order) throw Object.assign(new Error('診断が見つかりません。'), { status: 404 });
+  const question = await env.DB.prepare(`SELECT question_id,question_order,question_text,intent,selection_reason,source_signals_json,question_kind,measurement_purpose
+    FROM diagnosis_questions WHERE diagnosis_id=? AND question_id=?`).bind(diagnosisId, questionId).first();
+  if (!question) throw Object.assign(new Error('質問が見つかりません。'), { status: 404 });
+  const entity = parseJson(order.entity_json, { id: diagnosisId, name: order.target_url, official_url: order.target_url });
+  const registry = [{ id: entity.id || diagnosisId, canonicalName: entity.name, displayName: entity.name, aliases: entity.aliases || [], officialDomains: entity.official_url ? [new URL(entity.official_url).hostname.replace(/^www\./, '')] : [] }];
+  const store = new D1MeasurementStore(env.DB);
+  const existing = await store.get(diagnosisId, questionId, 'google_ai_mode');
+  if (!existing?.provider_metadata?.pending || !existing.raw_response_ref) throw Object.assign(new Error('再取得可能な既存taskがありません。'), { status: 409 });
+  const adapter = new GoogleAiModePaidAdapter({ registry, retrievalMode: 'standard' });
+  const input = { diagnosis_id: diagnosisId, run_id: order.run_id || `paid-${diagnosisId}`, entity,
+    question_id: question.question_id, question_order: question.question_order, question_text: question.question_text,
+    intent: question.intent, selection_reason: question.selection_reason, measurement_purpose: question.measurement_purpose || question.selection_reason,
+    source_signals: parseJson(question.source_signals_json, []), question_kind: question.question_kind,
+    channel: 'google_ai_mode', channel_order: 3, locale: order.locale || 'ja-JP', location: order.location || '',
+    existing_measurement: existing, max_cost: Number(env.MADOHA_PAID_DIAGNOSIS_MAX_COST_USD || 0.2) };
+  const measurement = await adapter.execute(input, env);
+  await store.save(measurement);
+  await updateProgress(env.DB, diagnosisId);
+  return measurement;
+}
+
 export async function processDiagnosisQueueMessage(env, body, options = {}) {
   const diagnosisId = body?.orderId;
   if (!diagnosisId) return { action: 'ack', state: 'invalid_message' };

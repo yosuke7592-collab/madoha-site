@@ -99,7 +99,7 @@ test('cost cap pauses diagnosis and preserves completed work', async () => {
 test('temporary OpenAI failure retries and continues', async () => {
   const db = new FakeDb(); const env = createEnv(db); const calls = []; const adapters = createAdapters(calls); let attempts = 0;
   class Temporary extends FixturePaidAdapter { async execute(input) { attempts += 1; if (attempts < 3) { const error = new Error('temporary'); error.retryable = true; throw error; } return super.execute(input); } }
-  adapters.chatgpt = new Temporary({ channel: 'chatgpt', registry: [entity], fixtures: fixture });
+  adapters.chatgpt = new Temporary({ channel: 'chatgpt', registry: [entity], fixtures: fixture, sleepImpl: async () => {} });
   const result = await processDiagnosisQueueMessage(env, { orderId: 'd1' }, { adapters, store: db.measurements });
   assert.equal(result.state, 'measuring'); assert.equal(attempts, 3); assert.equal(db.order.completed_measurements, 3);
 });
@@ -148,4 +148,9 @@ test('manual integration enqueue is hidden in production and requires its bearer
   assert.equal((await worker.fetch(request('token'), { ENVIRONMENT: 'integration', MADOHA_INTEGRATION_ACCESS_TOKEN: 'token', DIAGNOSIS_QUEUE: queue })).status, 200);
   assert.equal((await worker.fetch(request('token'), { ENVIRONMENT: 'staging', MADOHA_INTEGRATION_ACCESS_TOKEN: 'token', DIAGNOSIS_QUEUE: queue })).status, 200);
   assert.equal(queue.sent.length, 2);
+  const resumeRequest = new Request('https://example.test/api/integration/resume-dataforseo', {
+    method: 'POST', headers: { authorization: 'Bearer token', 'content-type': 'application/json' },
+    body: JSON.stringify({ diagnosis_id: 'a1111111-1111-4111-8111-111111111111', question_id: 'q1' })
+  });
+  assert.equal((await worker.fetch(resumeRequest, { ENVIRONMENT: 'production', MADOHA_INTEGRATION_ACCESS_TOKEN: 'token' })).status, 404);
 });
