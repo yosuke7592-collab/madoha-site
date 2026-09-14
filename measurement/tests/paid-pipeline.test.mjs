@@ -156,6 +156,16 @@ test('DataForSEO standard mode stores a task and resumes by polling it', async (
   assert.equal(complete.target_present, true); assert.match(urls[1], /task_get\/advanced\/task-1$/);
 });
 
+test('DataForSEO task-level 40401 is fatal instead of remaining pending', async () => {
+  const adapter = new GoogleAiModePaidAdapter({ registry, retrievalMode: 'standard', fetchImpl: async () => ({ ok: true, status: 200, json: async () => ({
+    status_code: 20000, status_message: 'Ok.', tasks: [{ id: 'missing-task', status_code: 40401, status_message: 'Task Not Found.', time: '0 sec.', cost: 0, result_count: 0, result: null }]
+  }) }) });
+  const existing_measurement = { raw_response_ref: 'missing-task', estimated_cost: .0012, provider_metadata: { pending: true } };
+  await assert.rejects(() => adapter.execute({ diagnosis_id: 'd', entity, question_id: 'q', question_text: '質問', channel: 'google_ai_mode', run_id: 'r', max_cost: 1, existing_measurement }, { MADOHA_ENABLE_LIVE_MEASUREMENT: 'true', DATAFORSEO_LOGIN: 'mock', DATAFORSEO_PASSWORD: 'mock' }), error => {
+    assert.equal(error.code, 'task_not_found'); assert.equal(error.fatal, true); assert.equal(error.providerMetadata.task_status_code, 40401); return true;
+  });
+});
+
 test('D1 store writes and reads the common measurement JSON with an idempotent key', async () => {
   let stored = null; const statements = [];
   const db = { prepare(sql) { statements.push(sql); return { bind(...values) { return { async run() { stored = JSON.parse(values[8]); return { success: true }; }, async first() { return stored ? { measurement_json: JSON.stringify(stored) } : null; }, async all() { return { results: stored ? [{ measurement_json: JSON.stringify(stored) }] : [] }; } }; } }; } };

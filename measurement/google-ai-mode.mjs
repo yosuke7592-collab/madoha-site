@@ -22,6 +22,16 @@ export class GoogleAiModePaidAdapter extends PaidAdapter {
     catch { const error = new Error('DataForSEO network request failed.'); error.code = 'network'; error.retryable = true; throw error; }
     const payload = await response.json();
     if (!response.ok || Number(payload.status_code) >= 40000) { const code = response.status === 429 ? 'rate_limit' : response.status === 401 ? 'authentication' : 'provider_error'; const error = new Error(`DataForSEO request failed: ${payload.status_message || response.status}`); error.code = code; error.retryable = response.status === 429 || response.status >= 500; error.fatal = !error.retryable; throw error; }
+    const task = payload.tasks?.[0];
+    if (Number(task?.status_code) >= 40000) {
+      const error = new Error(`DataForSEO task failed: ${task.status_message || task.status_code}`);
+      error.code = Number(task.status_code) === 40401 ? 'task_not_found' : 'provider_task_error';
+      error.retryable = false; error.fatal = true;
+      error.providerMetadata = { retrieval_mode: this.retrievalMode, task_status_code: task.status_code,
+        task_status_message: task.status_message || null, task_time: task.time || null,
+        task_cost: task.cost || 0, result_count: task.result_count || 0 };
+      throw error;
+    }
     if (this.retrievalMode !== 'live' && !pendingId) return this.normalize(input, { raw_answer: '', sources: [], usage: { queued: true }, estimated_cost: this.estimateCost(input), raw_response_ref: payload.tasks?.[0]?.id || null, measured_at: this.now(), provider_metadata: { retrieval_mode: 'standard', pending: true } });
     if (pendingId && !payload.tasks?.[0]?.result?.length) return this.normalize(input, { raw_answer: '', sources: [], usage: { queued: true }, estimated_cost: input.existing_measurement.estimated_cost, raw_response_ref: pendingId, measured_at: this.now(), provider_metadata: { retrieval_mode: 'standard', pending: true } });
     return normalizeResult(this, input, payload, this.estimateCost(input));

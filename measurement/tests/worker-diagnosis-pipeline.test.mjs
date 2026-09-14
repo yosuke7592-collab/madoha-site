@@ -158,4 +158,9 @@ test('manual integration enqueue is hidden in production and requires its bearer
     body: JSON.stringify({ diagnosis_id: 'a1111111-1111-4111-8111-111111111111', question_id: 'q1' })
   });
   assert.equal((await worker.fetch(geminiRequest, { ENVIRONMENT: 'production', MADOHA_INTEGRATION_ACCESS_TOKEN: 'token' })).status, 404);
+  const inspectRequest = new Request('https://example.test/api/integration/inspect-dataforseo', {
+    method: 'POST', headers: { authorization: 'Bearer token', 'content-type': 'application/json' },
+    body: JSON.stringify({ diagnosis_id: 'a1111111-1111-4111-8111-111111111111', question_id: 'q1' })
+  });
+  assert.equal((await worker.fetch(inspectRequest, { ENVIRONMENT: 'production', MADOHA_INTEGRATION_ACCESS_TOKEN: 'token' })).status, 404);
 });

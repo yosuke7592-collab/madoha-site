@@ -39,6 +39,28 @@ export default {
         return json({ ok: true, status: measurement.status });
       } catch (error) { return json({ ok: false, error: error.message, code: error.code || null, provider_metadata: error.providerMetadata || null }, error.status || 400); }
     }
+    if (url.pathname === '/api/integration/inspect-dataforseo' && request.method === 'POST') {
+      if (!isIsolatedTestEnvironment(env) || !env.MADOHA_INTEGRATION_ACCESS_TOKEN) return json({ ok: false, error: 'Not found' }, 404);
+      if (!await secureTextEqual(request.headers.get('authorization'), `Bearer ${env.MADOHA_INTEGRATION_ACCESS_TOKEN}`)) return json({ ok: false, error: 'Forbidden' }, 403);
+      try {
+        const body = await request.json();
+        if (!/^[0-9a-f-]{36}$/i.test(body?.diagnosis_id || '') || !body?.question_id) return json({ ok: false, error: 'Invalid request' }, 400);
+        const row = await env.DB.prepare(`SELECT measurement_json FROM paid_measurements
+          WHERE diagnosis_id=? AND question_id=? AND channel='google_ai_mode'`).bind(body.diagnosis_id, body.question_id).first();
+        const measurement = row?.measurement_json ? JSON.parse(row.measurement_json) : null;
+        if (!measurement?.raw_response_ref) return json({ ok: false, error: 'Existing task id not found' }, 404);
+        if (!env.DATAFORSEO_LOGIN || !env.DATAFORSEO_PASSWORD) return json({ ok: false, error: 'DataForSEO credentials are not configured' }, 503);
+        const authorization = `Basic ${btoa(`${env.DATAFORSEO_LOGIN}:${env.DATAFORSEO_PASSWORD}`)}`;
+        const headers = { authorization };
+        const [readyResponse, taskResponse] = await Promise.all([
+          fetch('https://api.dataforseo.com/v3/serp/google/ai_mode/tasks_ready', { method: 'GET', headers }),
+          fetch(`https://api.dataforseo.com/v3/serp/google/ai_mode/task_get/advanced/${encodeURIComponent(measurement.raw_response_ref)}`, { method: 'GET', headers })
+        ]);
+        return json({ ok: true, task_id: measurement.raw_response_ref,
+          tasks_ready_http_status: readyResponse.status, tasks_ready: await readyResponse.json(),
+          task_get_http_status: taskResponse.status, task_get: await taskResponse.json() });
+      } catch (error) { return json({ ok: false, error: error.message }, 502); }
+    }
     if (url.pathname === '/api/free-check' && request.method === 'POST') {
       try {
         const body = await request.json();
