@@ -124,8 +124,10 @@ export function measurementsToPaidReport(baseReport, measurements) {
 export function liveEnabled(env) { return env?.MADOHA_ENABLE_LIVE_MEASUREMENT === 'true'; }
 
 export class PaidAdapter {
-  constructor({ channel, registry = [], fetchImpl = globalThis.fetch, now = nowIso, sleepImpl = sleep }) {
-    this.channel = channel; this.registry = registry; this.fetchImpl = fetchImpl; this.now = now; this.sleep = sleepImpl;
+  constructor({ channel, registry = [], fetchImpl, now = nowIso, sleepImpl = sleep }) {
+    this.channel = channel; this.registry = registry;
+    this.fetchImpl = fetchImpl || ((...args) => globalThis.fetch(...args));
+    this.now = now; this.sleep = sleepImpl;
   }
   assertLive(env) { if (!liveEnabled(env)) throw new Error(LIVE_LOCK_MESSAGE); }
   estimateCost() { throw new Error('estimateCost must be implemented.'); }
