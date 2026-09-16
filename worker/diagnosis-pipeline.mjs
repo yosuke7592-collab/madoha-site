@@ -219,8 +219,9 @@ export async function processDiagnosisQueueMessage(env, body, options = {}) {
     }
     const hasPending = result.measurements.some(row => row.provider_metadata?.pending);
     await env.DB.prepare(`UPDATE diagnosis_orders SET diagnosis_status='running',pipeline_state='measuring',runner_lock_token=NULL,runner_lock_until=NULL,updated_at=datetime('now') WHERE id=? AND runner_lock_token=?`).bind(diagnosisId, lock).run();
-    await env.DIAGNOSIS_QUEUE.send({ orderId: diagnosisId }, hasPending ? { delaySeconds: 60 } : undefined);
-    return { action: 'ack', state: 'measuring', requeued: true, result };
+    const requeued = options.requeue !== false;
+    if (requeued) await env.DIAGNOSIS_QUEUE.send({ orderId: diagnosisId }, hasPending ? { delaySeconds: 60 } : undefined);
+    return { action: 'ack', state: 'measuring', requeued, result };
   } catch (error) {
     await failDiagnosis(env.DB, diagnosisId, error);
     return { action: 'ack', state: 'failed', error: { code: error.code || 'pipeline_error', message: error.message } };

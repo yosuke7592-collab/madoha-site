@@ -19,6 +19,16 @@ export default {
       await env.DIAGNOSIS_QUEUE.send({ orderId: body.diagnosis_id });
       return json({ ok: true, queued: body.diagnosis_id });
     }
+    if (url.pathname === '/api/integration/run-diagnosis-batch' && request.method === 'POST') {
+      if (!isIsolatedTestEnvironment(env) || !env.MADOHA_INTEGRATION_ACCESS_TOKEN) return json({ ok: false, error: 'Not found' }, 404);
+      if (!await secureTextEqual(request.headers.get('authorization'), `Bearer ${env.MADOHA_INTEGRATION_ACCESS_TOKEN}`)) return json({ ok: false, error: 'Forbidden' }, 403);
+      const body = await request.json();
+      if (!/^[0-9a-f-]{36}$/i.test(body?.diagnosis_id || '')) return json({ ok: false, error: 'Invalid diagnosis id' }, 400);
+      const result = await processDiagnosisQueueMessage(env, { orderId: body.diagnosis_id }, { requeue: false });
+      return json({ ok: true, state: result.state, processed: result.result?.processed || 0, total_cost: result.result?.total_estimated_cost || 0,
+        completed: result.result?.measurements?.filter(row => !row.error && !row.provider_metadata?.pending && row.raw_answer?.trim()).length || 0,
+        stopped: result.result?.stopped || null, error: result.error || null });
+    }
     if (url.pathname === '/api/integration/resume-dataforseo' && request.method === 'POST') {
       if (!isIsolatedTestEnvironment(env) || !env.MADOHA_INTEGRATION_ACCESS_TOKEN) return json({ ok: false, error: 'Not found' }, 404);
       if (!await secureTextEqual(request.headers.get('authorization'), `Bearer ${env.MADOHA_INTEGRATION_ACCESS_TOKEN}`)) return json({ ok: false, error: 'Forbidden' }, 403);

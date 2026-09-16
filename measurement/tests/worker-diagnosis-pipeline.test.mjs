@@ -164,3 +164,9 @@ test('manual integration enqueue is hidden in production and requires its bearer
   });
   assert.equal((await worker.fetch(inspectRequest, { ENVIRONMENT: 'production', MADOHA_INTEGRATION_ACCESS_TOKEN: 'token' })).status, 404);
 });
+
+test('manual live batch endpoint is hidden in production', async () => {
+  const request = new Request('https://example.test/api/integration/run-diagnosis-batch', { method: 'POST', headers: { authorization: 'Bearer token' }, body: JSON.stringify({ diagnosis_id: 'a1111111-1111-4111-8111-111111111111' }) });
+  const response = await worker.fetch(request, { ENVIRONMENT: 'production', MADOHA_INTEGRATION_ACCESS_TOKEN: 'token' });
+  assert.equal(response.status, 404);
+});

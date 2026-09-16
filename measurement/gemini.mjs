@@ -36,7 +36,8 @@ export class GeminiPaidAdapter extends PaidAdapter {
       throw error;
     }
     const candidate = payload.candidates?.[0] || {}; const metadata = candidate.groundingMetadata || {};
-    const raw_answer = (candidate.content?.parts || []).map(part => part.text || '').join('\n');
+    const raw_answer = (candidate.content?.parts || []).map(part => part.text || '').join('\n').trim();
+    if (!raw_answer) { const error = new Error('Gemini returned no answer text.'); error.code = 'empty_response'; error.fatal = true; throw error; }
     const supports = metadata.groundingSupports || [];
     const sources = (metadata.groundingChunks || []).map((chunk, index) => ({ url: chunk.web?.uri, title: chunk.web?.title, citation_text: supports.filter(item => item.groundingChunkIndices?.includes(index)).map(item => item.segment?.text).filter(Boolean).join(' '), evidence: 'citation' }));
     const usage = payload.usageMetadata || {}; const inputTokens = usage.promptTokenCount || 0, outputTokens = usage.candidatesTokenCount || 0;

@@ -143,6 +143,11 @@ test('Gemini daily quota 429 is classified as permanent and retains provider det
   });
 });
 
+test('Gemini rejects a successful HTTP response with no answer text', async () => {
+  const adapter = new GeminiPaidAdapter({ registry, fetchImpl: async () => ({ ok: true, json: async () => ({ candidates: [{ content: { parts: [] }, groundingMetadata: {} }] }) }) });
+  await assert.rejects(() => adapter.execute({ diagnosis_id: 'd', entity, question_id: 'q', question_text: '質問', channel: 'gemini', run_id: 'r', max_cost: 1 }, { MADOHA_ENABLE_LIVE_MEASUREMENT: 'true', GEMINI_API_KEY: 'mock' }), error => error.code === 'empty_response' && error.fatal);
+});
+
 test('common measurements adapt to the unchanged Web/PDF report shape', async () => {
   const store = new MemoryMeasurementStore();
   const result = await runPaidMeasurements({ diagnosis, questions, adapters: adapters(), store, maxCost: 1 });
