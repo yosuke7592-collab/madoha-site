@@ -46,6 +46,22 @@ export function sourceObjects(items = [], registry = []) {
 
 const STRONG_RECOMMENDATION = /(おすすめ|お勧め|推奨|第一候補|第1候補|有力候補|最も適して|特におすすめ)/u;
 const NEGATIVE_RECOMMENDATION = /(おすすめしない|推奨しない|第一候補ではない|有力候補ではない)/u;
+const GENERIC_COMPANY_LABEL = /(?:【|】|候補|地域|地元|おすすめ|相談|タイプ|まとめ|結論|選び方|コツ|比較|確認|強み|特徴|評判|口コミ|事業内容|パターン|資金計画|予算|エリア|ステップ|判断|質問|書類|メモ|ネットワーク|自由設計|今回|大手|総合|会社概要|基本情報|条件|方法|選択肢|安全性|災害リスク|周辺環境|将来費用|ライフプラン|金融機関|お金のプロ|専門店|部門|購入スタイル|希望する場合|提案してくれるか|借りられる額|など|第[一二三四五六七八九十0-9]+候補|^不動産会社$|^社名$|^注文住宅$)/u;
+const SENTENCE_COMPANY_LABEL = /(?:前提|回答|指す|したい場合|➔|➡)/u;
+
+function plausibleCompanyName(value) {
+  const name = String(value || '').replace(/[*_`]/g, '').trim();
+  if (!name || name.startsWith('#') || SENTENCE_COMPANY_LABEL.test(name) || GENERIC_COMPANY_LABEL.test(name)) return false;
+  if (/^(?:特徴|向いている|おすすめ理由|判断理由|メリット|デメリット|所在地|店舗|強み|今回|この地域)/u.test(name)) return false;
+  return /[A-Za-z\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}]/u.test(name);
+}
+
+function companyLikeStructuredName(value) {
+  const name = String(value || '').replace(/[*_`]/g, '').trim();
+  if (/(?:株式会社|有限会社|合同会社|一般社団法人|一般財団法人|㈱|（株）|\(株\))/u.test(name)) return true;
+  if (/^[A-Za-z][A-Za-z0-9 .’'&-]{1,30}$/u.test(name)) return true;
+  return /(?:不動産|住宅|地所|商事|工務店|ハウジング|販売|ハウス|ホーム|リビング|リフォーム|リノベ|建設|グループ|SHOP|Life|Re|デザイン|スマイル|パートナー|ミニミニ|エイブル|アパマンショップ|タウンハウジング|レイエス)(?:\s+[^\s]{1,12}店)?$/iu.test(name);
+}
 
 export function derivePaidEntities(answer, entity, registry = []) {
   const text = String(answer || '');
@@ -55,10 +71,17 @@ export function derivePaidEntities(answer, entity, registry = []) {
   }
   const mentions = [];
   const addMention = (name, index) => {
-    const cleaned = String(name || '').replace(/[*_`]/g, '').split(/[：:（(]/u)[0].trim().replace(/^スーモカウンター/u, 'SUUMOカウンター');
-    if (!cleaned || cleaned.length < 2 || cleaned.length > 40) return;
+    const cleaned = String(name || '').replace(/[*_`]/g, '').replace(/^\d+[.)、．]\s*/u, '').replace(/^■\s*/u, '').split(/[｜|：:（(]/u)[0].trim()
+      .replace(/^((?:株式会社|有限会社|合同会社|一般社団法人|一般財団法人)[^、。\n]{1,30}?)(?:は|が)(?=[^\s]).*$/u, '$1')
+      .replace(/^スーモカウンター/u, 'SUUMOカウンター');
+    if (!plausibleCompanyName(cleaned) || cleaned.length < 2 || cleaned.length > 40) return;
     const normalized = normalizeCompanyName(cleaned);
-    const existing = mentions.find(item => { const known = normalizeCompanyName(item.name); return known === normalized || known.startsWith(normalized) || normalized.startsWith(known); });
+    const existing = mentions.find(item => {
+      const known = normalizeCompanyName(item.name);
+      if (known === normalized) return true;
+      const longer = known.length >= normalized.length ? known : normalized;
+      return (known.startsWith(normalized) || normalized.startsWith(known)) && /(?:店|支店|営業所|センター|ショップ)$/u.test(longer);
+    });
     if (existing) {
       if (cleaned.length > existing.name.length) { existing.name = cleaned; existing.raw_name = cleaned; }
       existing.first_index = Math.min(existing.first_index, index); return;
@@ -77,11 +100,27 @@ export function derivePaidEntities(answer, entity, registry = []) {
   for (const match of text.matchAll(/(?:^|\n)\s*#{1,6}\s*(?:第[一二三四五六七八九十0-9]+候補|候補|性能[^：:\n]{0,20})\s*[：:]\s*([^\n]+)/gu)) {
     addMention(match[1], match.index + match[0].indexOf(match[1]));
   }
+  for (const match of text.matchAll(/(?:^|\n)\s*#{2,6}\s*(?:(?:\d+[.)、．]\s*)|(?:■\s*))([^\n｜|]{2,60})(?=\r?\n|[｜|]|$)/gu)) {
+    addMention(match[1], match.index + match[0].indexOf(match[1]));
+  }
+  for (const match of text.matchAll(/(?:^|\n)\s*\|\s*\*{2}([^*|]+)\*{2}\s*\|/gu)) {
+    addMention(match[1], match.index + match[0].indexOf(match[1]));
+  }
   const lines = text.split(/\r?\n/u); let lineOffset = 0;
   for (let index = 0; index < lines.length; index += 1) {
     const match = lines[index].match(/^\s*[*+-]\s*\*{2}([^*]+)\*{2}\s*$/u);
-    if (match && /^\s*[*+-]\s*\*{2}特徴\*{2}/u.test(lines[index + 1] || '')) {
+    if (match && /^\s*[*+-]\s*\*{2}特徴[：:]?\*{2}/u.test(lines[index + 1] || '')) {
       for (const name of match[1].split(/\s*[／/]\s*/u)) addMention(name.replace(/など$/u, ''), lineOffset + lines[index].indexOf(match[1]));
+    }
+    const describedBullet = lines[index].match(/^\s*[*+-]\s*\*{2}([^*]+)\*{2}\s*[：:]/u);
+    if (describedBullet && companyLikeStructuredName(describedBullet[1].split(/[（(]/u)[0])) addMention(describedBullet[1], lineOffset + lines[index].indexOf(describedBullet[1]));
+    const localResult = lines[index].match(/^\s*([^\n]{2,60}?)(?:\s+\d(?:\.\d)?\s*\(\d+\))?\s*$/u);
+    const nextLine = (lines[index + 1] || '').trim();
+    if (localResult && /^(?:不動産|住宅|建築|工務店|リフォーム|ハウスメーカー)/u.test(nextLine)) {
+      addMention(localResult[1].replace(/\s+(?:不動産業|不動産店|不動産仲介業者?|不動産管理会社|請負業者)$/u, ''), lineOffset + lines[index].indexOf(localResult[1]));
+    }
+    if (localResult && /(?:株式会社|有限会社|合同会社)/u.test(localResult[1])) {
+      addMention(localResult[1].replace(/\s+(?:不動産業|不動産店|不動産仲介業者?|不動産管理会社|請負業者)$/u, ''), lineOffset + lines[index].indexOf(localResult[1]));
     }
     lineOffset += lines[index].length + 1;
   }

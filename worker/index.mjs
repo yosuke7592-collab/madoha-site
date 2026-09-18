@@ -1,6 +1,6 @@
 import { normalizePublicUrl, runFreeCheck } from './free-check.mjs';
 import { applyStripeEvent, createCheckout, isIsolatedTestEnvironment, secureTextEqual, verifyCheckoutAccess, verifyStripeSignature } from './paid-diagnosis.mjs';
-import { finalizeLiveSmoke, getBuyerDiagnosis, processDiagnosisQueueMessage, resumePendingGoogleAiMode, retryFailedGemini, retryGoogleAiModeLive } from './diagnosis-pipeline.mjs';
+import { finalizeLiveSmoke, getBuyerDiagnosis, processDiagnosisQueueMessage, reprocessCompletedDiagnosis, resumePendingGoogleAiMode, retryFailedGemini, retryGoogleAiModeLive } from './diagnosis-pipeline.mjs';
 import { confirmQuestionSet, getQuestionReview, saveQuestionDraft } from './question-review.mjs';
 import { generateAndSaveQuestionDiscovery } from './question-discovery.mjs';
 
@@ -66,6 +66,16 @@ export default {
         if (!/^[0-9a-f-]{36}$/i.test(body?.diagnosis_id || '') || !body?.question_id) return json({ ok: false, error: 'Invalid request' }, 400);
         const result = await finalizeLiveSmoke(env, body.diagnosis_id, body.question_id);
         return json({ ok: true, report_query_count: result.report.queries.length, measurement_count: result.measurements.length });
+      } catch (error) { return json({ ok: false, error: error.message }, error.status || 400); }
+    }
+    if (url.pathname === '/api/integration/reprocess-completed-diagnosis' && request.method === 'POST') {
+      if (!isIsolatedTestEnvironment(env) || !env.MADOHA_INTEGRATION_ACCESS_TOKEN) return json({ ok: false, error: 'Not found' }, 404);
+      if (!await secureTextEqual(request.headers.get('authorization'), `Bearer ${env.MADOHA_INTEGRATION_ACCESS_TOKEN}`)) return json({ ok: false, error: 'Forbidden' }, 403);
+      try {
+        const body = await request.json();
+        if (!/^[0-9a-f-]{36}$/i.test(body?.diagnosis_id || '')) return json({ ok: false, error: 'Invalid request' }, 400);
+        const result = await reprocessCompletedDiagnosis(env, body.diagnosis_id);
+        return json({ ok: true, measurement_count: result.measurements.length, query_count: result.report.queries.length });
       } catch (error) { return json({ ok: false, error: error.message }, error.status || 400); }
     }
     if (url.pathname === '/api/integration/inspect-dataforseo' && request.method === 'POST') {

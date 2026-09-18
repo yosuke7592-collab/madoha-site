@@ -179,6 +179,25 @@ export async function finalizeLiveSmoke(env, diagnosisId, questionId) {
   return { report, measurements };
 }
 
+export async function reprocessCompletedDiagnosis(env, diagnosisId) {
+  const order = await env.DB.prepare('SELECT * FROM diagnosis_orders WHERE id=?').bind(diagnosisId).first();
+  if (!order || order.diagnosis_status !== 'complete' || order.pipeline_state !== 'completed') throw Object.assign(new Error('完了済み診断が見つかりません。'), { status: 409 });
+  const questions = await loadConfirmedQuestions(env.DB, diagnosisId);
+  const entity = parseJson(order.entity_json, {});
+  const registry = [{ id: entity.id || diagnosisId, canonicalName: entity.name, displayName: entity.name, aliases: entity.aliases || [] }];
+  const store = new D1MeasurementStore(env.DB);
+  const measurements = await store.list(diagnosisId);
+  if (measurements.length !== 30 || measurements.some(row => row.error || !row.raw_answer?.trim())) throw Object.assign(new Error('30件の実回答が揃っていません。'), { status: 409 });
+  for (const row of measurements) {
+    Object.assign(row, derivePaidEntities(row.raw_answer, entity, registry));
+    await store.save(row);
+  }
+  const report = measurementsToPaidReport(baseReport(order, questions), measurements);
+  report.sources = [...new Map(measurements.flatMap(row => row.sources).map(source => [source.url, { name: source.title || source.domain, role: source.citation_text || 'AI回答が参照したWeb情報', url: source.url }])).values()];
+  await env.DB.prepare(`UPDATE diagnosis_orders SET report_json=?,updated_at=datetime('now') WHERE id=?`).bind(JSON.stringify(report), diagnosisId).run();
+  return { report, measurements };
+}
+
 export async function processDiagnosisQueueMessage(env, body, options = {}) {
   const diagnosisId = body?.orderId;
   if (!diagnosisId) return { action: 'ack', state: 'invalid_message' };

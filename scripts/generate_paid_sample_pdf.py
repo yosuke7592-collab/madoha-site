@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -9,7 +10,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.cidfonts import UnicodeCIDFont
-from reportlab.platypus import BaseDocTemplate, Frame, KeepTogether, NextPageTemplate, PageBreak, PageTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import BaseDocTemplate, Frame, HRFlowable, Indenter, KeepTogether, NextPageTemplate, PageBreak, PageTemplate, Paragraph, Spacer, Table, TableStyle
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = Path(os.environ.get('MADOHA_PDF_DATA', ROOT / 'data' / 'samples' / 'kyoudo-housing-paid-diagnosis.json'))
@@ -46,9 +47,25 @@ def p(text,style='BodyJP'): return Paragraph(esc(text),styles[style])
 def host(url): return urlparse(url).hostname.replace('www.','') if urlparse(url).hostname else url
 def source_name(url): return SITE_NAMES.get(host(url),host(url))
 def source_role(data,url): return next((item['role'] for item in data['sources'] if host(item['url'])==host(url)),'AI回答が参照したWeb情報')
+def answer_excerpt(text, subject, limit=430):
+    clean=re.sub(r'!\[[^\]]*\]\([^)]*\)', '', str(text))
+    clean=re.sub(r'\[([^\]]+)\]\([^)]*\)', r'\1', clean)
+    clean=re.sub(r'(?m)^\s*#{1,6}\s*', '', clean)
+    clean=clean.replace('**','').replace('__','')
+    clean=re.sub(r'\n{3,}', '\n\n', clean).strip()
+    if len(clean) <= limit: return clean, False
+    target_index=clean.find(subject)
+    if target_index >= 0 and target_index > limit - 180:
+        start=max(0, target_index-110); end=min(len(clean), target_index+220)
+        excerpt=clean[:170].rstrip()+'\n\n…\n\n'+clean[start:end].strip()
+    else:
+        excerpt=clean[:limit].rstrip()
+    return excerpt+'\n\n…（続きはWeb版で確認できます）', True
+
 def rich_answer(text,subject):
-    markup=esc(text).replace(esc(subject),f'<font color="#14705f"><b>{esc(subject)}</b></font>')
-    return Paragraph(markup,styles['AnswerJP'])
+    excerpt,truncated=answer_excerpt(text,subject)
+    markup=esc(excerpt).replace(esc(subject),f'<font color="#14705f"><b>{esc(subject)}</b></font>').replace('\n','<br/>')
+    return Paragraph(markup,styles['AnswerJP']),truncated
 def company_list(subject,row):
     companies=list(row.get('competitors') or [])
     if not row.get('appeared'): return companies
@@ -91,25 +108,35 @@ def result_block(data,query,row):
     channel.setStyle(TableStyle([('TEXTCOLOR',(0,0),(0,0),ACCENT_DARK),('LINEBELOW',(0,0),(-1,-1),.8,INK),('VALIGN',(0,0),(-1,-1),'MIDDLE'),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0),('TOPPADDING',(0,0),(-1,-1),0),('BOTTOMPADDING',(0,0),(-1,-1),5)]))
     parts.append(channel)
     if not branded: parts += [Spacer(1,2*mm),status_bar(subject,row)]
-    parts += [Spacer(1,3*mm),p('AI RESPONSE / 実際の回答','LabelJP'),rich_answer(row['answer'],subject),Spacer(1,2*mm)]
+    answer_flowable,truncated=rich_answer(row['answer'],subject)
+    answer_label='AI RESPONSE / 実際の回答（抜粋）' if truncated else 'AI RESPONSE / 実際の回答'
+    parts += [Spacer(1,3*mm),p(answer_label,'LabelJP'),answer_flowable,Spacer(1,2*mm)]
     if branded:
-        parts += [p('強みとして書かれたこと','LabelJP'),p(' / '.join(row.get('strengths') or []) or '明確な記載なし'),p('確認できなかった情報','LabelJP'),p(' / '.join(row.get('informationGaps') or []) or '特になし')]
+        parts += [p('強みとして書かれたこと','LabelJP'),p(' / '.join((row.get('strengths') or [])[:3])[:240] or '明確な記載なし'),p('確認できなかった情報','LabelJP'),p(' / '.join((row.get('informationGaps') or [])[:3])[:240] or '特になし')]
     else:
         parts += [p('掲載された企業（表示された順番）','LabelJP')]
         companies=company_list(subject,row)
         if companies:
-            for number,name in enumerate(companies,1): parts.append(p(f'{number:02d}   {name}','TargetNameJP' if name==subject else 'BodyJP'))
+            for number,name in enumerate(companies[:8],1): parts.append(p(f'{number:02d}   {name}','TargetNameJP' if name==subject else 'BodyJP'))
+            if len(companies) > 8: parts.append(p(f'ほか {len(companies)-8}社（Web版に全件掲載）','MicroJP'))
         else: parts.append(p('企業名の一覧は取得できませんでした。','MetaJP'))
     parts += [Spacer(1,1.5*mm),p('参照された情報','LabelJP')]
     if row.get('sources'):
+        unique_sources=[]; seen_hosts=set()
         for url in row['sources']:
+            if host(url) in seen_hosts: continue
+            seen_hosts.add(host(url)); unique_sources.append(url)
+        for url in unique_sources[:3]:
             parts += [p(source_name(url)),p(source_role(data,url),'MicroJP'),p(host(url),'MicroJP')]
+        if len(unique_sources) > 3: parts.append(p(f'ほか {len(unique_sources)-3}サイト（Web版に全件掲載）','MicroJP'))
     else: parts.append(p('この回答で取得できた参照情報はありません。','MetaJP'))
     if row.get('comment'): parts += [Spacer(1,1.5*mm),p('MADOHA NOTE','LabelJP'),p(row['comment'])]
     parts += [Spacer(1,2*mm)]
-    box=Table([[parts]],colWidths=[178*mm])
-    box.setStyle(TableStyle([('LINEBELOW',(0,0),(-1,-1),.35,LINE),('LEFTPADDING',(0,0),(-1,-1),5*mm),('RIGHTPADDING',(0,0),(-1,-1),5*mm),('TOPPADDING',(0,0),(-1,-1),5*mm),('BOTTOMPADDING',(0,0),(-1,-1),4*mm)]))
-    return box
+    # A real provider answer can span several pages. Keep the visual rhythm of the
+    # frozen v1 design, but use splittable flowables instead of one giant table cell.
+    return [Indenter(left=5*mm, right=5*mm), *parts,
+            HRFlowable(width='100%', thickness=.35, color=LINE, spaceBefore=2*mm, spaceAfter=4*mm),
+            Indenter(left=-5*mm, right=-5*mm)]
 
 def section_intro(number,english,title,description,queries,metrics):
     learn = [
@@ -151,7 +178,8 @@ def build():
     metrics.setStyle(TableStyle([('LINEABOVE',(0,0),(-1,0),1,ACCENT),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0),('TOPPADDING',(0,0),(-1,-1),7),('BOTTOMPADDING',(0,0),(-1,-1),3)]))
     cover_rule=Table([['']],colWidths=[160*mm],rowHeights=[1])
     cover_rule.setStyle(TableStyle([('LINEABOVE',(0,0),(-1,-1),.8,ACCENT)]))
-    date_block=Table([[p('MEASURED','CoverMetaJP'),p('SAMPLE REPORT','CoverMetaJP')],[p(data['measurement']['snapshotDate'],'CoverSubJP'),p('MADOHA / AI SEARCH INTELLIGENCE','CoverMetaJP')]],colWidths=[62*mm,98*mm])
+    report_label='SAMPLE REPORT' if data.get('sample', True) else 'PAID DIAGNOSIS REPORT'
+    date_block=Table([[p('MEASURED','CoverMetaJP'),p(report_label,'CoverMetaJP')],[p(data['measurement']['snapshotDate'],'CoverSubJP'),p('MADOHA / AI SEARCH INTELLIGENCE','CoverMetaJP')]],colWidths=[62*mm,98*mm])
     date_block.setStyle(TableStyle([('LINEABOVE',(0,0),(-1,0),.4,colors.HexColor('#405159')),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0),('TOPPADDING',(0,0),(-1,-1),8),('BOTTOMPADDING',(0,0),(-1,-1),4),('VALIGN',(0,0),(-1,-1),'TOP')]))
     story += [Spacer(1,22*mm),p('MADOHA PAID DIAGNOSIS','CoverMetaJP'),Spacer(1,8*mm),p('AI検索調査レポート','CoverTitleJP'),Spacer(1,6*mm),p(data['subject']['name'],'CoverTitleJP'),Spacer(1,8*mm),p('AIで自社を検索すると、実際にどのように表示されるかを確認するレポート','CoverSubJP'),Spacer(1,18*mm),cover_rule,Spacer(1,7*mm),metrics,Spacer(1,30*mm),date_block,NextPageTemplate('report'),PageBreak()]
     nonbrand_queries=[query for query in data['queries'] if query['kind']=='nonbrand']
@@ -163,12 +191,20 @@ def build():
             story += [PageBreak()] + section_intro('02','BRAND UNDERSTANDING','AIに自社がどう理解されているか','会社名を直接AIに聞いたとき、自社がどのように説明され、判断材料として何が示されるかを確認します。',branded_queries,'4 QUESTIONS / 12 RESULTS')
         customer_kind='AIに候補として選ばれるか' if query['kind']=='nonbrand' else 'AIに自社がどう理解されているか'
         heading=[p(f'QUESTION {index:02d} / 10   {customer_kind}','MetaJP'),p(query['query'],'QuestionJP'),p('同じ質問をChatGPT、Gemini、Google AI Modeで各1回検索しました。','MetaJP'),Spacer(1,3*mm)]
-        blocks=[result_block(data,query,row) for row in query['channels']]
-        story.append(KeepTogether(heading+[blocks[0]])); story.extend(blocks[1:]); story.append(Spacer(1,9*mm))
+        story.extend(heading)
+        for row in query['channels']:
+            story.extend(result_block(data,query,row))
+        story.append(Spacer(1,9*mm))
 
     story += [Spacer(1,8*mm),p('REFERENCE / 参照情報','SectionJP'),p('検索結果で使用した主なWeb情報です。サイト名、役割、短いドメインの順に記載します。')]
+    reference_sources=[]; reference_hosts=set()
     for source in data['sources']:
+        domain=host(source['url'])
+        if domain in reference_hosts: continue
+        reference_hosts.add(domain); reference_sources.append(source)
+    for source in reference_sources[:30]:
         story.append(KeepTogether([p(source['name'],'AIJP'),p(source['role'],'MetaJP'),p(host(source['url']),'MicroJP'),Spacer(1,2*mm)]))
+    if len(reference_sources) > 30: story.append(p(f'ほか {len(reference_sources)-30}ドメインはWeb版に掲載しています。','MetaJP'))
     story += [Spacer(1,8*mm),p('OPTIONS / 改善する場合の選択肢','SectionJP'),p('以下は今回の検索結果と参照情報から考えられる候補です。断定的な優先順位ではありません。')]
     for number,action in enumerate(data['actions'][:3],1): story.append(KeepTogether([p(f'{number:02d}  {action["target"]}','AIJP'),p(action['change']),Spacer(1,3*mm)]))
     story += [Spacer(1,8*mm),p('CONDITIONS / 測定条件・注意書き','SectionJP'),p('会社名を入れない6問と会社名を入れた4問の計10問を、ChatGPT、Gemini、Google AI Modeで各1回検索しました。合計30件の検索結果です。'),p(data['queryDiscovery']['method']),Spacer(1,4*mm),p('本診断は測定時点におけるAI検索の回答を観測したものです。AIの回答は変動するため、同じ質問でも結果が異なる場合があります。また、改善施策による特定の表示・推薦結果を保証するものではありません。','NoticeJP')]

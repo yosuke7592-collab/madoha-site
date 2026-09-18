@@ -49,6 +49,20 @@ test('company extraction recognizes Google AI Mode detail links and local result
   assert.deepEqual(result.mentioned_entities.map(item => item.name), ['不動産SHOPナカジツ 市川・浦安店', 'SUUMOカウンター']);
 });
 
+test('company extraction handles numbered headings, comparison tables and local business blocks without treating headings as companies', () => {
+  const answer = `### 1. 明和地所｜浦安・新浦安\n説明です。\n#### ■ SHUKEN Re（シューケン）\n説明です。\n| **富士屋商事** | 浦安で探したい人 |\n### 3. 地域密着の老舗・総合\n---\n株式会社清田屋不動産 4.5 (8)\n不動産管理会社\n説明です。`;
+  const result = derivePaidEntities(answer, entity, registry);
+  assert.deepEqual(result.mentioned_entities.map(item => item.name), ['明和地所', 'SHUKEN Re', '富士屋商事', '株式会社清田屋不動産']);
+});
+
+test('company extraction keeps similarly prefixed legal entities separate', () => {
+  const answer = '**株式会社協同住宅**は浦安市の不動産会社です。\n**協同住宅ローン株式会社**は別会社です。';
+  const result = derivePaidEntities(answer, entity, registry);
+  assert.equal(result.target_present, true);
+  assert.equal(result.mentioned_entities[0].name, '株式会社協同住宅');
+  assert.notEqual(result.mentioned_entities[0].name, '協同住宅ローン株式会社');
+});
+
 test('only provider sources are stored and missing citations remain empty', () => {
   assert.equal(sourceObjects([], registry).length, 0);
   assert.equal(sourceObjects([{ url: 'https://kyoudo.jp/a', title: '公式' }, { url: 'https://kyoudo.jp/a', title: '重複' }], registry).length, 1);
