@@ -166,7 +166,7 @@ def section_intro(number,english,title,description,queries,metrics):
         theme_rows.append([p(f'{index:02d}','IntroLabelJP'),p(query['intent'],'IntroItemJP')])
     themes=Table(theme_rows,colWidths=[12*mm,136*mm])
     themes.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),('LINEBELOW',(0,0),(-1,-2),.3,colors.HexColor('#405159')),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0),('TOPPADDING',(0,0),(-1,-1),3),('BOTTOMPADDING',(0,0),(-1,-1),3)]))
-    why='対象企業のサービスと対応地域、検索需要や関連検索、地域・比較ページなどから、実際の利用者がAIへ聞きそうな質問を選定しています。' if number == '01' else '会社名を直接AIへ聞いたときに、企業理解・評価・利用判断まで一通り確認できる4つの視点を選定しています。'
+    why='対象企業のサービスや利用場面、確認できた関連情報から、実際の利用者がAIへ聞きそうな質問を選定しています。' if number == '01' else '会社名を直接AIへ聞いたときに、企業理解・評価・利用判断を確認できる視点を選定しています。'
     content += [themes,Spacer(1,8*mm),p('WHY THESE QUESTIONS?','IntroLabelJP'),p(why,'IntroBodyJP'),Spacer(1,8*mm),p(metrics,'CoverMetaJP')]
     panel=Table([[content]],colWidths=[178*mm],rowHeights=[247*mm])
     panel.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),INK),('LEFTPADDING',(0,0),(-1,-1),15*mm),('RIGHTPADDING',(0,0),(-1,-1),15*mm),('TOPPADDING',(0,0),(-1,-1),13*mm),('BOTTOMPADDING',(0,0),(-1,-1),10*mm),('VALIGN',(0,0),(-1,-1),'TOP')]))
@@ -174,7 +174,7 @@ def section_intro(number,english,title,description,queries,metrics):
 
 def build():
     data=json.loads(DATA.read_text(encoding='utf-8')); OUTPUT.parent.mkdir(parents=True,exist_ok=True)
-    doc=BaseDocTemplate(str(OUTPUT),pagesize=A4,leftMargin=16*mm,rightMargin=16*mm,topMargin=16*mm,bottomMargin=18*mm,title='MADOHA Paid Diagnosis v1 - 株式会社協同住宅')
+    doc=BaseDocTemplate(str(OUTPUT),pagesize=A4,leftMargin=16*mm,rightMargin=16*mm,topMargin=16*mm,bottomMargin=18*mm,title=f"MADOHA Paid Diagnosis v1 - {data['subject']['name']}")
     frame=Frame(doc.leftMargin,doc.bottomMargin,doc.width,doc.height,id='main')
     doc.addPageTemplates([PageTemplate(id='cover',frames=[frame],onPage=cover_page),PageTemplate(id='report',frames=[frame],onPage=footer)])
     story=[]
@@ -188,11 +188,15 @@ def build():
     story += [Spacer(1,22*mm),p('MADOHA PAID DIAGNOSIS','CoverMetaJP'),Spacer(1,8*mm),p('AI検索調査レポート','CoverTitleJP'),Spacer(1,6*mm),p(data['subject']['name'],'CoverTitleJP'),Spacer(1,8*mm),p('AIで自社を検索すると、実際にどのように表示されるかを確認するレポート','CoverSubJP'),Spacer(1,18*mm),cover_rule,Spacer(1,7*mm),metrics,Spacer(1,30*mm),date_block,NextPageTemplate('report'),PageBreak()]
     nonbrand_queries=[query for query in data['queries'] if query['kind']=='nonbrand']
     branded_queries=[query for query in data['queries'] if query['kind']=='branded']
-    story += section_intro('01','DISCOVERY','AIに候補として選ばれるか','あなたの会社をまだ知らない人がAIに相談したとき、候補として表示されるかを確認します。',nonbrand_queries,'6 QUESTIONS / 18 RESULTS')
+    if nonbrand_queries:
+        story += section_intro('01','DISCOVERY','AIに候補として選ばれるか','あなたの会社をまだ知らない人がAIに相談したとき、候補として表示されるかを確認します。',nonbrand_queries,f'{len(nonbrand_queries)} QUESTIONS / {len(nonbrand_queries)*3} RESULTS')
 
+    branded_started=False
     for index,query in enumerate(data['queries'],1):
-        if index==7:
-            story += [PageBreak()] + section_intro('02','BRAND UNDERSTANDING','AIに自社がどう理解されているか','会社名を直接AIに聞いたとき、自社がどのように説明され、判断材料として何が示されるかを確認します。',branded_queries,'4 QUESTIONS / 12 RESULTS')
+        if query['kind']=='branded' and not branded_started:
+            if index > 1: story.append(PageBreak())
+            story += section_intro('02','BRAND UNDERSTANDING','AIに自社がどう理解されているか','会社名を直接AIに聞いたとき、自社がどのように説明され、判断材料として何が示されるかを確認します。',branded_queries,f'{len(branded_queries)} QUESTIONS / {len(branded_queries)*3} RESULTS')
+            branded_started=True
         customer_kind='AIに候補として選ばれるか' if query['kind']=='nonbrand' else 'AIに自社がどう理解されているか'
         heading=[p(f'QUESTION {index:02d} / 10   {customer_kind}','MetaJP'),p(query['query'],'QuestionJP'),p('同じ質問をChatGPT、Gemini、Google AI Modeで各1回検索しました。','MetaJP'),Spacer(1,3*mm)]
         story.extend(heading)
@@ -211,7 +215,7 @@ def build():
     if len(reference_sources) > 30: story.append(p(f'ほか {len(reference_sources)-30}ドメインはWeb版に掲載しています。','MetaJP'))
     story += [Spacer(1,8*mm),p('OPTIONS / 改善する場合の選択肢','SectionJP'),p('以下は今回の検索結果と参照情報から考えられる候補です。断定的な優先順位ではありません。')]
     for number,action in enumerate(data['actions'][:3],1): story.append(KeepTogether([p(f'{number:02d}  {action["target"]}','AIJP'),p(action['change']),Spacer(1,3*mm)]))
-    story += [Spacer(1,8*mm),p('CONDITIONS / 測定条件・注意書き','SectionJP'),p('会社名を入れない6問と会社名を入れた4問の計10問を、ChatGPT、Gemini、Google AI Modeで各1回検索しました。合計30件の検索結果です。'),p(data['queryDiscovery']['method']),Spacer(1,4*mm),p(data.get('reliabilityNotice','本診断は各AIサービスが調査時点で生成した回答を記録したものです。AIの回答には誤りや他社情報の混同が含まれる場合があり、確認できた注意点はMADOHAが補足表示します。'),'NoticeJP'),Spacer(1,2*mm),p('AIの回答は変動するため、同じ質問でも結果が異なる場合があります。また、改善施策による特定の表示・推薦結果を保証するものではありません。','NoticeJP')]
+    story += [Spacer(1,8*mm),p('CONDITIONS / 測定条件・注意書き','SectionJP'),p(f'会社名を入れない{len(nonbrand_queries)}問と会社名を入れた{len(branded_queries)}問の計{len(data["queries"])}問を、ChatGPT、Gemini、Google AI Modeで各1回検索しました。合計{len(data["queries"])*3}件の検索結果です。'),p(data['queryDiscovery']['method']),Spacer(1,4*mm),p(data.get('reliabilityNotice','本診断は各AIサービスが調査時点で生成した回答を記録したものです。AIの回答には誤りや他社情報の混同が含まれる場合があり、確認できた注意点はMADOHAが補足表示します。'),'NoticeJP'),Spacer(1,2*mm),p('AIの回答は変動するため、同じ質問でも結果が異なる場合があります。また、改善施策による特定の表示・推薦結果を保証するものではありません。','NoticeJP')]
     doc.build(story); return OUTPUT
 
 if __name__=='__main__': print(build())

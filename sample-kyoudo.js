@@ -68,8 +68,11 @@ function render(data){
     <section class="measurement-note"><h2>測定条件・注意書き</h2><p>非指名6問と指名4問を、ChatGPT、Gemini、Google AI Modeで各1回検索しました。合計30件の検索結果です。</p><p>${e(data.reliabilityNotice||'本診断は測定時点におけるAI検索の回答を記録したものです。確認できた注意点はMADOHAが補足表示します。')}</p><p>AIの回答は変動するため、同じ質問でも結果が異なる場合があります。また、改善施策による特定の表示・推薦結果を保証するものではありません。</p>${data.sample?'<p class="sample-caution"><b>商品確認用サンプル：</b>この画面の30件は表示確認用の仮データです。株式会社協同住宅の実測値ではありません。</p>':''}</section>
   </main><footer class="end"><b>MADOHA</b><p>検索結果 + 参照情報 + 必要最小限の見解</p><a href="index.html">無料チェックへ戻る</a></footer>`;
 }
+globalThis.MADOHA_RENDER_REPORT=render;
 const paidParams=new URLSearchParams(location.search);
-if(paidParams.get('diagnosis')&&paidParams.get('session_id')){
+if(document.documentElement.dataset.sales==='true'){
+  // The sales controller supplies an authorized report; never fall back to fixture data.
+}else if(paidParams.get('diagnosis')&&paidParams.get('session_id')){
   document.querySelector('.topbar b').textContent='PAID DIAGNOSIS';document.querySelector('.topbar span').textContent='購入者向け実測レポート';
   fetch(`/api/paid-diagnosis/${encodeURIComponent(paidParams.get('diagnosis'))}`,{headers:{'x-checkout-session':paidParams.get('session_id')}})
     .then(response=>response.ok?response.json():Promise.reject()).then(payload=>payload.order?.report?render(payload.order.report):Promise.reject())

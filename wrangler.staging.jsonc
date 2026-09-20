@@ -14,9 +14,18 @@
     "ENVIRONMENT": "staging",
     "MADOHA_MEASUREMENT_MODE": "mock",
     "MADOHA_ENABLE_LIVE_MEASUREMENT": "false",
+    "MADOHA_ENABLE_SALES_FLOW": "false",
     "MADOHA_PAID_DIAGNOSIS_MAX_COST_USD": "0.20",
+    "FREE_DIAGNOSIS_COST_CAP_USD": "0.21",
+    "FREE_DIAGNOSIS_DAILY_COST_CAP_USD": "5.00",
+    "FREE_DIAGNOSIS_IP_HOURLY_LIMIT": "12",
+    "FREE_DIAGNOSIS_IP_DAILY_LIMIT": "40",
+    "FREE_DIAGNOSIS_REUSE_SECONDS": "86400",
     "DATAFORSEO_RETRIEVAL_MODE": "live"
   },
+  "ratelimits": [
+    { "name": "FREE_START_LIMITER", "namespace_id": "2001", "simple": { "limit": 10, "period": 60 } }
+  ],
   "d1_databases": [
     {
       "binding": "DB",

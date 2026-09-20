@@ -291,21 +291,7 @@ async function runSearch(value) {
     return;
   }
   setText('#search-error', '', '');
-  const submit = $('#search-form button[type="submit"], #search-form button:not([type])');
-  submit.disabled = true;
-  submit.setAttribute('aria-busy', 'true');
-  try {
-    const response = await fetch('/api/free-check', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url: value }) });
-    const payload = await response.json();
-    if (!response.ok || !payload.ok) throw new Error(payload.error || '診断に失敗しました。');
-    renderFreeResult(payload.result);
-  } catch (error) {
-    setText('#search-error', error.message || 'サイトを確認できませんでした。時間をおいてもう一度お試しください。', '');
-    input.focus();
-  } finally {
-    submit.disabled = false;
-    submit.removeAttribute('aria-busy');
-  }
+  location.assign(`diagnose.html?url=${encodeURIComponent(value)}`);
 }
 
 function renderFreeResult(result) {

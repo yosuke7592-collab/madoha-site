@@ -3,14 +3,22 @@ import { applyStripeEvent, createCheckout, isIsolatedTestEnvironment, secureText
 import { finalizeLiveSmoke, getBuyerDiagnosis, processDiagnosisQueueMessage, reprocessCompletedDiagnosis, resumePendingGoogleAiMode, retryFailedGemini, retryGoogleAiModeLive } from './diagnosis-pipeline.mjs';
 import { confirmQuestionSet, getQuestionReview, saveQuestionDraft } from './question-review.mjs';
 import { generateAndSaveQuestionDiscovery } from './question-discovery.mjs';
+import { handleSalesRequest, applyUpgradeEvent, dispatchSalesOutbox, processSalesQueue } from './sales-flow.mjs';
 
 const json = (body, status = 200, extra = {}) => new Response(JSON.stringify(body), {
   status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...extra }
 });
 
+async function processQueueMessage(env, body, options = {}) {
+  const order = body?.orderId ? await env.DB.prepare('SELECT * FROM diagnosis_orders WHERE id=?').bind(body.orderId).first() : null;
+  return order?.sales_stage ? processSalesQueue(env, order, options) : processDiagnosisQueueMessage(env, body, options);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const salesResponse = await handleSalesRequest(request, env);
+    if (salesResponse) return salesResponse;
     if (url.pathname === '/api/integration/enqueue' && request.method === 'POST') {
       if (!isIsolatedTestEnvironment(env) || !env.MADOHA_INTEGRATION_ACCESS_TOKEN) return json({ ok: false, error: 'Not found' }, 404);
       if (!await secureTextEqual(request.headers.get('authorization'), `Bearer ${env.MADOHA_INTEGRATION_ACCESS_TOKEN}`)) return json({ ok: false, error: 'Forbidden' }, 403);
@@ -24,7 +32,7 @@ export default {
       if (!await secureTextEqual(request.headers.get('authorization'), `Bearer ${env.MADOHA_INTEGRATION_ACCESS_TOKEN}`)) return json({ ok: false, error: 'Forbidden' }, 403);
       const body = await request.json();
       if (!/^[0-9a-f-]{36}$/i.test(body?.diagnosis_id || '')) return json({ ok: false, error: 'Invalid diagnosis id' }, 400);
-      const result = await processDiagnosisQueueMessage(env, { orderId: body.diagnosis_id }, { requeue: false });
+      const result = await processQueueMessage(env, { orderId: body.diagnosis_id }, { requeue: false });
       return json({ ok: true, state: result.state, processed: result.result?.processed || 0, total_cost: result.result?.total_estimated_cost || 0,
         completed: result.result?.measurements?.filter(row => !row.error && !row.provider_metadata?.pending && row.raw_answer?.trim()).length || 0,
         stopped: result.result?.stopped || null, error: result.error || null });
@@ -126,6 +134,7 @@ export default {
       }
     }
     if (url.pathname === '/api/checkout' && request.method === 'POST') {
+      if (env.MADOHA_ENABLE_SALES_FLOW === 'true') return json({ error: '無料診断結果から完全版を購入してください。' }, 409);
       try {
         const body = await request.json();
         const targetUrl = normalizePublicUrl(body?.url).href;
@@ -135,7 +144,7 @@ export default {
     if (url.pathname === '/api/stripe/webhook' && request.method === 'POST') {
       const raw = await request.text();
       if (!await verifyStripeSignature(raw, request.headers.get('stripe-signature'), env.STRIPE_WEBHOOK_SECRET)) return json({ ok: false }, 400);
-      try { return json({ ok: true, ...(await applyStripeEvent(env, JSON.parse(raw))) }); }
+      try { const event = JSON.parse(raw); return json({ ok: true, ...((await applyUpgradeEvent(env, event)) || await applyStripeEvent(env, event)) }); }
       catch (error) { return json({ ok: false, error: error.message }, 400); }
     }
     const questionsMatch = url.pathname.match(/^\/api\/paid-diagnosis\/([0-9a-f-]{36})\/questions(?:\/(confirm|discover))?$/i);
@@ -183,9 +192,10 @@ export default {
     if (url.pathname.startsWith('/api/')) return json({ ok: false, error: 'Not found' }, 404);
     return env.ASSETS.fetch(request);
   },
+  async scheduled(_event, env) { await dispatchSalesOutbox(env); },
   async queue(batch, env) {
     for (const message of batch.messages) {
-      try { const result = await processDiagnosisQueueMessage(env, message.body); if (result.action === 'ack') message.ack(); else message.retry({ delaySeconds: 60 }); }
+      try { const result = await processQueueMessage(env, message.body); if (result.action === 'ack') message.ack(); else message.retry({ delaySeconds: 60 }); }
       catch { message.retry({ delaySeconds: 60 }); }
     }
   }

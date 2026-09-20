@@ -51,6 +51,7 @@ export function analyzeHtml(html, url, headers = new Headers()) {
   return {
     kind: 'free-site-readiness-check', version: '1.0', url: url.href, host: url.hostname,
     fetchedAt: new Date().toISOString(), title: title || url.hostname, score,
+    headings: [...html.matchAll(/<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi)].map(m => m[1].replace(/<[^>]*>/g, '').trim()).filter(Boolean).slice(0, 40),
     band: score >= 75 ? '良好' : score >= 50 ? '改善余地あり' : '要改善', checks,
     disclaimer: '公開Webページの技術・情報要素をルールベースで確認した簡易結果です。ChatGPT等での表示順位や推薦状況を測定したものではありません。',
     cache: headers.get('cf-cache-status') || null

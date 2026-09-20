@@ -57,7 +57,7 @@ export async function loadConfirmedQuestions(db, diagnosisId) {
   return questions;
 }
 
-function baseReport(order, questions) {
+export function baseReport(order, questions) {
   const entity = parseJson(order.entity_json, { name: order.target_url, official_url: order.target_url });
   return {
     schemaVersion: 'paid-report-v1', sample: false,
