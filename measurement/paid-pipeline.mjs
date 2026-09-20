@@ -1,5 +1,6 @@
 import { classifySource } from './source.mjs';
 import { normalizeCompanyName } from './extraction.mjs';
+import { assessPaidReliability, normalizePaidEntityMentions, PAID_REPORT_RELIABILITY_NOTICE } from './reliability.mjs';
 
 export const PAID_CHANNELS = Object.freeze(['chatgpt', 'gemini', 'google_ai_mode']);
 export const LIVE_LOCK_MESSAGE = 'Live measurement is disabled. Set MADOHA_ENABLE_LIVE_MEASUREMENT=true explicitly.';
@@ -47,7 +48,7 @@ export function sourceObjects(items = [], registry = []) {
 const STRONG_RECOMMENDATION = /(おすすめ|お勧め|推奨|第一候補|第1候補|有力候補|最も適して|特におすすめ)/u;
 const NEGATIVE_RECOMMENDATION = /(おすすめしない|推奨しない|第一候補ではない|有力候補ではない)/u;
 const GENERIC_COMPANY_LABEL = /(?:【|】|候補|地域|地元|おすすめ|相談|タイプ|まとめ|結論|選び方|コツ|比較|確認|強み|特徴|評判|口コミ|事業内容|パターン|資金計画|予算|エリア|ステップ|判断|質問|書類|メモ|ネットワーク|自由設計|今回|大手|総合|会社概要|基本情報|条件|方法|選択肢|安全性|災害リスク|周辺環境|将来費用|ライフプラン|金融機関|お金のプロ|専門店|部門|購入スタイル|希望する場合|提案してくれるか|借りられる額|など|第[一二三四五六七八九十0-9]+候補|^不動産会社$|^社名$|^注文住宅$)/u;
-const SENTENCE_COMPANY_LABEL = /(?:前提|回答|指す|したい場合|➔|➡)/u;
+const SENTENCE_COMPANY_LABEL = /(?:前提|回答|指す|したい場合|を(?:語る|選ぶ|利用|検討|紹介)|➔|➡)/u;
 
 function plausibleCompanyName(value) {
   const name = String(value || '').replace(/[*_`]/g, '').trim();
@@ -141,9 +142,11 @@ export function derivePaidEntities(answer, entity, registry = []) {
   const recommendation = targetIndex >= 0 && STRONG_RECOMMENDATION.test(targetContext) && !NEGATIVE_RECOMMENDATION.test(targetContext);
   const explicitMatches = [...text.matchAll(/(?:^|\n)\s*(\d+)[.)、．]\s*([^\n]+)/gu)];
   const explicit = explicitMatches.find(match => match[2].includes(targetName));
+  const normalizedMentions = normalizePaidEntityMentions(mentions.map(({ first_index, ...item }) => item), candidates);
+  const normalizedTargetIndex = normalizedMentions.findIndex(item => item.target);
   return {
-    mentioned_entities: mentions.map(({ first_index, ...item }) => item), target_present: targetIndex >= 0,
-    target_position: targetIndex >= 0 ? targetIndex + 1 : null, company_count: mentions.length,
+    mentioned_entities: normalizedMentions, target_present: normalizedTargetIndex >= 0,
+    target_position: normalizedTargetIndex >= 0 ? normalizedTargetIndex + 1 : null, company_count: normalizedMentions.length,
     recommendation, explicit_rank: explicit ? Number(explicit[1]) : null
   };
 }
@@ -152,6 +155,7 @@ export function commonMeasurement(input, normalized, registry = []) {
   assertPaidInput(input);
   const sources = sourceObjects(normalized.sources, registry);
   const entities = derivePaidEntities(normalized.raw_answer, input.entity, registry);
+  const reliability = assessPaidReliability({ answer: normalized.raw_answer, entity: input.entity, mentionedEntities: entities.mentioned_entities, questionKind: input.question_kind || '', channel: input.channel });
   return validatePaidMeasurement({
     schema_version: 'paid-measurement-v1', diagnosis_id: input.diagnosis_id, entity: input.entity,
     question_id: input.question_id, question_text: input.question_text,
@@ -159,7 +163,7 @@ export function commonMeasurement(input, normalized, registry = []) {
     selection_reason: input.selection_reason || '', intent: input.intent || '', source_signals: input.source_signals || [],
     channel: input.channel, locale: input.locale || 'ja-JP', location: input.location || '', run_id: input.run_id,
     raw_answer: normalized.raw_answer || '', sources, citations: sources.filter(item => item.evidence === 'citation'),
-    ...entities, usage: normalized.usage || {}, estimated_cost: round(normalized.estimated_cost || 0),
+    ...entities, reliability, usage: normalized.usage || {}, estimated_cost: round(normalized.estimated_cost || 0),
     raw_response_ref: normalized.raw_response_ref || null, error: normalized.error || null,
     measured_at: normalized.measured_at || nowIso(), provider_metadata: normalized.provider_metadata || {}
   });
@@ -168,7 +172,7 @@ export function commonMeasurement(input, normalized, registry = []) {
 export function measurementsToPaidReport(baseReport, measurements) {
   const rows = new Map(measurements.map(row => [`${row.question_id}|${row.channel}`, row]));
   return {
-    ...structuredClone(baseReport),
+    ...structuredClone(baseReport), reliabilityNotice: PAID_REPORT_RELIABILITY_NOTICE,
     queries: baseReport.queries.map(query => ({
       ...query,
       channels: PAID_CHANNELS.map(channel => {
@@ -180,6 +184,7 @@ export function measurementsToPaidReport(baseReport, measurements) {
           competitors: row.mentioned_entities.filter(item => !item.target).map(item => item.name),
           sources: row.sources.map(item => item.url), strengths: row.provider_metadata?.strengths || [],
           informationGaps: row.provider_metadata?.information_gaps || [], accuracy: row.provider_metadata?.accuracy || '要確認',
+          reliability: row.reliability || { status: 'clear', warnings: [], local_information_present: false, raw_answer_preserved: true },
           error: row.error
         };
       })
@@ -273,7 +278,7 @@ export async function runPaidMeasurements({ diagnosis, questions, adapters, stor
       diagnosis_id: diagnosis.id, entity: diagnosis.entity, question_id: question.id, question_text: question.query || question.text,
       question_order: question.order || questionIndex + 1,
       selection_reason: question.selection_reason || question.selectionReason, intent: question.intent,
-      source_signals: question.source_signals || question.sourceSignals || [], channel,
+      source_signals: question.source_signals || question.sourceSignals || [], question_kind: question.kind, channel,
       locale: diagnosis.locale || 'ja-JP', location: diagnosis.location || '', max_cost: cap - total, run_id: diagnosis.run_id,
       existing_measurement: existing || null
     };

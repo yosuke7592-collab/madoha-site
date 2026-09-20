@@ -13,6 +13,7 @@ integration
 scripts
 docs
 output
+tmp
 .gitignore
 .gitattributes
 **/*.test.mjs

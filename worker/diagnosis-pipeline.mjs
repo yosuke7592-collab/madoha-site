@@ -2,6 +2,7 @@ import { FixturePaidAdapter, D1MeasurementStore, PAID_CHANNELS, derivePaidEntiti
 import { OpenAiPaidAdapter } from '../measurement/openai-paid.mjs';
 import { GeminiPaidAdapter } from '../measurement/gemini.mjs';
 import { GoogleAiModePaidAdapter } from '../measurement/google-ai-mode.mjs';
+import { enrichPaidMeasurementReliability } from '../measurement/reliability.mjs';
 
 export const MEASUREMENTS_PER_QUEUE_RUN = 3;
 export const QUESTION_ERROR = 'confirmed_questions_incomplete';
@@ -169,7 +170,11 @@ export async function finalizeLiveSmoke(env, diagnosisId, questionId) {
   const store = new D1MeasurementStore(env.DB); const all = await store.list(diagnosisId);
   const measurements = all.filter(row => row.question_id === questionId && PAID_CHANNELS.includes(row.channel));
   if (measurements.length !== 3 || measurements.some(row => row.error || !row.raw_answer?.trim())) throw Object.assign(new Error('3チャネルの実回答が揃っていません。'), { status: 409 });
-  for (const row of measurements) { Object.assign(row, derivePaidEntities(row.raw_answer, entity, registry)); await store.save(row); }
+  for (const row of measurements) {
+    Object.assign(row, derivePaidEntities(row.raw_answer, entity, registry));
+    Object.assign(row, enrichPaidMeasurementReliability(row, entity, registry, question.question_kind));
+    await store.save(row);
+  }
   const report = measurementsToPaidReport(baseReport(order, [{ id: question.question_id, order: question.question_order, query: question.question_text,
     intent: question.intent, selection_reason: question.selection_reason, measurement_purpose: question.measurement_purpose || question.selection_reason,
     source_signals: parseJson(question.source_signals_json, []), kind: question.question_kind }]), measurements);
@@ -188,8 +193,10 @@ export async function reprocessCompletedDiagnosis(env, diagnosisId) {
   const store = new D1MeasurementStore(env.DB);
   const measurements = await store.list(diagnosisId);
   if (measurements.length !== 30 || measurements.some(row => row.error || !row.raw_answer?.trim())) throw Object.assign(new Error('30件の実回答が揃っていません。'), { status: 409 });
+  const kinds = new Map(questions.map(question => [question.id, question.kind]));
   for (const row of measurements) {
     Object.assign(row, derivePaidEntities(row.raw_answer, entity, registry));
+    Object.assign(row, enrichPaidMeasurementReliability(row, entity, registry, kinds.get(row.question_id) || ''));
     await store.save(row);
   }
   const report = measurementsToPaidReport(baseReport(order, questions), measurements);

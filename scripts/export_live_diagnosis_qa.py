@@ -63,6 +63,8 @@ def main() -> None:
             issues.append("同一回答内に企業名の表記揺れ重複")
         if not (item.get("raw_answer") or "").strip():
             issues.append("回答本文が空")
+        reliability_warnings = (item.get("reliability") or {}).get("warnings") or []
+        issues.extend(f"MADOHA注意: {warning.get('message', warning.get('code', '要確認'))}" for warning in reliability_warnings)
         qa_status = "修正必要" if any("誤抽出" in issue or "不一致" in issue or "空" in issue for issue in issues) else ("要確認" if issues else "OK")
         entry = {
             "question_order": order_no,
@@ -78,6 +80,7 @@ def main() -> None:
             "cost_usd": cost,
             "qa": qa_status,
             "issues": issues,
+            "reliability": item.get("reliability") or {},
             "raw_answer": item.get("raw_answer", ""),
         }
         qa.append(entry)

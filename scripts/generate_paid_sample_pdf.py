@@ -108,6 +108,10 @@ def result_block(data,query,row):
     channel.setStyle(TableStyle([('TEXTCOLOR',(0,0),(0,0),ACCENT_DARK),('LINEBELOW',(0,0),(-1,-1),.8,INK),('VALIGN',(0,0),(-1,-1),'MIDDLE'),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0),('TOPPADDING',(0,0),(-1,-1),0),('BOTTOMPADDING',(0,0),(-1,-1),5)]))
     parts.append(channel)
     if not branded: parts += [Spacer(1,2*mm),status_bar(subject,row)]
+    warnings=(row.get('reliability') or {}).get('warnings') or []
+    if warnings:
+        parts += [Spacer(1,2*mm),p('MADOHAによる注意','LabelJP')]
+        parts += [p(f'・{item["message"]}','NoticeJP') for item in warnings]
     answer_flowable,truncated=rich_answer(row['answer'],subject)
     answer_label='AI RESPONSE / 実際の回答（抜粋）' if truncated else 'AI RESPONSE / 実際の回答'
     parts += [Spacer(1,3*mm),p(answer_label,'LabelJP'),answer_flowable,Spacer(1,2*mm)]
@@ -207,7 +211,7 @@ def build():
     if len(reference_sources) > 30: story.append(p(f'ほか {len(reference_sources)-30}ドメインはWeb版に掲載しています。','MetaJP'))
     story += [Spacer(1,8*mm),p('OPTIONS / 改善する場合の選択肢','SectionJP'),p('以下は今回の検索結果と参照情報から考えられる候補です。断定的な優先順位ではありません。')]
     for number,action in enumerate(data['actions'][:3],1): story.append(KeepTogether([p(f'{number:02d}  {action["target"]}','AIJP'),p(action['change']),Spacer(1,3*mm)]))
-    story += [Spacer(1,8*mm),p('CONDITIONS / 測定条件・注意書き','SectionJP'),p('会社名を入れない6問と会社名を入れた4問の計10問を、ChatGPT、Gemini、Google AI Modeで各1回検索しました。合計30件の検索結果です。'),p(data['queryDiscovery']['method']),Spacer(1,4*mm),p('本診断は測定時点におけるAI検索の回答を観測したものです。AIの回答は変動するため、同じ質問でも結果が異なる場合があります。また、改善施策による特定の表示・推薦結果を保証するものではありません。','NoticeJP')]
+    story += [Spacer(1,8*mm),p('CONDITIONS / 測定条件・注意書き','SectionJP'),p('会社名を入れない6問と会社名を入れた4問の計10問を、ChatGPT、Gemini、Google AI Modeで各1回検索しました。合計30件の検索結果です。'),p(data['queryDiscovery']['method']),Spacer(1,4*mm),p(data.get('reliabilityNotice','本診断は各AIサービスが調査時点で生成した回答を記録したものです。AIの回答には誤りや他社情報の混同が含まれる場合があり、確認できた注意点はMADOHAが補足表示します。'),'NoticeJP'),Spacer(1,2*mm),p('AIの回答は変動するため、同じ質問でも結果が異なる場合があります。また、改善施策による特定の表示・推薦結果を保証するものではありません。','NoticeJP')]
     doc.build(story); return OUTPUT
 
 if __name__=='__main__': print(build())
