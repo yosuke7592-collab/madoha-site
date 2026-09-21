@@ -16,6 +16,15 @@ test('corporate forms and branch suffixes normalize while raw spellings remain a
   assert.equal(rows.length, 1); assert.deepEqual(rows[0].raw_names, ['明和地所', '株式会社明和地所 浦安店']);
 });
 
+test('duplicate target spelling merges even when one extraction initially lacks the target flag', () => {
+  const rows = normalizePaidEntityMentions([
+    { name: '税理士法人チェスター', raw_name: '税理士法人チェスター', target: true },
+    { name: '税理士法人チェスター', raw_name: '[税理士法人チェスター]', target: false },
+  ]);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].target, true);
+});
+
 test('known domain, region or entity id conflicts prevent accidental company merging', () => {
   const rows = normalizePaidEntityMentions([
     { entity_id: 'a', name: '株式会社同名商事', target: false, official_domains: ['a.example'], region: '東京' },
@@ -34,6 +43,21 @@ test('ordinary competitor names do not trigger a similar-entity warning', () => 
   const reliability = assessPaidReliability({ answer: '株式会社協同住宅と明和地所を比較します。', entity,
     mentionedEntities: [{ name: entity.name, target: true }, { name: '明和地所', target: false }], questionKind: 'branded', channel: 'gemini' });
   assert.equal(reliability.status, 'clear'); assert.equal(reliability.warnings.length, 0);
+});
+
+test('headings and product labels containing the target name are not treated as similarly named companies', () => {
+  const chester = { name: '税理士法人チェスター', aliases: ['チェスター'] };
+  const chesterResult = assessPaidReliability({
+    answer: '### 税理士法人チェスターの「信頼性」が高い理由', entity: chester,
+    mentionedEntities: [{ name: '税理士法人チェスターの「信頼性」が高い理由', target: false }], questionKind: 'branded', channel: 'gemini'
+  });
+  assert.equal(chesterResult.warnings.length, 0);
+  const kintone = { name: 'kintone', aliases: ['キントーン', 'Kintone'] };
+  const kintoneResult = assessPaidReliability({
+    answer: '### kintoneが向いている代表的な業務', entity: kintone,
+    mentionedEntities: [{ name: 'kintoneが向いている代表的な業務', target: false }, { name: 'サイボウズ kintone', target: false }], questionKind: 'branded', channel: 'gemini'
+  });
+  assert.equal(kintoneResult.warnings.length, 0);
 });
 
 test('a similar legal entity is detected from prose but an explicit separation avoids an unnecessary warning', () => {

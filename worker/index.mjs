@@ -119,7 +119,7 @@ export default {
           fetch('https://api.dataforseo.com/v3/serp/google/ai_mode/languages', { method: 'GET', headers })
         ]);
         const locationsPayload = await locationsResponse.json(); const languagesPayload = await languagesResponse.json();
-        const locations = (locationsPayload.tasks?.[0]?.result || []).filter(item => /Urayasu|Ichikawa|Chiba/i.test(item.location_name || ''));
+        const locations = (locationsPayload.tasks?.[0]?.result || []).filter(item => /Urayasu|Ichikawa|Chiba/i.test(item.location_name || '') || Number(item.location_code) === 2392);
         const languages = (languagesPayload.tasks?.[0]?.result || []).filter(item => item.language_code === 'ja');
         return json({ ok: locationsResponse.ok && languagesResponse.ok, locations_status: locationsPayload.status_code, languages_status: languagesPayload.status_code, locations, languages });
       } catch (error) { return json({ ok: false, error: error.message }, 502); }
@@ -190,6 +190,11 @@ export default {
       return json({ ok: true, result: order });
     }
     if (url.pathname.startsWith('/api/')) return json({ ok: false, error: 'Not found' }, 404);
+    // Real-company fixture assets remain available for internal regression tests, but are
+    // never exposed as a permanent public sales sample.
+    if (['/sample-kyoudo.html','/sample-kyoudo-data.js','/data/samples/kyoudo-housing-paid-diagnosis.json'].includes(url.pathname)) return new Response('Not Found', {
+      status: 404, headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' }
+    });
     return env.ASSETS.fetch(request);
   },
   async scheduled(_event, env) { await dispatchSalesOutbox(env); },

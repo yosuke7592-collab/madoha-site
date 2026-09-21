@@ -51,6 +51,14 @@ test('report starts with ten search results and keeps evaluation labels out of c
   assert.match(reportSource, /Google AI Mode/);
   assert.match(reportSource, /改善する場合の選択肢/);
   assert.match(reportSource, /特定の表示・推薦結果を保証するものではありません/);
+  assert.match(reportSource, /nonbrand\.length\*channelCount/);
+  assert.match(reportSource, /branded\.length\*channelCount/);
+  assert.match(reportSource, /index\+nonbrand\.length/);
+  assert.match(reportSource, /hasWarning\?'注意あり':row\.answer\?'回答あり':'回答なし'/);
+  assert.match(reportSource, /catalogSources=\[\.\.\.new Map/);
+  assert.match(reportSource, /data\.subject\.category\|\|data\.subject\.industry/);
+  assert.doesNotMatch(reportSource, /6 QUESTIONS \/ 18 RESULTS/);
+  assert.doesNotMatch(reportSource, /非指名6問と指名4問/);
   assert.ok(pdf.length > 10_000);
 });
 

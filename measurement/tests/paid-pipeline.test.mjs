@@ -55,6 +55,19 @@ test('company extraction handles numbered headings, comparison tables and local 
   assert.deepEqual(result.mentioned_entities.map(item => item.name), ['明和地所', 'SHUKEN Re', '富士屋商事', '株式会社清田屋不動産']);
 });
 
+test('company extraction ignores generic product and professional-service headings', () => {
+  const product = { id: 'kintone', name: 'kintone', aliases: ['キントーン', 'Kintone'] };
+  const productResult = derivePaidEntities('kintoneは業務改善ツールです。\n### 1. kintoneが向いている代表的な業務\n### 2. kintoneの「仕様上の制限」の把握\n| **kintone AIクレジット** | 500 |', product, [product]);
+  assert.deepEqual(productResult.mentioned_entities.map(item => item.name), ['kintone']);
+  const professional = { id: 'chester', name: '税理士法人チェスター', aliases: ['チェスター'] };
+  const professionalResult = derivePaidEntities('税理士法人チェスターを説明します。\n### 1. 相続税申告における圧倒的な実績\n### 2. チェスターグループ連携による「ワンストップ解決」', professional, [professional]);
+  assert.deepEqual(professionalResult.mentioned_entities.map(item => item.name), ['税理士法人チェスター']);
+  const linked = derivePaidEntities('[税理士法人チェスター](https://chester-tax.com/)を確認。\n### 3. 国際相続・海外資産に強い主な税理士法人\n### 4. 不動産\n### 5. - 税理士法人だけでなく、司法書士事務所や不動産会社', professional, [professional]);
+  assert.deepEqual(linked.mentioned_entities.map(item => item.name), ['税理士法人チェスター']);
+  const descriptive = derivePaidEntities('## 土地・不動産の評価に強い代表的な専門税理士法人\n- **税理士法人チェスター]**：相続税を扱います。', professional, [professional]);
+  assert.deepEqual(descriptive.mentioned_entities.map(item => item.name), ['税理士法人チェスター']);
+});
+
 test('company extraction keeps similarly prefixed legal entities separate', () => {
   const answer = '**株式会社協同住宅**は浦安市の不動産会社です。\n**協同住宅ローン株式会社**は別会社です。';
   const result = derivePaidEntities(answer, entity, registry);

@@ -15,6 +15,11 @@ test('normalizes every Question Discovery input group without inventing evidence
   assert.equal(input.entity.faq.length, 3); assert.equal(input.entity.headings.length, 5); assert.equal(input.source_signals.length, 6); assert.equal(input.related_search_signals.length, 3);
 });
 
+test('preserves provider location and aliases through Question Discovery normalization',()=>{
+  const input=structuredClone(product); input.entity.display_region='日本'; input.entity.api_location_name='Japan'; input.entity.api_location_code=2392; input.entity.api_language_code='ja'; input.entity.aliases=['キントーン','Kintone'];
+  const result=generateQuestionDiscovery(input); assert.equal(result.entity.display_region,'日本'); assert.equal(result.entity.api_location_name,'Japan'); assert.equal(result.entity.api_location_code,2392); assert.equal(result.entity.api_language_code,'ja'); assert.deepEqual(result.entity.aliases,['キントーン','Kintone']);
+});
+
 test('recommends a dynamic 6:4 mix and a customer-readable reason for Kyoudo', () => {
   const mix = recommendQuestionMix(kyoudo);
   assert.deepEqual([mix.discovery_count, mix.brand_count], [6, 4]); assert.match(mix.reason, /地域/); assert.doesNotMatch(mix.reason, /スコア|heuristic/i);

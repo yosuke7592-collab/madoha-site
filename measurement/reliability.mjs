@@ -1,4 +1,4 @@
-const LEGAL_FORM = /(?:株式会社|有限会社|合同会社|一般社団法人|一般財団法人|㈱|（株）|\(株\))/gu;
+const LEGAL_FORM = /(?:株式会社|有限会社|合同会社|税理士法人|弁護士法人|司法書士法人|行政書士法人|社会保険労務士法人|医療法人|学校法人|一般社団法人|一般財団法人|特定非営利活動法人|㈱|（株）|\(株\))/gu;
 const BRANCH_SUFFIX = /(?:[\s　]*(?:浦安|市川|新浦安|行徳|東京|千葉)?(?:支店|営業所|センター|ショップ|店))$/u;
 
 const compact = value => String(value || '').normalize('NFKC').toLowerCase().replace(/[\s　・･._\-‐‑–—ー]/gu, '');
@@ -31,8 +31,9 @@ export function normalizePaidEntityMentions(mentions = [], registry = []) {
     const key = identityNameKey(canonicalName);
     if (!key) continue;
     const candidate = { ...mention, entity_id: registered?.id || mention.entity_id || null, official_domains: registered?.officialDomains || mention.official_domains || [] };
-    const existing = output.find(item => item.identity_key === key && item.target === Boolean(mention.target) && sameKnownIdentity(item, candidate));
+    const existing = output.find(item => item.identity_key === key && sameKnownIdentity(item, candidate));
     if (existing) {
+      existing.target = existing.target || Boolean(mention.target);
       for (const raw of [mention.raw_name, mention.name, ...(mention.raw_names || [])].filter(Boolean)) {
         if (!existing.raw_names.includes(raw)) existing.raw_names.push(raw);
       }
@@ -57,8 +58,14 @@ function targetIdentityKeys(entity = {}) {
 }
 
 function similarButDistinct(name, entity = {}) {
+  const raw = String(name || '').normalize('NFKC').trim();
   const candidate = identityNameKey(name, { removeBranch: false });
   if (!candidate) return false;
+  const aliases = [entity.name, ...(entity.aliases || [])].filter(Boolean).map(value => String(value).normalize('NFKC').trim());
+  if (aliases.some(alias => raw === alias)) return false;
+  if (aliases.some(alias => raw.startsWith(alias) && /^(?:\s*[のがはをへでにと]|\s*[：:])/u.test(raw.slice(alias.length)))) return false;
+  LEGAL_FORM.lastIndex = 0;
+  if (!LEGAL_FORM.test(raw)) return false;
   return targetIdentityKeys(entity).some(target => candidate !== target && target.length >= 3 && (candidate.includes(target) || target.includes(candidate)));
 }
 

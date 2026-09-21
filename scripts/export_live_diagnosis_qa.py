@@ -4,12 +4,17 @@ import sys
 from pathlib import Path
 
 
-DIAGNOSIS_ID = "76666666-7777-4777-8777-777777777777"
+DEFAULT_DIAGNOSIS_ID = "76666666-7777-4777-8777-777777777777"
 
 
 def main() -> None:
     root = Path(__file__).resolve().parents[1]
     sql_path = Path(sys.argv[1]) if len(sys.argv) > 1 else root / "tmp" / "kyoudo-live-staging-export.sql"
+    diagnosis_id = sys.argv[2] if len(sys.argv) > 2 else DEFAULT_DIAGNOSIS_ID
+    slug = sys.argv[3] if len(sys.argv) > 3 else "kyoudo"
+    subject_label = sys.argv[4] if len(sys.argv) > 4 else "協同住宅"
+    if not slug.replace("-", "").isalnum():
+        raise ValueError("Output slug must contain only letters, numbers, and hyphens.")
     output_dir = root / "output" / "live-diagnosis"
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -17,12 +22,12 @@ def main() -> None:
     db.executescript(sql_path.read_text(encoding="utf-8"))
     order = db.execute(
         "SELECT diagnosis_status,pipeline_state,completed_measurements,total_measurements,report_json FROM diagnosis_orders WHERE id=?",
-        (DIAGNOSIS_ID,),
+        (diagnosis_id,),
     ).fetchone()
     if not order or order[0] != "complete" or order[1] != "completed" or order[2] != 30:
         raise RuntimeError(f"Diagnosis is not complete: {order[:4] if order else None}")
 
-    report_path = output_dir / "madoha-kyoudo-full-live-report.json"
+    report_path = output_dir / f"madoha-{slug}-full-live-report.json"
     report = json.loads(order[4])
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -33,13 +38,13 @@ def main() -> None:
         JOIN diagnosis_questions q ON q.diagnosis_id=p.diagnosis_id AND q.question_id=p.question_id
         WHERE p.diagnosis_id=? ORDER BY q.question_order,p.channel_order
         """,
-        (DIAGNOSIS_ID,),
+        (diagnosis_id,),
     ).fetchall()
     if len(rows) != 30:
         raise RuntimeError(f"Expected 30 measurements, got {len(rows)}")
 
     qa = []
-    markdown = ["# MADOHA 協同住宅 フル実診断 QA", "", f"診断ID: `{DIAGNOSIS_ID}`", ""]
+    markdown = [f"# MADOHA {subject_label} フル実診断 QA", "", f"診断ID: `{diagnosis_id}`", ""]
     for order_no, question, channel, status, cost, payload_json in rows:
         item = json.loads(payload_json)
         entities = item.get("mentioned_entities") or []
@@ -99,9 +104,9 @@ def main() -> None:
             markdown.extend([f"- 理由: {' / '.join(issues)}"])
         markdown.extend(["", "### Raw answer", "", item.get("raw_answer", ""), ""])
 
-    qa_path = output_dir / "madoha-kyoudo-full-live-qa.json"
+    qa_path = output_dir / f"madoha-{slug}-full-live-qa.json"
     qa_path.write_text(json.dumps(qa, ensure_ascii=False, indent=2), encoding="utf-8")
-    markdown_path = output_dir / "madoha-kyoudo-full-live-qa.md"
+    markdown_path = output_dir / f"madoha-{slug}-full-live-qa.md"
     markdown_path.write_text("\n".join(markdown), encoding="utf-8")
     print(json.dumps({"report": str(report_path), "qa_json": str(qa_path), "qa_markdown": str(markdown_path), "measurements": len(qa)}, ensure_ascii=False))
 
