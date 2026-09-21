@@ -55,7 +55,7 @@ test('report starts with ten search results and keeps evaluation labels out of c
   assert.match(reportSource, /branded\.length\*channelCount/);
   assert.match(reportSource, /index\+nonbrand\.length/);
   assert.match(reportSource, /hasWarning\?'注意あり':row\.answer\?'回答あり':'回答なし'/);
-  assert.match(reportSource, /catalogSources=\[\.\.\.new Map/);
+  assert.match(reportSource, /catalogSources=preferredSources/);
   assert.match(reportSource, /data\.subject\.category\|\|data\.subject\.industry/);
   assert.doesNotMatch(reportSource, /6 QUESTIONS \/ 18 RESULTS/);
   assert.doesNotMatch(reportSource, /非指名6問と指名4問/);
@@ -70,8 +70,8 @@ test('final sample shows substantial answers and keeps analysis secondary', () =
   assert.ok(!JSON.stringify(sample.queries).match(/地域工務店|住宅メーカー|施工事例を公開する地域会社|売却実績を公開する地域会社/));
   assert.match(reportSource, /data\.actions\.slice\(0,3\)/);
   assert.match(reportSource, /sourceRole/);
-  assert.match(reportSource, /host\(source\.url\)/);
-  assert.match(reportSource, /subject-highlight/);
+  assert.match(reportSource, /host\(item\.url\)===host\(url\)/);
+  assert.match(reportSource, /renderSafeMarkdown\(row\.answer/);
 });
 
 test('listing positions, recommendation ranks and source catalog stay consistent', () => {

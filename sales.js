@@ -1,3 +1,5 @@
+import './sample-kyoudo.js';
+
 const sales$=s=>document.querySelector(s);
 let salesId=new URLSearchParams(location.search).get('diagnosis'),salesToken=salesId?localStorage.getItem(`madoha-access-${salesId}`):null;
 let salesSite,salesQuestions=[],salesFreeIds=[],salesWarningCodes=[],salesTurnstileToken='',salesShown='',salesStage='';

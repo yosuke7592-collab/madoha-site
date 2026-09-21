@@ -1,13 +1,23 @@
-const e=value=>String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'})[char]);
+import {escapeHtml as e,preferredSources,renderSafeMarkdown,sourceHost as host,sourcePresentation} from './report-format.js';
 const channelNames={chatgpt:'ChatGPT',gemini:'Gemini',google_ai_mode:'Google AI Mode'};
 const siteNames={
   'kyoudo.jp':'協同住宅 公式サイト','shinurayasu.chiba.jp':'新浦安ナビ','hot2.jp':'HOT2 浦安駅おすすめ8選',
   'e-fudou.com':'不動産ドットコム','property-bank.co.jp':'プロパティバンク','urayasu-senmon.com':'浦安専門ドットコム'
 };
-const host=url=>{try{return new URL(url).hostname.replace(/^www\./,'')}catch{return String(url)}};
-const sourceName=url=>siteNames[host(url)]||host(url);
-const sourceRole=(data,url)=>data.sources.find(item=>host(item.url)===host(url))?.role||'AI回答が参照したWeb情報';
-const sourceLinks=(data,urls)=>`<ul class="reference-list">${[...new Set(urls||[])].map(url=>`<li><a href="${e(url)}" target="_blank" rel="noopener"><b>${e(sourceName(url))}</b><span>${e(sourceRole(data,url))}</span><small>${e(host(url))}</small></a></li>`).join('')||'<li>取得できた参照情報はありません。</li>'}</ul>`;
+const sourceRecord=(data,url)=>data.sources.find(item=>item.url===url)||data.sources.find(item=>host(item.url)===host(url));
+const sourceRole=(data,url)=>{
+  const source=sourceRecord(data,url);
+  const display=sourcePresentation(source||{url},url);
+  return display.via?'Geminiが回答の根拠として参照したWeb情報':source?.role||'AI回答が参照したWeb情報';
+};
+function sourceItem(data,url){
+  const source=sourceRecord(data,url)||{url};
+  const display=sourcePresentation(source,url);
+  const knownName=siteNames[display.domain]||display.name;
+  const contents=`<b>${e(knownName)}</b><span>${e(sourceRole(data,url))}</span><small>${e(display.domain)}${display.via?` · ${e(display.via)}`:''}</small>`;
+  return display.href?`<a href="${e(display.href)}" target="_blank" rel="noopener noreferrer">${contents}</a>`:`<div>${contents}</div>`;
+}
+const sourceLinks=(data,urls)=>`<ul class="reference-list">${[...new Set(urls||[])].map(url=>`<li>${sourceItem(data,url)}</li>`).join('')||'<li>取得できた参照情報はありません。</li>'}</ul>`;
 
 function displayedCompanies(data,row){
   const competitors=[...(row.competitors||[])];
@@ -25,10 +35,8 @@ function companyList(data,row){
   if(!list.length)return '<p class="empty-note">企業名の一覧は取得できませんでした。</p>';
   return `<ol class="company-order">${list.map(name=>`<li class="${name===data.subject.name?'target-company':''}"><span>${e(name)}</span>${name===data.subject.name?'<b>診断対象</b>':''}</li>`).join('')}</ol>`;
 }
-function highlightSubject(text,subject){return e(text).split(e(subject)).join(`<strong class="subject-highlight">${e(subject)}</strong>`)}
 function actualAnswer(data,row){
-  const sentences=String(row.answer||'').match(/[^。]+。?/g)||[];
-  return sentences.map(sentence=>`<p>${highlightSubject(sentence,data.subject.name)}</p>`).join('');
+  return `<div class="answer-markdown">${renderSafeMarkdown(row.answer,{subject:data.subject.name})}</div>`;
 }
 const madohaView=row=>row.comment?`<div class="madoha-view"><h5>MADOHAの見解</h5><p>${e(row.comment)}</p></div>`:'';
 const reliabilityNotice=row=>{
@@ -60,7 +68,7 @@ function render(data){
   const totalQuestions=data.queries.length;
   const channelCount=data.measurement?.channelCount||3;
   const totalResults=data.measurement?.resultCount||totalQuestions*channelCount;
-  const catalogSources=[...new Map((data.sources||[]).map(source=>[host(source.url),source])).values()];
+  const catalogSources=preferredSources(data.sources||[]);
   const subjectArea=data.subject.area||data.subject.display_region||data.subject.region||'';
   const subjectCategory=data.subject.category||data.subject.industry||data.subject.entity_type||'';
   document.querySelector('#report').innerHTML=`
@@ -73,7 +81,7 @@ function render(data){
     <header class="report-intro branded-intro"><b class="section-index">02 / DIRECT SEARCH</b><p>${e(branded.length)} QUESTIONS / ${e(branded.length*channelCount)} RESULTS</p><h2>会社名を入れた検索</h2><p>あなたの会社名をAIに直接聞いたとき、どのように説明・評価されるかを確認します。</p></header>
     <section class="query-list">${branded.map((query,index)=>queryBlock(data,query,index+nonbrand.length,totalQuestions)).join('')}</section>
     <section class="closing-section"><header><p>検索結果を確認した後の参考情報</p><h2>改善する場合の選択肢</h2></header><p>以下は、今回の検索結果と参照情報から考えられる候補です。特定の表示・推薦結果を保証するものではありません。</p><ol class="option-list">${data.actions.slice(0,3).map(action=>`<li><h3>${e(action.target)}</h3><p>${e(action.change)}</p></li>`).join('')}</ol></section>
-    <section class="closing-section sources-section"><header><p>検索結果で使用した主なWeb情報</p><h2>参照情報</h2></header><div class="source-lines">${catalogSources.map(source=>`<p><b>${e(source.name)}</b><span>${e(source.role)}</span><a href="${e(source.url)}" target="_blank" rel="noopener">${e(host(source.url))}</a></p>`).join('')}</div></section>
+    <section class="closing-section sources-section"><header><p>検索結果で使用した主なWeb情報</p><h2>参照情報</h2></header><div class="source-lines">${catalogSources.map(source=>{const display=sourcePresentation(source);const link=display.href?`<a href="${e(display.href)}" target="_blank" rel="noopener noreferrer">${e(display.domain)}${display.via?` · ${e(display.via)}`:''}</a>`:`<span>${e(display.domain)}</span>`;const role=display.via?'Geminiが回答の根拠として参照したWeb情報':source.role;return `<p><b>${e(siteNames[display.domain]||display.name)}</b><span>${e(role)}</span>${link}</p>`}).join('')}</div></section>
     <section class="measurement-note"><h2>測定条件・注意書き</h2><p>会社名を入れない検索${e(nonbrand.length)}問と、会社名を入れた検索${e(branded.length)}問を、ChatGPT、Gemini、Google AI Modeで各1回検索しました。合計${e(totalResults)}件の検索結果です。</p><p>${e(data.reliabilityNotice||'本診断は測定時点におけるAI検索の回答を記録したものです。確認できた注意点はMADOHAが補足表示します。')}</p><p>AIの回答は変動するため、同じ質問でも結果が異なる場合があります。また、改善施策による特定の表示・推薦結果を保証するものではありません。</p>${data.sample?`<p class="sample-caution"><b>商品確認用サンプル：</b>この画面の${e(totalResults)}件は表示確認用の仮データです。株式会社協同住宅の実測値ではありません。</p>`:''}</section>
   </main><footer class="end"><b>MADOHA</b><p>検索結果 + 参照情報 + 必要最小限の見解</p><a href="index.html">無料チェックへ戻る</a></footer>`;
 }
