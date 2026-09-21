@@ -144,7 +144,7 @@ export async function editRemainingQuestions(db, order, submitted, acknowledgeme
 }
 
 export async function createUpgradeCheckout(env, order, origin, fetchImpl = fetch) {
-  if (!/^sk_test_/.test(env.STRIPE_SECRET_KEY || '')) fail('Stripeテスト決済の設定待ちです。', 503);
+  if (!/^(?:sk|rk)_test_/.test(env.STRIPE_SECRET_KEY || '')) fail('Stripeテスト決済の設定待ちです。', 503);
   if (order.payment_status === 'paid') fail('決済は完了しています。', 409);
   if (!['free_completed', 'checkout_pending'].includes(order.sales_stage)) fail('無料診断の完了後に購入できます。', 409);
   const expires = order.checkout_expires_at || now() + 3600;
