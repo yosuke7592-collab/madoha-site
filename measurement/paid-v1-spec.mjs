@@ -16,7 +16,6 @@ export function identifyEntity(input = {}) {
   const context = normalized(input.context);
   if (!PAID_V1.entityTypes.includes(entityType)) throw new TypeError('対応していない診断対象です。');
   if (!name) return { status: 'insufficient', reason: '診断対象の名称が必要です。', candidates: [] };
-  if (!officialUrl && !context) return { status: 'insufficient', reason: '同名対象を区別するため、公式URLまたは地域・業種等が必要です。', candidates: [] };
   const candidate = { entity_type: entityType, name, official_url: officialUrl || null, context: context || null };
   return { status: 'confirmation_required', prompt: 'この対象で間違いありませんか？', candidates: [candidate] };
 }

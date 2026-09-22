@@ -4,6 +4,7 @@ import { validateQuestionSet } from './question-review.mjs';
 import { secureTextEqual, verifyStripeSignature, PRICE_JPY } from './paid-diagnosis.mjs';
 import { createWorkerAdapters, loadConfirmedQuestions, baseReport } from './diagnosis-pipeline.mjs';
 import { D1MeasurementStore, runPaidMeasurements, measurementsToPaidReport } from '../measurement/paid-pipeline.mjs';
+import { inferIdentityType, resolveIdentityInput, stableIdentityKey } from './identity-resolution.mjs';
 
 const parse = (value, fallback = null) => { try { return JSON.parse(value) ?? fallback; } catch { return fallback; } };
 const encode = value => new TextEncoder().encode(value);
@@ -18,9 +19,7 @@ export async function hashIp(ip, secret) {
   return [...new Uint8Array(await crypto.subtle.sign('HMAC', key, encode(ip)))].map(x => x.toString(16).padStart(2, '0')).join('');
 }
 export function freeIdentity(entity) {
-  const domain = normalizePublicUrl(entity.official_url).hostname.toLowerCase().replace(/^www\./, '');
-  // Domain is authoritative for free-cost reuse: spelling/region edits cannot mint a new allowance.
-  return `free-v1:${domain}`;
+  return `free-v1:${stableIdentityKey(entity)}`;
 }
 export function selectFreeQuestions(questions) {
   if (questions.length !== 10) fail('10問が必要です。');
@@ -32,6 +31,19 @@ export function selectFreeQuestions(questions) {
   const third = ranked.find(q => q.id !== discovery.id && q.id !== brand.id && q.intent !== discovery.intent && q.intent !== brand.intent)
     || ranked.find(q => q.id !== discovery.id && q.id !== brand.id);
   return [discovery.id, brand.id, third.id];
+}
+export function finalizeIdentityForDraft(rawEntity = {}) {
+  const identityType = rawEntity.identity_id
+    ? rawEntity.identity_type || rawEntity.entity_type
+    : inferIdentityType(rawEntity.name, {
+        industry: rawEntity.industry,
+        context: [...(rawEntity.main_services || []), ...(rawEntity.main_products || [])].join(' ')
+      });
+  return {
+    ...rawEntity,
+    identity_type: identityType,
+    entity_type: identityType === 'store' ? 'company' : identityType
+  };
 }
 export async function verifyTurnstile(env, token, hostname, fetchImpl = fetch) {
   if (!env.TURNSTILE_SECRET_KEY || !token || token.length > 2048) return false;
@@ -53,14 +65,16 @@ export async function authorizeSales(db, id, token) {
 }
 
 export async function createSalesDraft(env, input) {
-  const discovery = generateQuestionDiscovery(input);
-  const entity = { ...discovery.entity, official_url: normalizePublicUrl(discovery.entity.official_url).href };
+  const rawEntity = input.entity || input;
+  const entityInput = finalizeIdentityForDraft(rawEntity);
+  const discovery = generateQuestionDiscovery({ ...input, entity: entityInput });
+  const entity = { ...discovery.entity, official_url: discovery.entity.official_url ? normalizePublicUrl(discovery.entity.official_url).href : '' };
   const ids = selectFreeQuestions(discovery.questions);
   const id = crypto.randomUUID(), token = crypto.randomUUID() + crypto.randomUUID();
   const statements = [env.DB.prepare(`INSERT INTO diagnosis_orders
     (id,target_url,amount_jpy,payment_status,diagnosis_status,created_at,updated_at,sales_stage,access_token_hash,identity_key,entity_json,location,question_mix_reason,question_discovery_json,free_question_ids_json,cost_cap_usd)
     VALUES (?,?,4980,'pending','locked',datetime('now'),datetime('now'),'questions_ready',?,?,?,?,?,?,?,?)`)
-    .bind(id, entity.official_url, await hashToken(token), freeIdentity(entity), JSON.stringify(entity), entity.region || '', discovery.mix.reason, JSON.stringify(discovery), JSON.stringify(ids), config(env, 'MADOHA_PAID_DIAGNOSIS_MAX_COST_USD', .70))];
+    .bind(id, entity.official_url || '', await hashToken(token), freeIdentity(entity), JSON.stringify(entity), entity.region || '', discovery.mix.reason, JSON.stringify(discovery), JSON.stringify(ids), config(env, 'MADOHA_PAID_DIAGNOSIS_MAX_COST_USD', .70))];
   for (const q of discovery.questions) statements.push(env.DB.prepare(`INSERT INTO diagnosis_questions
     (diagnosis_id,question_id,question_order,question_text,intent,selection_reason,source_signals_json,question_kind,created_at,measurement_purpose,alternatives_json,proposed_question_text,proposed_question_kind,discovery_evidence_json,generation_source,generation_rule)
     VALUES (?,?,?,?,?,?,?,?,datetime('now'),?,?,?,?,?,?,?)`).bind(id, q.id, q.order, q.question_text, q.intent, q.selection_reason, JSON.stringify(q.source_signals), q.kind, q.measurement_purpose, JSON.stringify(q.alternatives), q.question_text, q.kind, JSON.stringify(q.discovery_evidence), q.generation_source, q.generation_rule));
@@ -223,7 +237,7 @@ export async function processSalesQueue(env, order, options = {}) {
       for (const row of sourceRows) if (!await store.get(order.id, row.question_id, row.channel)) await store.save({ ...row, diagnosis_id: order.id, run_id: `reuse-${order.id}`, estimated_cost: 0, provider_metadata: { ...row.provider_metadata, reused: true, original_cost_usd: row.estimated_cost } });
     }
     const entity = parse(order.entity_json, {});
-    const registry = [{ id: entity.id || order.id, canonicalName: entity.name, displayName: entity.name, aliases: entity.aliases || [], officialDomains: [new URL(entity.official_url).hostname.replace(/^www\./,'')] }];
+    const registry = [{ id: entity.id || entity.identity_id || order.id, canonicalName: entity.name, displayName: entity.name, aliases: entity.aliases || [], officialDomains: entity.official_url ? [new URL(entity.official_url).hostname.replace(/^www\./,'')] : [] }];
     const selected = free ? questions.filter(q => freeIds.includes(q.id)) : questions;
     const cap = free ? Math.min(order.cost_cap_usd, config(env,'FREE_DIAGNOSIS_COST_CAP_USD',.21)) : order.cost_cap_usd;
     const result = await runPaidMeasurements({ diagnosis: { id: order.id, run_id: `sales-${order.id}`, entity, locale: order.locale, location: order.location },
@@ -257,7 +271,7 @@ export async function handleSalesRequest(request, env) {
     if (request.method !== 'GET' && request.headers.get('origin') && request.headers.get('origin') !== url.origin) fail('アクセス元を確認できません。', 403);
     const body = async () => { const text = await request.text(); if (text.length > 30000) fail('入力が長すぎます。', 413); return JSON.parse(text); };
     if (url.pathname === '/api/sales/config') return json({ turnstile_site_key: env.TURNSTILE_SITE_KEY || '', price_jpy: PRICE_JPY });
-    if (url.pathname === '/api/sales/inspect' && request.method === 'POST') { const input = await body(); return json({ site: await runFreeCheck(input.url) }); }
+    if (url.pathname === '/api/sales/inspect' && request.method === 'POST') { const input = await body(); return json(await resolveIdentityInput(input, { inspectUrl: value => runFreeCheck(value) })); }
     if (url.pathname === '/api/sales/draft' && request.method === 'POST') return json(await createSalesDraft(env, await body()));
     const match = url.pathname.match(/^\/api\/sales\/([0-9a-f-]{36})(?:\/(start|questions|checkout|event|report))?$/i);
     if (!match) return json({ error: 'Not found' }, 404);

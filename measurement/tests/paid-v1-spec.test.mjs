@@ -13,8 +13,8 @@ test('v1 fixes the paid product measurement contract', () => {
   assert.equal(PAID_V1.totalMeasurements, 30);
 });
 
-test('target identification stops when context is insufficient and requires confirmation', () => {
-  assert.equal(identifyEntity({ name: '株式会社協同住宅' }).status, 'insufficient');
+test('target identification accepts a name without requiring a URL and requires confirmation', () => {
+  assert.equal(identifyEntity({ name: '株式会社協同住宅' }).status, 'confirmation_required');
   const found = identifyEntity({ entity_type: 'company', name: '株式会社協同住宅', official_url: 'https://www.kyoudo.jp/' });
   assert.equal(found.status, 'confirmation_required');
   assert.equal(confirmEntity(found).identification_status, 'confirmed');
