@@ -103,7 +103,7 @@ def dashboard_stats(data):
 def summary_pages(data):
     stats=dashboard_stats(data); total=len(stats['measurements']); shown=len(stats['appeared']); discovery=len(stats['discovery']); discovery_shown=sum(bool(row.get('appeared')) for row in stats['discovery'])
     metric_cells=[]
-    for value,label in [(f'{shown} / {total}','AI掲載'),(f'{discovery_shown} / {discovery}','Discovery Visibility'),(str(stats['recommendations']),'推薦'),(str(stats['ranks']),'明示順位')]:
+    for value,label in [(f'{shown} / {total}','AI掲載'),(f'{discovery_shown} / {discovery}','会社名なしでの掲載'),(str(stats['recommendations']),'推薦された回数'),(str(stats['ranks']),'1位・第一候補になった回数')]:
         metric_cells.append([p(value,'MetricJP'),p(label,'MetaJP')])
     metrics=Table([metric_cells],colWidths=[41*mm]*4)
     metrics.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),('LINEBEFORE',(1,0),(-1,-1),.35,LINE),('LEFTPADDING',(0,0),(-1,-1),6),('RIGHTPADDING',(0,0),(-1,-1),6),('TOPPADDING',(0,0),(-1,-1),7),('BOTTOMPADDING',(0,0),(-1,-1),7)]))
@@ -116,17 +116,18 @@ def summary_pages(data):
         for key in CHANNELS:
             row=next((row for row in query['channels'] if row['channel']==key),{})
             states.append(p('○ 掲載' if row.get('appeared') else '× 非掲載','MetaJP'))
-        heat_rows.append([p(f'{index:02d}  {query["query"][:46]}','MetaJP'),*states])
+        heat_rows.append([p(f'{index:02d}  {query["query"][:46]}','MicroJP'),*states])
     heat=Table(heat_rows,colWidths=[91*mm,23*mm,23*mm,27*mm],repeatRows=1)
-    heat.setStyle(TableStyle([('LINEBELOW',(0,0),(-1,-1),.3,LINE),('BACKGROUND',(0,0),(-1,0),PALE),('VALIGN',(0,0),(-1,-1),'MIDDLE'),('LEFTPADDING',(0,0),(-1,-1),4),('RIGHTPADDING',(0,0),(-1,-1),4),('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),4)]))
-    result=[p('DASHBOARD / 診断サマリー','LabelJP'),p('AI上での現在地','DashboardTitleJP'),p('30件の実測結果から、掲載状況・競合・参照元を事実ベースで整理しました。','MetaJP'),Spacer(1,4*mm),metrics,Spacer(1,8*mm),p('AI別の掲載状況','AIJP'),ai_table,Spacer(1,8*mm),p('質問別の掲載状況','AIJP'),heat,PageBreak(),p('COMPETITORS & SOURCES','LabelJP'),p('競合・参照元・改善優先ポイント','DashboardTitleJP')]
+    heat.setStyle(TableStyle([('LINEBELOW',(0,0),(-1,-1),.3,LINE),('BACKGROUND',(0,0),(-1,0),PALE),('VALIGN',(0,0),(-1,-1),'MIDDLE'),('LEFTPADDING',(0,0),(-1,-1),4),('RIGHTPADDING',(0,0),(-1,-1),4),('TOPPADDING',(0,0),(-1,-1),2),('BOTTOMPADDING',(0,0),(-1,-1),2)]))
+    summary_explanation=f'30件の実測結果から、掲載状況・推薦・競合との比較を整理しました。会社名を指定しない質問でも、{discovery}回中{discovery_shown}回候補に入りました。'
+    result=[p('DASHBOARD / 診断サマリー','LabelJP'),p('AI検索での、あなたの会社の見え方','DashboardTitleJP'),p(summary_explanation,'MetaJP'),Spacer(1,3*mm),metrics,Spacer(1,5*mm),p('AI別の掲載状況','AIJP'),ai_table,Spacer(1,5*mm),p('質問別の掲載状況','AIJP'),heat,PageBreak(),p('COMPETITORS & SOURCES','LabelJP'),p('競合・参照元・改善優先ポイント','DashboardTitleJP')]
     result += [p('AIが一緒に挙げた主な競合','AIJP')]
     result += [p(f'{index:02d}  {name}　{name_count}回','BodyJP') for index,(name,name_count) in enumerate(stats['competitors'][:8],1)] or [p('競合名を確認できませんでした。','MetaJP')]
     result += [Spacer(1,6*mm),p('よく参照されたドメイン','AIJP')]
     result += [p(f'{domain}　{count}回','BodyJP') for domain,count in stats['domains'][:8]] or [p('参照元を取得できませんでした。','MetaJP')]
     result += [Spacer(1,6*mm),p('改善優先ポイント','AIJP')]
     result += [p(f'・{item}','BodyJP') for item in stats['priorities']]
-    result += [Spacer(1,5*mm),p('独自の0〜100点は使用していません。掲載数とDiscovery Visibilityという再確認可能な実測値を主指標にしています。','NoticeJP'),PageBreak()]
+    result += [Spacer(1,5*mm),p('独自の0〜100点は使用していません。「AI掲載」と「会社名なしでの掲載」という、実測で確認できる数値を表示しています。','NoticeJP'),PageBreak()]
     return result
 
 def footer(canvas,doc):
