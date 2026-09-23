@@ -41,6 +41,8 @@ styles.add(ParagraphStyle(name='IntroLabelJP',fontName='HeiseiKakuGo-W5',fontSiz
 styles.add(ParagraphStyle(name='IntroItemJP',fontName='HeiseiKakuGo-W5',fontSize=9.1,leading=13.5,textColor=WHITE,spaceAfter=1))
 styles.add(ParagraphStyle(name='IntroReasonJP',fontName='HeiseiKakuGo-W5',fontSize=7.5,leading=11,textColor=colors.HexColor('#b9c9cc')))
 styles.add(ParagraphStyle(name='NoticeJP',parent=styles['BodyJP'],fontSize=9,leading=14,textColor=MUTED,borderColor=LINE,borderWidth=.4,borderPadding=8))
+styles.add(ParagraphStyle(name='MetricJP',fontName='HeiseiKakuGo-W5',fontSize=22,leading=27,textColor=INK,spaceAfter=2))
+styles.add(ParagraphStyle(name='DashboardTitleJP',fontName='HeiseiKakuGo-W5',fontSize=24,leading=31,textColor=INK,spaceAfter=7))
 
 def esc(text): return str(text).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
 def p(text,style='BodyJP'): return Paragraph(esc(text),styles[style])
@@ -77,11 +79,61 @@ def position(subject,row):
     return companies.index(subject)+1 if subject in companies else None
 def ai_rank(row): return f"{row['aiRank']}位" if isinstance(row.get('aiRank'),int) else 'なし'
 
+def dashboard_stats(data):
+    measurements=[dict(row,query=query) for query in data['queries'] for row in query['channels'] if row.get('answer') and not row.get('error')]
+    discovery=[row for row in measurements if row['query']['kind']=='nonbrand']
+    branded=[row for row in measurements if row['query']['kind']=='branded']
+    appeared=[row for row in measurements if row.get('appeared')]
+    channels={key:[row for row in measurements if row.get('channel')==key] for key in CHANNELS}
+    competitors={}
+    for row in measurements:
+        for name in set(row.get('competitors') or []): competitors[name]=competitors.get(name,0)+1
+    domains={}
+    for row in measurements:
+        for url in set(row.get('sources') or []): domains[host(url)]=domains.get(host(url),0)+1
+    missing=[query for query in data['queries'] if query['kind']=='nonbrand' and not any(row.get('appeared') for row in query['channels'])]
+    priorities=[]
+    if missing: priorities.append(f'非指名の{len(missing)}質問で、3AIすべてに掲載されませんでした。')
+    weakest=min(channels.items(),key=lambda item: sum(bool(row.get('appeared')) for row in item[1])/max(1,len(item[1])))
+    priorities.append(f'{CHANNELS[weakest[0]]}での掲載は{sum(bool(row.get("appeared")) for row in weakest[1])}/{len(weakest[1])}件でした。')
+    return {'measurements':measurements,'discovery':discovery,'branded':branded,'appeared':appeared,'channels':channels,
+            'competitors':sorted(competitors.items(),key=lambda item:(-item[1],item[0])),'domains':sorted(domains.items(),key=lambda item:(-item[1],item[0])),
+            'recommendations':sum(bool(row.get('recommended')) for row in measurements),'ranks':sum(isinstance(row.get('aiRank'),int) for row in measurements),'priorities':priorities[:3]}
+
+def summary_pages(data):
+    stats=dashboard_stats(data); total=len(stats['measurements']); shown=len(stats['appeared']); discovery=len(stats['discovery']); discovery_shown=sum(bool(row.get('appeared')) for row in stats['discovery'])
+    metric_cells=[]
+    for value,label in [(f'{shown} / {total}','AI掲載'),(f'{discovery_shown} / {discovery}','Discovery Visibility'),(str(stats['recommendations']),'推薦'),(str(stats['ranks']),'明示順位')]:
+        metric_cells.append([p(value,'MetricJP'),p(label,'MetaJP')])
+    metrics=Table([metric_cells],colWidths=[41*mm]*4)
+    metrics.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),('LINEBEFORE',(1,0),(-1,-1),.35,LINE),('LEFTPADDING',(0,0),(-1,-1),6),('RIGHTPADDING',(0,0),(-1,-1),6),('TOPPADDING',(0,0),(-1,-1),7),('BOTTOMPADDING',(0,0),(-1,-1),7)]))
+    ai_rows=[]
+    for key,rows in stats['channels'].items(): ai_rows.append([p(CHANNELS[key],'AIJP'),p(f'{sum(bool(row.get("appeared")) for row in rows)} / {len(rows)}','BodyJP')])
+    ai_table=Table(ai_rows,colWidths=[80*mm,80*mm]); ai_table.setStyle(TableStyle([('LINEBELOW',(0,0),(-1,-1),.35,LINE),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0),('TOPPADDING',(0,0),(-1,-1),6),('BOTTOMPADDING',(0,0),(-1,-1),6)]))
+    heat_rows=[[p('質問','LabelJP')]+[p(CHANNELS[key],'LabelJP') for key in CHANNELS]]
+    for index,query in enumerate(data['queries'],1):
+        states=[]
+        for key in CHANNELS:
+            row=next((row for row in query['channels'] if row['channel']==key),{})
+            states.append(p('○ 掲載' if row.get('appeared') else '× 非掲載','MetaJP'))
+        heat_rows.append([p(f'{index:02d}  {query["query"][:46]}','MetaJP'),*states])
+    heat=Table(heat_rows,colWidths=[91*mm,23*mm,23*mm,27*mm],repeatRows=1)
+    heat.setStyle(TableStyle([('LINEBELOW',(0,0),(-1,-1),.3,LINE),('BACKGROUND',(0,0),(-1,0),PALE),('VALIGN',(0,0),(-1,-1),'MIDDLE'),('LEFTPADDING',(0,0),(-1,-1),4),('RIGHTPADDING',(0,0),(-1,-1),4),('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),4)]))
+    result=[p('DASHBOARD / 診断サマリー','LabelJP'),p('AI上での現在地','DashboardTitleJP'),p('30件の実測結果から、掲載状況・競合・参照元を事実ベースで整理しました。','MetaJP'),Spacer(1,4*mm),metrics,Spacer(1,8*mm),p('AI別の掲載状況','AIJP'),ai_table,Spacer(1,8*mm),p('質問別の掲載状況','AIJP'),heat,PageBreak(),p('COMPETITORS & SOURCES','LabelJP'),p('競合・参照元・改善優先ポイント','DashboardTitleJP')]
+    result += [p('AIが一緒に挙げた主な競合','AIJP')]
+    result += [p(f'{index:02d}  {name}　{name_count}回','BodyJP') for index,(name,name_count) in enumerate(stats['competitors'][:8],1)] or [p('競合名を確認できませんでした。','MetaJP')]
+    result += [Spacer(1,6*mm),p('よく参照されたドメイン','AIJP')]
+    result += [p(f'{domain}　{count}回','BodyJP') for domain,count in stats['domains'][:8]] or [p('参照元を取得できませんでした。','MetaJP')]
+    result += [Spacer(1,6*mm),p('改善優先ポイント','AIJP')]
+    result += [p(f'・{item}','BodyJP') for item in stats['priorities']]
+    result += [Spacer(1,5*mm),p('独自の0〜100点は使用していません。掲載数とDiscovery Visibilityという再確認可能な実測値を主指標にしています。','NoticeJP'),PageBreak()]
+    return result
+
 def footer(canvas,doc):
     canvas.saveState(); canvas.setStrokeColor(LINE); canvas.setLineWidth(.35)
     canvas.line(16*mm,13.5*mm,194*mm,13.5*mm); canvas.setFont('HeiseiKakuGo-W5',7.2); canvas.setFillColor(MUTED)
     canvas.drawString(16*mm,8.5*mm,'MADOHA / AI SEARCH REPORT')
-    canvas.drawCentredString(105*mm,8.5*mm,'株式会社協同住宅')
+    canvas.drawCentredString(105*mm,8.5*mm,getattr(doc,'subject_name',''))
     canvas.drawRightString(194*mm,8.5*mm,f'PAGE {doc.page:02d}')
     canvas.restoreState()
 
@@ -175,6 +227,7 @@ def section_intro(number,english,title,description,queries,metrics):
 def build():
     data=json.loads(DATA.read_text(encoding='utf-8')); OUTPUT.parent.mkdir(parents=True,exist_ok=True)
     doc=BaseDocTemplate(str(OUTPUT),pagesize=A4,leftMargin=16*mm,rightMargin=16*mm,topMargin=16*mm,bottomMargin=18*mm,title=f"MADOHA Paid Diagnosis v1 - {data['subject']['name']}")
+    doc.subject_name=data['subject']['name']
     frame=Frame(doc.leftMargin,doc.bottomMargin,doc.width,doc.height,id='main')
     doc.addPageTemplates([PageTemplate(id='cover',frames=[frame],onPage=cover_page),PageTemplate(id='report',frames=[frame],onPage=footer)])
     story=[]
@@ -186,6 +239,7 @@ def build():
     date_block=Table([[p('MEASURED','CoverMetaJP'),p(report_label,'CoverMetaJP')],[p(data['measurement']['snapshotDate'],'CoverSubJP'),p('MADOHA / AI SEARCH INTELLIGENCE','CoverMetaJP')]],colWidths=[62*mm,98*mm])
     date_block.setStyle(TableStyle([('LINEABOVE',(0,0),(-1,0),.4,colors.HexColor('#405159')),('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0),('TOPPADDING',(0,0),(-1,-1),8),('BOTTOMPADDING',(0,0),(-1,-1),4),('VALIGN',(0,0),(-1,-1),'TOP')]))
     story += [Spacer(1,22*mm),p('MADOHA PAID DIAGNOSIS','CoverMetaJP'),Spacer(1,8*mm),p('AI検索調査レポート','CoverTitleJP'),Spacer(1,6*mm),p(data['subject']['name'],'CoverTitleJP'),Spacer(1,8*mm),p('AIで自社を検索すると、実際にどのように表示されるかを確認するレポート','CoverSubJP'),Spacer(1,18*mm),cover_rule,Spacer(1,7*mm),metrics,Spacer(1,30*mm),date_block,NextPageTemplate('report'),PageBreak()]
+    story += summary_pages(data)
     nonbrand_queries=[query for query in data['queries'] if query['kind']=='nonbrand']
     branded_queries=[query for query in data['queries'] if query['kind']=='branded']
     if nonbrand_queries:

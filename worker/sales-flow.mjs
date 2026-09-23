@@ -5,6 +5,7 @@ import { secureTextEqual, verifyStripeSignature, PRICE_JPY } from './paid-diagno
 import { createWorkerAdapters, loadConfirmedQuestions, baseReport } from './diagnosis-pipeline.mjs';
 import { D1MeasurementStore, runPaidMeasurements, measurementsToPaidReport } from '../measurement/paid-pipeline.mjs';
 import { inferIdentityType, resolveIdentityInput, stableIdentityKey } from './identity-resolution.mjs';
+import { buildReportDashboard } from '../measurement/report-dashboard.mjs';
 
 const parse = (value, fallback = null) => { try { return JSON.parse(value) ?? fallback; } catch { return fallback; } };
 const encode = value => new TextEncoder().encode(value);
@@ -23,14 +24,14 @@ export function freeIdentity(entity) {
 }
 export function selectFreeQuestions(questions) {
   if (questions.length !== 10) fail('10問が必要です。');
-  const score = q => (/利用判断|課題解決|比較/.test(q.intent) ? 4 : 0) + (/信頼|会社理解|製品理解|サービス理解|ブランド理解/.test(q.intent) ? 3 : 0) + Math.min((q.source_signals || []).length, 2);
+  const score = q => (/課題解決|利用判断|比較|発見/.test(q.intent) ? 5 : 0)
+    + Math.min((q.source_signals || []).length, 3)
+    + (q.measurement_purpose ? 1 : 0);
   const ranked = [...questions].sort((a, b) => score(b) - score(a) || a.order - b.order);
   const discovery = ranked.find(q => q.kind === 'nonbrand');
-  const brand = ranked.find(q => q.kind === 'branded');
-  if (!discovery || !brand) fail('無料診断には候補検索と会社名検索の両方が必要です。');
-  const third = ranked.find(q => q.id !== discovery.id && q.id !== brand.id && q.intent !== discovery.intent && q.intent !== brand.intent)
-    || ranked.find(q => q.id !== discovery.id && q.id !== brand.id);
-  return [discovery.id, brand.id, third.id];
+  const selected = discovery || ranked[0];
+  if (!selected) fail('無料診断に使用できる質問がありません。');
+  return [selected.id];
 }
 export function finalizeIdentityForDraft(rawEntity = {}) {
   const identityType = rawEntity.identity_id
@@ -70,6 +71,13 @@ export async function createSalesDraft(env, input) {
   const discovery = generateQuestionDiscovery({ ...input, entity: entityInput });
   const entity = { ...discovery.entity, official_url: discovery.entity.official_url ? normalizePublicUrl(discovery.entity.official_url).href : '' };
   const ids = selectFreeQuestions(discovery.questions);
+  const freeQuestion = discovery.questions.find(question => question.id === ids[0]);
+  discovery.free_selection = {
+    question_id: ids[0],
+    reason: freeQuestion.kind === 'nonbrand'
+      ? '会社名を知らない顧客への発見性を、3つのAIで比較できる質問を優先しました。'
+      : '対象の質問構成では非指名質問が適さないため、最も判断材料の多い質問を選びました。'
+  };
   const id = crypto.randomUUID(), token = crypto.randomUUID() + crypto.randomUUID();
   const statements = [env.DB.prepare(`INSERT INTO diagnosis_orders
     (id,target_url,amount_jpy,payment_status,diagnosis_status,created_at,updated_at,sales_stage,access_token_hash,identity_key,entity_json,location,question_mix_reason,question_discovery_json,free_question_ids_json,cost_cap_usd)
@@ -97,7 +105,7 @@ export async function dispatchSalesOutbox(env) {
 
 export async function startFree(env, order, ipHash) {
   if (order.sales_stage !== 'questions_ready') { await dispatchSalesOutbox(env); return { started: true, reused: Boolean(order.free_source_id) }; }
-  const cap = config(env, 'FREE_DIAGNOSIS_COST_CAP_USD', .21), daily = config(env, 'FREE_DIAGNOSIS_DAILY_COST_CAP_USD', 5);
+  const cap = config(env, 'FREE_DIAGNOSIS_COST_CAP_USD', .08), daily = config(env, 'FREE_DIAGNOSIS_DAILY_COST_CAP_USD', 2);
   const recentLimit = config(env, 'FREE_DIAGNOSIS_IP_HOURLY_LIMIT', 12), dayLimit = config(env, 'FREE_DIAGNOSIS_IP_DAILY_LIMIT', 40);
   const timestamp = now(), day = new Date().toISOString().slice(0, 10), expires = timestamp + config(env, 'FREE_DIAGNOSIS_REUSE_SECONDS', 86400);
   // D1 batch serializes allowance acquisition, cache election, budget reservation and the state transition.
@@ -208,6 +216,7 @@ async function collectReport(order, questions, rows) {
   const report = measurementsToPaidReport(baseReport(order, questions), rows);
   report.measurement.queryCount = questions.length;
   report.sources = [...new Map(rows.flatMap(r => r.sources || []).map(s => [s.url, { name: s.title || s.domain, url: s.url, role: s.citation_text || 'AI回答の参照情報' }])).values()];
+  report.dashboard = buildReportDashboard(report);
   return report;
 }
 export async function processSalesQueue(env, order, options = {}) {
@@ -233,13 +242,13 @@ export async function processSalesQueue(env, order, options = {}) {
       updates.push(env.DB.prepare('UPDATE diagnosis_orders SET free_question_ids_json=? WHERE id=?').bind(JSON.stringify(freeIds), order.id));
       await env.DB.batch(updates); questions = sourceQuestions;
       const sourceRows = (await new D1MeasurementStore(env.DB).list(source.id)).filter(r => freeIds.includes(r.question_id));
-      if (sourceRows.length !== 9 || sourceRows.some(r => r.error || !r.raw_answer)) fail('再利用結果を確認できません。');
+      if (sourceRows.length !== 3 || sourceRows.some(r => r.error || !r.raw_answer)) fail('再利用結果を確認できません。');
       for (const row of sourceRows) if (!await store.get(order.id, row.question_id, row.channel)) await store.save({ ...row, diagnosis_id: order.id, run_id: `reuse-${order.id}`, estimated_cost: 0, provider_metadata: { ...row.provider_metadata, reused: true, original_cost_usd: row.estimated_cost } });
     }
     const entity = parse(order.entity_json, {});
     const registry = [{ id: entity.id || entity.identity_id || order.id, canonicalName: entity.name, displayName: entity.name, aliases: entity.aliases || [], officialDomains: entity.official_url ? [new URL(entity.official_url).hostname.replace(/^www\./,'')] : [] }];
     const selected = free ? questions.filter(q => freeIds.includes(q.id)) : questions;
-    const cap = free ? Math.min(order.cost_cap_usd, config(env,'FREE_DIAGNOSIS_COST_CAP_USD',.21)) : order.cost_cap_usd;
+    const cap = free ? Math.min(order.cost_cap_usd, config(env,'FREE_DIAGNOSIS_COST_CAP_USD',.08)) : order.cost_cap_usd;
     const result = await runPaidMeasurements({ diagnosis: { id: order.id, run_id: `sales-${order.id}`, entity, locale: order.locale, location: order.location },
       questions: selected, adapters: options.adapters || createWorkerAdapters(env, registry), store, env, maxCost: cap, maxMeasurements: 3,
       onSaved: async () => { await env.DB.prepare("UPDATE diagnosis_orders SET completed_measurements=(SELECT COUNT(*) FROM paid_measurements WHERE diagnosis_id=? AND status='complete'),sales_stage=?,pipeline_state='measuring' WHERE id=? AND runner_lock_token=?").bind(order.id, free ? 'free_measuring' : 'paid_measuring', order.id, lock).run(); }
@@ -249,7 +258,7 @@ export async function processSalesQueue(env, order, options = {}) {
       return { action: 'ack', state: 'failed', result };
     }
     const rows = result.measurements.filter(r => !r.error && !r.provider_metadata?.pending && r.raw_answer?.trim());
-    if (rows.length === (free ? 9 : 30)) {
+    if (rows.length === (free ? 3 : 30)) {
       const report = await collectReport(order, selected, rows);
       await env.DB.prepare(`UPDATE diagnosis_orders SET sales_stage=?,diagnosis_status=?,pipeline_state=?,completed_measurements=?,${free ? 'free_report_json' : 'report_json'}=?,completed_at=datetime('now') WHERE id=? AND runner_lock_token=?`)
         .bind(free ? 'free_completed' : 'completed', free ? 'locked' : 'complete', free ? 'pending' : 'completed', rows.length, JSON.stringify(report), order.id, lock).run();
@@ -284,7 +293,7 @@ export async function handleSalesRequest(request, env) {
     if (request.method === 'GET' && !match[2]) {
       const questions = (await env.DB.prepare('SELECT question_id AS id,question_text,question_kind AS kind,selection_reason,measurement_purpose,alternatives_json FROM diagnosis_questions WHERE diagnosis_id=? ORDER BY question_order').bind(order.id).all()).results;
       return json({ id: order.id, stage: order.sales_stage, payment_status: order.payment_status, completed: order.completed_measurements,
-        total: ['questions_ready','free_measuring','free_completed'].includes(order.sales_stage) ? 9 : 30, free_question_ids: parse(order.free_question_ids_json, []), questions,
+        total: ['questions_ready','free_measuring','free_completed'].includes(order.sales_stage) ? 3 : 30, free_question_ids: parse(order.free_question_ids_json, []), questions,
         report: parse(order.free_report_json), full_report: order.payment_status === 'paid' && order.sales_stage === 'completed' ? parse(order.report_json) : null, error: order.error_message });
     }
     if (request.method === 'POST' && match[2] === 'start') {

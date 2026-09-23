@@ -1,4 +1,5 @@
 import {escapeHtml as e,preferredSources,renderSafeMarkdown,sourceHost as host,sourcePresentation} from './report-format.js';
+import {buildReportDashboard} from './measurement/report-dashboard.mjs';
 const channelNames={chatgpt:'ChatGPT',gemini:'Gemini',google_ai_mode:'Google AI Mode'};
 const siteNames={
   'kyoudo.jp':'協同住宅 公式サイト','shinurayasu.chiba.jp':'新浦安ナビ','hot2.jp':'HOT2 浦安駅おすすめ8選',
@@ -18,6 +19,21 @@ function sourceItem(data,url){
   return display.href?`<a href="${e(display.href)}" target="_blank" rel="noopener noreferrer">${contents}</a>`:`<div>${contents}</div>`;
 }
 const sourceLinks=(data,urls)=>`<ul class="reference-list">${[...new Set(urls||[])].map(url=>`<li>${sourceItem(data,url)}</li>`).join('')||'<li>取得できた参照情報はありません。</li>'}</ul>`;
+const channelShort={chatgpt:'ChatGPT',gemini:'Gemini',google_ai_mode:'Google AI Mode'};
+
+function metric(value,label,detail=''){
+  return `<div class="dashboard-metric"><strong>${e(value)}</strong><span>${e(label)}</span>${detail?`<small>${e(detail)}</small>`:''}</div>`;
+}
+function freeOverview(data,dashboard){
+  const query=data.queries[0];
+  const competitors=(dashboard.competitors||[]).slice(0,5);
+  return `<section class="free-overview dashboard-shell"><p class="dashboard-kicker">3つのAIで実際に調べました</p><h2>${e(query.query)}</h2><div class="free-ai-summary">${query.channels.map(row=>`<div><b>${e(channelShort[row.channel])}</b><strong class="${row.appeared?'is-visible':'is-hidden'}">${row.appeared?'○ 掲載':'× 非掲載'}</strong></div>`).join('')}</div><div class="dashboard-metrics">${metric(`${dashboard.visibility.appeared} / ${dashboard.visibility.total}`,'AI掲載状況')}${metric(competitors.length?competitors.length:'—','一緒に登場した競合')}</div>${competitors.length?`<div class="competitor-chips"><span>競合として登場</span>${competitors.map(item=>`<b>${e(item.name)}</b>`).join('')}</div>`:''}<div class="free-limit"><b>これは1つの質問だけを調べた結果です。</b><p>完全診断では、実際の顧客がAIへ尋ねる10の質問を選定し、ChatGPT・Gemini・Google AI Modeで計30回実測します。</p></div><p class="evidence-guide">各AIの実際の回答と参照元は、この下で確認できます。</p></section>`;
+}
+function fullDashboard(data,dashboard){
+  const maxCompetitor=Math.max(1,...dashboard.competitors.map(item=>item.appearances));
+  const channelMetrics=Object.entries(dashboard.byChannel).map(([channel,item])=>metric(`${item.appeared} / ${item.total}`,channelShort[channel],`${item.rate}%`)).join('');
+  return `<section class="diagnosis-dashboard dashboard-shell"><header><p class="dashboard-kicker">MADOHA / AI VISIBILITY REPORT</p><h2>AI上での現在地</h2><p>30件の実測結果から、掲載状況・競合・参照元を事実ベースで整理しました。</p></header><div class="dashboard-metrics primary">${metric(`${dashboard.visibility.appeared} / ${dashboard.visibility.total}`,'AI掲載',`${dashboard.visibility.rate}%`)}${metric(`${dashboard.discoveryVisibility.appeared} / ${dashboard.discoveryVisibility.total}`,'Discovery Visibility',`${dashboard.discoveryVisibility.rate}%`)}${metric(dashboard.recommendationCount,'推薦')}${metric(dashboard.explicitRankCount,'明示順位')}${metric(dashboard.topCandidateCount,'上位候補','掲載位置3番目以内')}</div><section class="dashboard-section"><h3>AI別の掲載状況</h3><div class="dashboard-metrics channels">${channelMetrics}</div></section><section class="dashboard-section"><h3>質問別の掲載状況</h3><div class="heatmap-wrap"><table class="visibility-heatmap"><thead><tr><th>質問</th>${Object.values(channelShort).map(name=>`<th>${e(name)}</th>`).join('')}</tr></thead><tbody>${dashboard.heatmap.map((row,index)=>`<tr><th><small>${String(index+1).padStart(2,'0')}</small>${e(row.question)}</th>${Object.keys(channelShort).map(channel=>{const state=row.channels[channel];return `<td><span class="heat-${e(state)}">${state==='appeared'?'○ 掲載':state==='not_appeared'?'× 非掲載':'—'}</span></td>`}).join('')}</tr>`).join('')}</tbody></table></div></section><div class="dashboard-two-column"><section class="dashboard-section"><h3>AIが一緒に挙げた主な競合</h3>${dashboard.competitors.slice(0,8).map(item=>`<div class="bar-row"><div><b>${e(item.name)}</b><span>${item.appearances}回 · ${item.channels.map(channel=>channelShort[channel]).join(' / ')}</span></div><i><em style="width:${Math.max(4,item.appearances/maxCompetitor*100)}%"></em></i></div>`).join('')||'<p>競合名を確認できませんでした。</p>'}</section><section class="dashboard-section"><h3>よく参照されたドメイン</h3><ol class="source-ranking">${dashboard.sources.slice(0,8).map(item=>`<li><b>${e(item.domain)}</b><span>${item.references}回</span></li>`).join('')||'<li>参照元を取得できませんでした。</li>'}</ol></section></div><section class="dashboard-section priorities"><h3>改善優先ポイント</h3><p>実測で確認できた事実と、検討できる選択肢を分けて表示します。</p>${dashboard.priorities.map((item,index)=>`<article><small>PRIORITY ${String(index+1).padStart(2,'0')}</small><b>${e(item.fact)}</b><p>${e(item.suggestion)}</p></article>`).join('')}</section><p class="dashboard-score-note">独自の0〜100点は使用していません。掲載数とDiscovery Visibilityという再確認可能な実測値を主指標にしています。</p></section>`;
+}
 
 function displayedCompanies(data,row){
   const competitors=[...(row.competitors||[])];
@@ -71,15 +87,16 @@ function render(data){
   const catalogSources=preferredSources(data.sources||[]);
   const subjectArea=data.subject.area||data.subject.display_region||data.subject.region||'';
   const subjectCategory=data.subject.category||data.subject.industry||data.subject.entity_type||'';
+  const dashboard=data.dashboard||buildReportDashboard(data);
+  const dashboardHtml=totalQuestions===1?freeOverview(data,dashboard):fullDashboard(data,dashboard);
   document.querySelector('#report').innerHTML=`
   <section class="hero compact-hero"><p>MADOHA PAID DIAGNOSIS v1 / AI検索調査レポート</p><h1>${e(data.subject.name)}</h1><span>${e([subjectArea,subjectCategory].filter(Boolean).join(' · '))}</span><dl><dt>検索質問</dt><dd>${e(totalQuestions)}問</dd><dt>AI検索</dt><dd>${e(channelCount)}チャネル</dd><dt>検索結果</dt><dd>${e(totalResults)}件</dd><dt>測定日</dt><dd>${e(data.measurement.snapshotDate)}</dd></dl></section>
   <nav class="report-tools">${data.sample?'<a class="pdf-button" href="output/pdf/madoha-kyoudo-paid-diagnosis-v1.pdf" download>PDFレポートをダウンロード</a>':''}<span>各検索結果の回答・掲載順・参照情報を収録しています。</span></nav>
   <p class="reliability-common-note">${e(data.reliabilityNotice||'本診断は各AIサービスが調査時点で生成した回答を記録したものです。AIの回答には誤りや他社情報の混同が含まれる場合があり、確認できた注意点はMADOHAが補足表示します。')}</p>
+  ${dashboardHtml}
   <main class="search-report">
-    <header class="report-intro"><b class="section-index">01 / DISCOVERY</b><p>${e(nonbrand.length)} QUESTIONS / ${e(nonbrand.length*channelCount)} RESULTS</p><h2>会社名を入れない検索</h2><p>あなたの会社を知らない人がAIに相談したとき、候補として表示されるかを確認します。</p></header>
-    <section class="query-list">${nonbrand.map((query,index)=>queryBlock(data,query,index,totalQuestions)).join('')}</section>
-    <header class="report-intro branded-intro"><b class="section-index">02 / DIRECT SEARCH</b><p>${e(branded.length)} QUESTIONS / ${e(branded.length*channelCount)} RESULTS</p><h2>会社名を入れた検索</h2><p>あなたの会社名をAIに直接聞いたとき、どのように説明・評価されるかを確認します。</p></header>
-    <section class="query-list">${branded.map((query,index)=>queryBlock(data,query,index+nonbrand.length,totalQuestions)).join('')}</section>
+    ${nonbrand.length?`<header class="report-intro"><b class="section-index">${totalQuestions===1?'EVIDENCE':'09 / EVIDENCE · DISCOVERY'}</b><p>${e(nonbrand.length)} QUESTIONS / ${e(nonbrand.length*channelCount)} RESULTS</p><h2>実際のAI回答と根拠</h2><p>あなたの会社を知らない人がAIに相談したとき、候補として表示されたかを回答本文で確認します。</p></header><section class="query-list">${nonbrand.map((query,index)=>queryBlock(data,query,index,totalQuestions)).join('')}</section>`:''}
+    ${branded.length?`<header class="report-intro branded-intro"><b class="section-index">10 / EVIDENCE · DIRECT SEARCH</b><p>${e(branded.length)} QUESTIONS / ${e(branded.length*channelCount)} RESULTS</p><h2>会社名を入れた検索の根拠</h2><p>あなたの会社名をAIに直接聞いたとき、どのように説明・評価されたかを確認します。</p></header><section class="query-list">${branded.map((query,index)=>queryBlock(data,query,index+nonbrand.length,totalQuestions)).join('')}</section>`:''}
     <section class="closing-section"><header><p>検索結果を確認した後の参考情報</p><h2>改善する場合の選択肢</h2></header><p>以下は、今回の検索結果と参照情報から考えられる候補です。特定の表示・推薦結果を保証するものではありません。</p><ol class="option-list">${data.actions.slice(0,3).map(action=>`<li><h3>${e(action.target)}</h3><p>${e(action.change)}</p></li>`).join('')}</ol></section>
     <section class="closing-section sources-section"><header><p>検索結果で使用した主なWeb情報</p><h2>参照情報</h2></header><div class="source-lines">${catalogSources.map(source=>{const display=sourcePresentation(source);const link=display.href?`<a href="${e(display.href)}" target="_blank" rel="noopener noreferrer">${e(display.domain)}${display.via?` · ${e(display.via)}`:''}</a>`:`<span>${e(display.domain)}</span>`;const role=display.via?'Geminiが回答の根拠として参照したWeb情報':source.role;return `<p><b>${e(siteNames[display.domain]||display.name)}</b><span>${e(role)}</span>${link}</p>`}).join('')}</div></section>
     <section class="measurement-note"><h2>測定条件・注意書き</h2><p>会社名を入れない検索${e(nonbrand.length)}問と、会社名を入れた検索${e(branded.length)}問を、ChatGPT、Gemini、Google AI Modeで各1回検索しました。合計${e(totalResults)}件の検索結果です。</p><p>${e(data.reliabilityNotice||'本診断は測定時点におけるAI検索の回答を記録したものです。確認できた注意点はMADOHAが補足表示します。')}</p><p>AIの回答は変動するため、同じ質問でも結果が異なる場合があります。また、改善施策による特定の表示・推薦結果を保証するものではありません。</p>${data.sample?`<p class="sample-caution"><b>商品確認用サンプル：</b>この画面の${e(totalResults)}件は表示確認用の仮データです。株式会社協同住宅の実測値ではありません。</p>`:''}</section>

@@ -7,11 +7,12 @@
 - Identity Resolution
 - Question Discovery
 - 10質問
-- 無料3質問
+- 無料1質問（非指名の発見性質問を優先）
 - ChatGPT / Gemini / Google AI Mode
-- 無料9測定
+- 無料3測定
 - 4,980円（税込）
-- 購入後の追加21測定
+- 購入後の追加27測定
+- 完全版の診断ダッシュボード（掲載数、Discovery Visibility、AI別比較、質問別状況、競合、参照元、改善優先ポイント）
 - 合計30測定
 - Web完全版
 - PDF
