@@ -33,6 +33,24 @@ export const KNOWN_IDENTITIES = Object.freeze([
     main_services: ['顧客・案件管理', 'ワークフロー', 'プロジェクト管理', '問い合わせ管理', '社内情報共有', '外部サービス連携'],
     faq: ['Excelから案件管理を移行したい', '複数部署で案件情報を共有したい', '専門知識なしでノーコード開発できる', '利用人数とコースの違い', '料金と無料お試し', '外部サービス連携とプラグイン'],
     headings: ['基本機能', '用途別の活用方法', '料金', '導入事例']
+  },
+  {
+    identity_id: 'company-zeal-delivery', name: '株式会社ZEAL', aliases: ['ZEAL', 'zeal', 'ジール'],
+    identity_type: 'company', entity_type: 'company', official_url: 'https://recruit-zeal.com/',
+    region: '千葉県船橋市', industry: '軽貨物運送・物流', operator_name: '株式会社ZEAL',
+    main_services: ['軽貨物配送', '宅配'], faq: [], headings: ['軽貨物配送', '採用情報']
+  },
+  {
+    identity_id: 'company-zeal-cruise', name: '株式会社ジール', aliases: ['ZEAL', 'zeal', 'ジール'],
+    identity_type: 'company', entity_type: 'company', official_url: 'https://www.zeal.ne.jp/',
+    region: '東京都港区', industry: '東京湾クルーズ・船上イベント', operator_name: '株式会社ジール',
+    main_services: ['東京湾クルーズ', '船上イベント', '撮影支援'], faq: [], headings: ['クルーズ', '船上パーティー', '撮影事業']
+  },
+  {
+    identity_id: 'company-zeal-communications', name: '株式会社ジールコミュニケーションズ', aliases: ['ZEAL', 'zeal', 'ジール'],
+    identity_type: 'company', entity_type: 'company', official_url: 'https://zeal-security.jp/',
+    region: '東京都渋谷区', industry: 'デジタルリスク・人材サービス', operator_name: '株式会社ジールコミュニケーションズ',
+    main_services: ['デジタルリスク対策', '人材サービス'], faq: [], headings: ['デジタルリスク事業', 'HR事業']
   }
 ]);
 
@@ -112,9 +130,12 @@ export async function resolveIdentityInput(input = {}, options = {}) {
   if (matches.length > 1) return { status: 'ambiguous', query, message: '同じ名前の対象が複数見つかりました。診断する対象を選んでください。', candidates: matches.map(asCandidate) };
 
   const identityType = inferIdentityType(query, input);
+  const suppliedDetails = Boolean(region && industry);
   return {
-    status: 'needs_details', query,
-    message: '対象を一意に確認するため、分かる範囲で地域・業種・公式サイトを補足してください。URLは任意です。',
+    status: suppliedDetails ? 'confirmation_required' : 'needs_details', query,
+    message: suppliedDetails
+      ? '入力された地域と事業内容を含めて、診断対象を確認してください。'
+      : '対象を一意に確認できませんでした。地域・事業内容・公式サイトなどを補足してください。',
     candidates: [asCandidate({ name: query, identity_type: identityType, entity_type: downstreamType(identityType), region, industry })]
   };
 }

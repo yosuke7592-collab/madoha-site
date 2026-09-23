@@ -44,12 +44,37 @@ test('same-name businesses remain ambiguous until a region selects one candidate
   assert.equal(selected.candidates[0].identity_id, 'store-hikari-osaka');
 });
 
-test('unknown names ask for distinguishing context while keeping URL optional', async () => {
+test('unknown names ask for distinguishing context without making URL mandatory', async () => {
   const result = await resolveIdentityInput({ query: '青空クリニック' }, { catalog: [] });
   assert.equal(result.status, 'needs_details');
   assert.equal(result.candidates[0].official_url, '');
   assert.equal(result.candidates[0].identity_type, 'store');
-  assert.match(result.message, /URLは任意/);
+  assert.match(result.message, /地域・事業内容・公式サイト/);
+});
+
+test('an ambiguous real-world name returns distinct candidates for user confirmation', async () => {
+  const result = await resolveIdentityInput({ query: 'zeal' });
+  assert.equal(result.status, 'ambiguous');
+  assert.equal(result.candidates.length, 3);
+  assert.deepEqual(result.candidates.map(candidate => candidate.identity_id), [
+    'company-zeal-delivery',
+    'company-zeal-cruise',
+    'company-zeal-communications'
+  ]);
+  for (const candidate of result.candidates) {
+    assert.ok(candidate.name);
+    assert.ok(candidate.industry);
+    assert.ok(candidate.region);
+    assert.ok(candidate.official_url);
+  }
+});
+
+test('unknown name with distinguishing details still requires final confirmation', async () => {
+  const result = await resolveIdentityInput({ query: 'Example Works', region: '千葉県船橋市', industry: '軽貨物運送' }, { catalog: [] });
+  assert.equal(result.status, 'confirmation_required');
+  assert.equal(result.candidates[0].name, 'Example Works');
+  assert.equal(result.candidates[0].region, '千葉県船橋市');
+  assert.equal(result.candidates[0].industry, '軽貨物運送');
 });
 
 test('an unregistered URL is inspected safely and keeps the canonical domain', async () => {
