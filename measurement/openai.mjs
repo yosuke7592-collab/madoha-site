@@ -20,6 +20,30 @@ const profiles = {
 };
 const round = value => Math.round(value * 1_000_000) / 1_000_000;
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+const permanent429Codes = new Set(['insufficient_quota', 'billing_not_active', 'billing_hard_limit_reached', 'model_not_found', 'model_not_allowed']);
+const transient429Codes = new Set(['rate_limit_exceeded', 'requests_per_minute', 'tokens_per_minute']);
+const safeText = value => typeof value === 'string' ? value.slice(0, 500) : null;
+
+export function classifyOpenAiError(status, payload = {}) {
+  const error = payload?.error && typeof payload.error === 'object' ? payload.error : {};
+  const code = safeText(error.code);
+  const type = safeText(error.type);
+  const message = safeText(error.message);
+  if (status !== 429) return { category: status === 401 ? 'authentication' : status >= 500 ? 'provider' : 'http', retryable: status >= 500, systemic: status === 401, code, type, message };
+  const marker = `${code || ''} ${type || ''} ${message || ''}`.toLowerCase();
+  const permanent = permanent429Codes.has(code) || /insufficient_quota|billing|credit|model.+(access|permission|not found|unsupported)|usage tier/.test(marker);
+  const transient = transient429Codes.has(code) || /rate.?limit|requests per min|tokens per min|\brpm\b|\btpm\b/.test(marker);
+  return { category: permanent ? (marker.includes('model') ? 'model_access' : 'insufficient_quota') : 'rate_limit', retryable: !permanent && transient, systemic: permanent, code, type, message };
+}
+
+function safeRateLimitMetadata(headers) {
+  const get = name => safeText(headers?.get?.(name));
+  return {
+    retryAfter: get('retry-after'),
+    requestLimit: get('x-ratelimit-limit-requests'), requestRemaining: get('x-ratelimit-remaining-requests'),
+    tokenLimit: get('x-ratelimit-limit-tokens'), tokenRemaining: get('x-ratelimit-remaining-tokens')
+  };
+}
 
 export function estimateOpenAiCost(plan) {
   const requests = plan.queries.length * plan.repetitions;
@@ -131,12 +155,24 @@ export class OpenAiLiveAdapter extends OpenAiBaseAdapter {
       clearTimeout(timer); let payload;
       try { payload = await response.json(); } catch { return this.#failure(plan, { category: 'malformed_json', httpStatus: response.status, retryable: false, message: 'OpenAI returned malformed JSON.' }, attempts, Date.now() - started); }
       if (response.ok) return validateRawProviderEnvelope({ schemaVersion: '1.0', id: `raw-${plan.runId}-${plan.query.id}-r${plan.repetition}`, provider: 'openai', receivedAt: this.now(), payload, metadata: { httpStatus: response.status, attempts, durationMs: Date.now() - started } });
-      const retryable = response.status === 429 || response.status >= 500;
-      if (retryable && attempts <= OPENAI_GUARDRAILS.MAX_RETRIES_PER_REQUEST) { await this.sleep(250 * attempts); continue; }
-      return this.#failure(plan, { category: response.status === 401 ? 'authentication' : response.status === 429 ? 'rate_limit' : response.status >= 500 ? 'provider' : 'http', httpStatus: response.status, retryable, message: `OpenAI request failed with HTTP ${response.status}.` }, attempts, Date.now() - started);
+      const classified = classifyOpenAiError(response.status, payload);
+      const rateLimits = safeRateLimitMetadata(response.headers);
+      if (classified.retryable && attempts <= OPENAI_GUARDRAILS.MAX_RETRIES_PER_REQUEST) {
+        const retryAfter = Number(rateLimits.retryAfter);
+        await this.sleep(Number.isFinite(retryAfter) ? Math.min(retryAfter * 1000, 5000) : 250 * attempts);
+        continue;
+      }
+      return this.#failure(plan, {
+        category: classified.category, httpStatus: response.status, retryable: classified.retryable,
+        systemic: classified.systemic, code: classified.code, type: classified.type,
+        message: classified.message || `OpenAI request failed with HTTP ${response.status}.`
+      }, attempts, Date.now() - started, rateLimits);
     }
   }
-  #failure(plan, failure, attempts, durationMs) {
-    return validateRawProviderEnvelope({ schemaVersion: '1.0', id: `raw-${plan.runId}-${plan.query.id}-r${plan.repetition}`, provider: 'openai', receivedAt: this.now(), payload: { providerFailure: failure }, metadata: { attempts, durationMs } });
+  createCircuitBreakerEnvelope(plan, cause) {
+    return this.#failure(plan, { category: 'circuit_breaker', httpStatus: null, retryable: false, systemic: true, code: cause?.code || null, type: cause?.type || null, message: 'Run aborted after a systemic OpenAI provider error.' }, 0, 0);
+  }
+  #failure(plan, failure, attempts, durationMs, rateLimits = undefined) {
+    return validateRawProviderEnvelope({ schemaVersion: '1.0', id: `raw-${plan.runId}-${plan.query.id}-r${plan.repetition}`, provider: 'openai', receivedAt: this.now(), payload: { providerFailure: failure }, metadata: { attempts, durationMs, ...(rateLimits ? { rateLimits } : {}) } });
   }
 }
