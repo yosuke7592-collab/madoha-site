@@ -275,12 +275,12 @@ export async function processSalesQueue(env, order, options = {}) {
 export async function handleSalesRequest(request, env) {
   const url = new URL(request.url);
   if (!url.pathname.startsWith('/api/sales/')) return null;
-  if (env.MADOHA_ENABLE_SALES_FLOW !== 'true') return json({ error: '販売導線は準備中です。' }, 503);
   try {
     if (request.method !== 'GET' && request.headers.get('origin') && request.headers.get('origin') !== url.origin) fail('アクセス元を確認できません。', 403);
     const body = async () => { const text = await request.text(); if (text.length > 30000) fail('入力が長すぎます。', 413); return JSON.parse(text); };
-    if (url.pathname === '/api/sales/config') return json({ turnstile_site_key: env.TURNSTILE_SITE_KEY || '', price_jpy: PRICE_JPY });
+    if (url.pathname === '/api/sales/config') return json({ sales_enabled: env.MADOHA_ENABLE_SALES_FLOW === 'true', turnstile_site_key: env.TURNSTILE_SITE_KEY || '', price_jpy: PRICE_JPY });
     if (url.pathname === '/api/sales/inspect' && request.method === 'POST') { const input = await body(); return json(await resolveIdentityInput(input, { inspectUrl: value => runFreeCheck(value) })); }
+    if (env.MADOHA_ENABLE_SALES_FLOW !== 'true') return json({ error: '無料診断の受付は準備中です。' }, 503);
     if (url.pathname === '/api/sales/draft' && request.method === 'POST') return json(await createSalesDraft(env, await body()));
     const match = url.pathname.match(/^\/api\/sales\/([0-9a-f-]{36})(?:\/(start|questions|checkout|event|report))?$/i);
     if (!match) return json({ error: 'Not found' }, 404);
