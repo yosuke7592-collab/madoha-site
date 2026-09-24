@@ -1,5 +1,5 @@
 import {escapeHtml as e,preferredSources,renderSafeMarkdown,sourceHost as host,sourcePresentation} from './report-format.js';
-import {buildReportDashboard} from './measurement/report-dashboard.mjs';
+import {buildReportDashboard} from './report-dashboard.js';
 const channelNames={chatgpt:'ChatGPT',gemini:'Gemini',google_ai_mode:'Google AI Mode'};
 const siteNames={
   'kyoudo.jp':'協同住宅 公式サイト','shinurayasu.chiba.jp':'新浦安ナビ','hot2.jp':'HOT2 浦安駅おすすめ8選',
