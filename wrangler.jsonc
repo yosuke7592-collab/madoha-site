@@ -3,12 +3,16 @@
   "main": "worker/index.mjs",
   "compatibility_date": "2026-08-13",
   "vars": {
+    "ENVIRONMENT": "production",
+    "STRIPE_MODE": "live",
+    "PUBLIC_SITE_URL": "https://madoha.jp",
     "MADOHA_ENABLE_SALES_FLOW": "false",
     "MADOHA_ENABLE_LIVE_MEASUREMENT": "false",
     "MADOHA_MEASUREMENT_MODE": "mock",
     "MADOHA_PAID_DIAGNOSIS_MAX_COST_USD": "0.70"
   },
   "ratelimits": [
+    { "name": "DIAGNOSIS_ENTRY_LIMITER", "namespace_id": "2003", "simple": { "limit": 30, "period": 60 } },
     { "name": "DIAGNOSIS_CHECKOUT_LIMITER", "namespace_id": "2002", "simple": { "limit": 10, "period": 60 } }
   ],
   "assets": {

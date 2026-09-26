@@ -23,7 +23,11 @@ const competitors=['FlowNest','TaskLoom','NimbleDesk'];
 function row(q,index,channel,channelIndex){
  const branded=q[1]==='branded',appeared=branded||((index+channelIndex)%3!==0),recommended=!branded&&appeared&&(index+channelIndex)%2===0;
  const listedPosition=appeared?((index+channelIndex)%3)+1:null;
- const intro=branded?`${subject}は、案件・顧客対応・社内申請を一つの画面で管理できる架空のノーコード業務サービスです。`:`候補としてはFlowNest、${subject}、TaskLoomなどが考えられます。`;
+ const intro=branded
+  ?`${subject}は、案件・顧客対応・社内申請を一つの画面で管理できる架空のノーコード業務サービスです。`
+  :appeared
+   ?`候補としてはFlowNest、${subject}、TaskLoomなどが考えられます。`
+   :'候補としてはFlowNest、TaskLoom、NimbleDeskなどが考えられます。';
  const detail=branded?'公式情報ではテンプレートから運用を始められる点と、外部サービス連携が案内されています。一方、実際の導入工数や自社業務との適合は、無料試用と見積条件を確認する必要があります。':'少人数での開始しやすさ、権限設定、既存データの移行方法を比較してください。チーム構成や必要な連携機能によって適する候補は変わります。';
  return {channel,appeared,recommended,listedPosition,aiRank:recommended&&listedPosition===1?1:null,answer:`## 回答\n\n${intro}\n\n${detail}\n\n### 比較するときの確認点\n\n1. 初期設定に必要な時間\n2. 利用人数に応じた料金\n3. 既存ツールとの連携`,competitors:branded?[]:competitors.filter((_,i)=>i!==channelIndex),sources:[sourceCatalog[(index+channelIndex)%sourceCatalog.length].url,sourceCatalog[0].url],strengths:branded?['テンプレートから始められる','複数部署の情報をまとめられる']:[],informationGaps:branded?['実際の移行工数','個別要件を含む総費用']:[],comment:index===1&&channelIndex===2?'AIによって候補の並びと参照元に差がありました。':''};
 }

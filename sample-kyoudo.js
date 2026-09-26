@@ -90,7 +90,7 @@ export function render(data){
   const dashboard=data.dashboard||buildReportDashboard(data);
   const dashboardHtml=totalQuestions===1?freeOverview(data,dashboard):fullDashboard(data,dashboard);
   document.querySelector('#report').innerHTML=`
-  <section class="hero compact-hero"><p>MADOHA PAID DIAGNOSIS v1 / AI検索調査レポート</p><h1>${e(data.subject.name)}</h1><span>${e([subjectArea,subjectCategory].filter(Boolean).join(' · '))}</span><dl><dt>検索質問</dt><dd>${e(totalQuestions)}問</dd><dt>AI検索</dt><dd>${e(channelCount)}チャネル</dd><dt>検索結果</dt><dd>${e(totalResults)}件</dd><dt>測定日</dt><dd>${e(data.measurement.snapshotDate)}</dd></dl></section>
+  <section class="hero compact-hero"><p>MADOHA AI SEARCH DIAGNOSIS / AI検索調査レポート</p><h1>${e(data.subject.name)}</h1><span>${e([subjectArea,subjectCategory].filter(Boolean).join(' · '))}</span><dl><dt>検索質問</dt><dd>${e(totalQuestions)}問</dd><dt>AI検索</dt><dd>${e(channelCount)}チャネル</dd><dt>検索結果</dt><dd>${e(totalResults)}件</dd><dt>測定日</dt><dd>${e(data.measurement.snapshotDate)}</dd></dl></section>
   <nav class="report-tools">${data.samplePdfUrl?`<a class="pdf-button" href="${e(data.samplePdfUrl)}" download>PDFレポートをダウンロード</a>`:''}<span>各検索結果の回答・掲載順・参照情報を収録しています。</span></nav>
   <p class="reliability-common-note">${e(data.reliabilityNotice||'本診断は各AIサービスが調査時点で生成した回答を記録したものです。AIの回答には誤りや他社情報の混同が含まれる場合があり、確認できた注意点はMADOHAが補足表示します。')}</p>
   ${dashboardHtml}

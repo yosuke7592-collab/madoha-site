@@ -40,16 +40,27 @@ export async function confirmQuestions(db,order,submitted,acks=[]){
 }
 export const editRemainingQuestions=confirmQuestions;
 
+function stripeLiveMode(env){
+ const mode=String(env.STRIPE_MODE||'test').toLowerCase();
+ if(!['test','live'].includes(mode))fail('Stripeの実行モードを確認してください。',503);
+ return mode==='live';
+}
+function assertStripeKeyMode(env,live){
+ const key=String(env.STRIPE_SECRET_KEY||'');
+ const pattern=live?/^(?:sk|rk)_live_/:/^(?:sk|rk)_test_/;
+ if(!pattern.test(key))fail(`Stripe ${live?'Live':'Test'} Modeの設定待ちです。`,503);
+}
+
 export async function createUpgradeCheckout(env,order,origin,turnstileToken='',hostname='',fetchImpl=fetch){
- if(!/^(?:sk|rk)_test_/.test(env.STRIPE_SECRET_KEY||''))fail('Stripeテスト決済の設定待ちです。',503);if(order.payment_status==='paid')fail('決済は完了しています。',409);if(!['checkout_ready','checkout_pending'].includes(order.sales_stage))fail('10問を確定してから購入できます。',409);
+ const live=stripeLiveMode(env);assertStripeKeyMode(env,live);if(order.payment_status==='paid')fail('決済は完了しています。',409);if(!['checkout_ready','checkout_pending'].includes(order.sales_stage))fail('10問を確定してから購入できます。',409);
  const count=await env.DB.prepare('SELECT COUNT(*) n FROM diagnosis_questions WHERE diagnosis_id=? AND confirmed=1').bind(order.id).first();if(Number(count?.n)!==10)fail('確定済みの10問を確認できません。',409);if(!await verifyTurnstile(env,turnstileToken,hostname,fetchImpl))fail('確認の有効期限が切れました。もう一度お試しください。',403);
  const expires=order.checkout_expires_at||Math.floor(Date.now()/1000)+3600;if(expires<=Math.floor(Date.now()/1000))fail('決済画面の有効期限が切れました。',409);await env.DB.prepare("UPDATE diagnosis_orders SET sales_stage='checkout_pending',checkout_expires_at=COALESCE(checkout_expires_at,?) WHERE id=? AND sales_stage='checkout_ready'").bind(expires,order.id).run();const current=await env.DB.prepare('SELECT * FROM diagnosis_orders WHERE id=?').bind(order.id).first();
  const form=new URLSearchParams({mode:'payment','payment_method_types[0]':'card','line_items[0][price_data][currency]':'jpy','line_items[0][price_data][unit_amount]':String(PRICE_JPY),'line_items[0][price_data][product_data][name]':'MADOHA 初回AI検索診断','line_items[0][price_data][tax_behavior]':'inclusive','line_items[0][quantity]':'1',client_reference_id:order.id,'metadata[diagnosis_order_id]':order.id,'metadata[product_code]':'madoha_paid_diagnosis_v2',expires_at:String(current.checkout_expires_at),success_url:`${origin}/diagnose.html?diagnosis=${order.id}&checkout=returned`,cancel_url:`${origin}/diagnose.html?diagnosis=${order.id}&checkout=cancelled`});
- const r=await fetchImpl('https://api.stripe.com/v1/checkout/sessions',{method:'POST',signal:AbortSignal.timeout(15000),headers:{authorization:`Bearer ${env.STRIPE_SECRET_KEY}`,'content-type':'application/x-www-form-urlencoded','Idempotency-Key':`diagnosis-v2-${order.id}-${current.checkout_attempt}`},body:form}),session=await r.json();if(!r.ok||!session.url||session.livemode)fail('決済画面を作成できませんでした。',502);await env.DB.prepare("UPDATE diagnosis_orders SET stripe_session_id=? WHERE id=? AND payment_status='pending'").bind(session.id,order.id).run();await salesEvent(env.DB,order.id,'checkout_started');return{checkoutUrl:session.url};
+ const r=await fetchImpl('https://api.stripe.com/v1/checkout/sessions',{method:'POST',signal:AbortSignal.timeout(15000),headers:{authorization:`Bearer ${env.STRIPE_SECRET_KEY}`,'content-type':'application/x-www-form-urlencoded','Idempotency-Key':`diagnosis-v2-${order.id}-${current.checkout_attempt}`},body:form}),session=await r.json();if(!r.ok||!session.url||session.livemode!==live)fail('決済画面を作成できませんでした。',502);await env.DB.prepare("UPDATE diagnosis_orders SET stripe_session_id=? WHERE id=? AND payment_status='pending'").bind(session.id,order.id).run();await salesEvent(env.DB,order.id,'checkout_started');return{checkoutUrl:session.url};
 }
 
 export async function applyUpgradeEvent(env,event){
- const session=event.data?.object;if(session?.metadata?.product_code!=='madoha_paid_diagnosis_v2')return null;const id=session.metadata.diagnosis_order_id,order=await env.DB.prepare('SELECT * FROM diagnosis_orders WHERE id=?').bind(id).first();if(!order||event.livemode!==false||session.livemode!==false)fail('テスト決済を確認できません。');
+ const live=stripeLiveMode(env),session=event.data?.object;if(session?.metadata?.product_code!=='madoha_paid_diagnosis_v2')return null;const id=session.metadata.diagnosis_order_id,order=await env.DB.prepare('SELECT * FROM diagnosis_orders WHERE id=?').bind(id).first();if(!order||event.livemode!==live||session.livemode!==live)fail('決済モードを確認できません。');
  if(event.type==='checkout.session.expired'){await env.DB.prepare("UPDATE diagnosis_orders SET sales_stage='checkout_ready',stripe_session_id=NULL,checkout_expires_at=NULL,checkout_attempt=checkout_attempt+1 WHERE id=? AND stripe_session_id=? AND payment_status='pending'").bind(id,session.id).run();return{accepted:true}}
  if(event.type!=='checkout.session.completed')return{accepted:true,ignored:true};if(!event.id||session.payment_status!=='paid'||Number(session.amount_total)!==PRICE_JPY||session.currency!=='jpy'||session.client_reference_id!==id)fail('支払内容が一致しません。');if(order.stripe_session_id&&order.stripe_session_id!==session.id)fail('決済セッションが一致しません。');if(!['checkout_pending','paid','paid_measuring','completed'].includes(order.sales_stage))fail('購入状態が一致しません。');
  await env.DB.batch([env.DB.prepare("INSERT OR IGNORE INTO stripe_events VALUES (?,?,datetime('now'))").bind(event.id,event.type),env.DB.prepare("UPDATE diagnosis_orders SET payment_status='paid',sales_stage='paid',diagnosis_status='queued',pipeline_state='queued',stripe_session_id=?,paid_at=datetime('now') WHERE id=? AND payment_status='pending' AND sales_stage='checkout_pending'").bind(session.id,id),env.DB.prepare("INSERT OR IGNORE INTO diagnosis_outbox SELECT id,'paid',datetime('now'),NULL FROM diagnosis_orders WHERE id=? AND sales_stage='paid'").bind(id),env.DB.prepare("INSERT OR IGNORE INTO diagnosis_events VALUES (?,'payment_completed',datetime('now'))").bind(id)]);await dispatchSalesOutbox(env);return{accepted:true,id};

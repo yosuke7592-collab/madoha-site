@@ -12,6 +12,7 @@
   },
   "vars": {
     "ENVIRONMENT": "staging",
+    "STRIPE_MODE": "test",
     "MADOHA_MEASUREMENT_MODE": "mock",
     "MADOHA_ENABLE_LIVE_MEASUREMENT": "false",
     "MADOHA_ENABLE_SALES_FLOW": "true",
@@ -20,6 +21,7 @@
     "DATAFORSEO_RETRIEVAL_MODE": "live"
   },
   "ratelimits": [
+    { "name": "DIAGNOSIS_ENTRY_LIMITER", "namespace_id": "2004", "simple": { "limit": 30, "period": 60 } },
     { "name": "DIAGNOSIS_CHECKOUT_LIMITER", "namespace_id": "2001", "simple": { "limit": 10, "period": 60 } }
   ],
   "d1_databases": [
