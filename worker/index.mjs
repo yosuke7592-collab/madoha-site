@@ -134,7 +134,7 @@ export default {
       }
     }
     if (url.pathname === '/api/checkout' && request.method === 'POST') {
-      if (env.MADOHA_ENABLE_SALES_FLOW === 'true') return json({ error: '無料診断結果から完全版を購入してください。' }, 409);
+      if (env.MADOHA_ENABLE_SALES_FLOW === 'true') return json({ error: '診断対象と10質問を確定してから購入してください。' }, 409);
       try {
         const body = await request.json();
         const targetUrl = normalizePublicUrl(body?.url).href;

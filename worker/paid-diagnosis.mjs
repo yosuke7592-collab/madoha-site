@@ -1,5 +1,5 @@
 const PRODUCT_NAME = 'MADOHA AI詳細診断';
-export const PRICE_JPY = 4980;
+export const PRICE_JPY = 9800;
 
 const encode = value => new TextEncoder().encode(value);
 const hex = bytes => [...new Uint8Array(bytes)].map(byte => byte.toString(16).padStart(2, '0')).join('');
@@ -48,7 +48,7 @@ export async function createCheckout(env, { siteUrl, targetUrl }) {
     'line_items[0][quantity]': '1', client_reference_id: id,
     success_url: `${siteUrl}/?diagnosis=${id}&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${siteUrl}/?checkout=cancelled`,
-    'metadata[diagnosis_order_id]': id, 'metadata[product_code]': 'madoha_paid_diagnosis_v1',
+    'metadata[diagnosis_order_id]': id, 'metadata[product_code]': 'madoha_paid_diagnosis_v2',
     'payment_intent_data[metadata][diagnosis_order_id]': id
   });
   const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
@@ -64,7 +64,7 @@ export async function applyStripeEvent(env, event) {
   if (event?.type !== 'checkout.session.completed') return { accepted: true, ignored: true };
   const session = event.data?.object;
   const id = session?.metadata?.diagnosis_order_id || session?.client_reference_id;
-  if (!event.id || !id || session?.metadata?.product_code !== 'madoha_paid_diagnosis_v1' || session.payment_status !== 'paid' || Number(session.amount_total) !== PRICE_JPY || session.currency !== 'jpy') {
+  if (!event.id || !id || session?.metadata?.product_code !== 'madoha_paid_diagnosis_v2' || session.payment_status !== 'paid' || Number(session.amount_total) !== PRICE_JPY || session.currency !== 'jpy') {
     throw new Error('決済内容を確認できません。');
   }
   const existing = await env.DB.prepare('SELECT event_id FROM stripe_events WHERE event_id=?').bind(event.id).first();

@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS diagnosis_orders (
   id TEXT PRIMARY KEY,
   target_url TEXT NOT NULL,
-  amount_jpy INTEGER NOT NULL CHECK (amount_jpy = 4980),
+  amount_jpy INTEGER NOT NULL CHECK (amount_jpy IN (4980,9800)),
   payment_status TEXT NOT NULL CHECK (payment_status IN ('pending','paid','refunded')),
   diagnosis_status TEXT NOT NULL CHECK (diagnosis_status IN ('locked','paid','queued','running','complete','failed')),
   stripe_session_id TEXT UNIQUE,

@@ -78,7 +78,7 @@ function resultSummary(data,query,row){
 function queryBlock(data,query,index,total){
   return `<details class="query-block" ${index===0?'open':''}><summary><span class="query-number">QUESTION<br><b>${String(index+1).padStart(2,'0')} / ${e(total)}</b></span><div><em>${query.kind==='nonbrand'?'会社名を入れない検索':'会社名を入れた検索'}・${e(query.intent)}</em><h3>${e(query.query)}</h3><div class="result-summary">${query.channels.map(row=>resultSummary(data,query,row)).join('')}</div></div><b class="open-label">詳細を見る</b></summary><div class="query-detail">${query.channels.map(row=>query.kind==='nonbrand'?nonbrandResult(data,query,row):brandedResult(data,query,row)).join('')}</div></details>`;
 }
-function render(data){
+export function render(data){
   const nonbrand=data.queries.filter(query=>query.kind==='nonbrand');
   const branded=data.queries.filter(query=>query.kind==='branded');
   const totalQuestions=data.queries.length;
@@ -91,7 +91,7 @@ function render(data){
   const dashboardHtml=totalQuestions===1?freeOverview(data,dashboard):fullDashboard(data,dashboard);
   document.querySelector('#report').innerHTML=`
   <section class="hero compact-hero"><p>MADOHA PAID DIAGNOSIS v1 / AI検索調査レポート</p><h1>${e(data.subject.name)}</h1><span>${e([subjectArea,subjectCategory].filter(Boolean).join(' · '))}</span><dl><dt>検索質問</dt><dd>${e(totalQuestions)}問</dd><dt>AI検索</dt><dd>${e(channelCount)}チャネル</dd><dt>検索結果</dt><dd>${e(totalResults)}件</dd><dt>測定日</dt><dd>${e(data.measurement.snapshotDate)}</dd></dl></section>
-  <nav class="report-tools">${data.sample?'<a class="pdf-button" href="output/pdf/madoha-kyoudo-paid-diagnosis-v1.pdf" download>PDFレポートをダウンロード</a>':''}<span>各検索結果の回答・掲載順・参照情報を収録しています。</span></nav>
+  <nav class="report-tools">${data.samplePdfUrl?`<a class="pdf-button" href="${e(data.samplePdfUrl)}" download>PDFレポートをダウンロード</a>`:''}<span>各検索結果の回答・掲載順・参照情報を収録しています。</span></nav>
   <p class="reliability-common-note">${e(data.reliabilityNotice||'本診断は各AIサービスが調査時点で生成した回答を記録したものです。AIの回答には誤りや他社情報の混同が含まれる場合があり、確認できた注意点はMADOHAが補足表示します。')}</p>
   ${dashboardHtml}
   <main class="search-report">
@@ -99,8 +99,8 @@ function render(data){
     ${branded.length?`<header class="report-intro branded-intro"><b class="section-index">10 / EVIDENCE · DIRECT SEARCH</b><p>${e(branded.length)} QUESTIONS / ${e(branded.length*channelCount)} RESULTS</p><h2>会社名を入れた検索の根拠</h2><p>あなたの会社名をAIに直接聞いたとき、どのように説明・評価されたかを確認します。</p></header><section class="query-list">${branded.map((query,index)=>queryBlock(data,query,index+nonbrand.length,totalQuestions)).join('')}</section>`:''}
     <section class="closing-section"><header><p>検索結果を確認した後の参考情報</p><h2>改善する場合の選択肢</h2></header><p>以下は、今回の検索結果と参照情報から考えられる候補です。特定の表示・推薦結果を保証するものではありません。</p><ol class="option-list">${data.actions.slice(0,3).map(action=>`<li><h3>${e(action.target)}</h3><p>${e(action.change)}</p></li>`).join('')}</ol></section>
     <section class="closing-section sources-section"><header><p>検索結果で使用した主なWeb情報</p><h2>参照情報</h2></header><div class="source-lines">${catalogSources.map(source=>{const display=sourcePresentation(source);const link=display.href?`<a href="${e(display.href)}" target="_blank" rel="noopener noreferrer">${e(display.domain)}${display.via?` · ${e(display.via)}`:''}</a>`:`<span>${e(display.domain)}</span>`;const role=display.via?'Geminiが回答の根拠として参照したWeb情報':source.role;return `<p><b>${e(siteNames[display.domain]||display.name)}</b><span>${e(role)}</span>${link}</p>`}).join('')}</div></section>
-    <section class="measurement-note"><h2>測定条件・注意書き</h2><p>会社名を入れない検索${e(nonbrand.length)}問と、会社名を入れた検索${e(branded.length)}問を、ChatGPT、Gemini、Google AI Modeで各1回検索しました。合計${e(totalResults)}件の検索結果です。</p><p>${e(data.reliabilityNotice||'本診断は測定時点におけるAI検索の回答を記録したものです。確認できた注意点はMADOHAが補足表示します。')}</p><p>AIの回答は変動するため、同じ質問でも結果が異なる場合があります。また、改善施策による特定の表示・推薦結果を保証するものではありません。</p>${data.sample?`<p class="sample-caution"><b>商品確認用サンプル：</b>この画面の${e(totalResults)}件は表示確認用の仮データです。株式会社協同住宅の実測値ではありません。</p>`:''}</section>
-  </main><footer class="end"><b>MADOHA</b><p>検索結果 + 参照情報 + 必要最小限の見解</p><a href="index.html">無料チェックへ戻る</a></footer>`;
+    <section class="measurement-note"><h2>測定条件・注意書き</h2><p>会社名を入れない検索${e(nonbrand.length)}問と、会社名を入れた検索${e(branded.length)}問を、ChatGPT、Gemini、Google AI Modeで各1回検索しました。合計${e(totalResults)}件の検索結果です。</p><p>${e(data.reliabilityNotice||'本診断は測定時点におけるAI検索の回答を記録したものです。確認できた注意点はMADOHAが補足表示します。')}</p><p>AIの回答は変動するため、同じ質問でも結果が異なる場合があります。また、改善施策による特定の表示・推薦結果を保証するものではありません。</p>${data.sample?`<p class="sample-caution"><b>架空企業の完成版サンプル：</b>企業・サービス・競合・回答・参照元はすべて商品表示を確認するための架空データです。実在企業の診断結果や実測API回答ではありません。</p>`:''}</section>
+  </main><footer class="end"><b>MADOHA</b><p>検索結果 + 参照情報 + 必要最小限の見解</p><a href="diagnose.html">初回AI検索診断を始める（9,800円）</a></footer>`;
 }
 globalThis.MADOHA_RENDER_REPORT=render;
 const paidParams=new URLSearchParams(location.search);
@@ -111,4 +111,4 @@ if(document.documentElement.dataset.sales==='true'){
   fetch(`/api/paid-diagnosis/${encodeURIComponent(paidParams.get('diagnosis'))}`,{headers:{'x-checkout-session':paidParams.get('session_id')}})
     .then(response=>response.ok?response.json():Promise.reject()).then(payload=>payload.order?.report?render(payload.order.report):Promise.reject())
     .catch(()=>document.querySelector('#report').innerHTML='<p class="loading">診断結果を読み込めませんでした。</p>');
-}else if(globalThis.MADOHA_KYOUDO_SAMPLE)render(globalThis.MADOHA_KYOUDO_SAMPLE);else fetch('./data/samples/kyoudo-housing-paid-diagnosis.json').then(response=>response.ok?response.json():Promise.reject()).then(render).catch(()=>document.querySelector('#report').innerHTML='<p class="loading">サンプルを読み込めませんでした。</p>');
+}else if(globalThis.MADOHA_PUBLIC_SAMPLE)render(globalThis.MADOHA_PUBLIC_SAMPLE);else if(globalThis.MADOHA_KYOUDO_SAMPLE)render(globalThis.MADOHA_KYOUDO_SAMPLE);else fetch('./data/samples/kyoudo-housing-paid-diagnosis.json').then(response=>response.ok?response.json():Promise.reject()).then(render).catch(()=>document.querySelector('#report').innerHTML='<p class="loading">サンプルを読み込めませんでした。</p>');

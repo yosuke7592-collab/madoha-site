@@ -23,14 +23,14 @@
 - production D1 / Queue bindingを既存構成へ明示する。
 - production D1へmigration 0006を適用する。
 - Turnstile production widgetと上記secretをproductionへ設定する。
-- 無料診断の日次予算と1診断上限を最終承認する。
+- 初回診断1件あたりのAI API費用上限を最終承認する。
 - `MADOHA_MEASUREMENT_MODE=live` と `MADOHA_ENABLE_LIVE_MEASUREMENT=true` は、無料実測の費用発生を承認した後だけ設定する。
 - Stripe Live化は別承認とし、その時点でLiveキーを許可するコード変更、Live Webhook、実カード確認を行う。
 - 一般公開は、Test Mode E2Eとlive 3測定の限定確認が完了してから行う。
 
 ## 3. 監視する値
 
-- `free_started` → `free_completed` → `paid_cta_viewed` → `checkout_started` → `payment_completed` → `full_diagnosis_completed`
+- `identity_confirmed` → `diagnosis_started` → `questions_confirmed` → `checkout_started` → `payment_completed` → `measurement_started` → `diagnosis_completed` → `report_viewed` → `monitoring_cta_viewed`
 - `free_budget` の日次予約合計
 - `paid_measurements` が無料3件から完全版30件になり、無料3件のmeasurement JSONが不変であること
 - `diagnosis_outbox` の未送信行、`pipeline_state` の失敗・費用上限停止

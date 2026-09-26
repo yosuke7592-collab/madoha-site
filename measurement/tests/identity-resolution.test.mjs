@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { canonicalDomain, inferIdentityType, resolveIdentityInput, stableIdentityKey } from '../../worker/identity-resolution.mjs';
-import { createSalesDraft, finalizeIdentityForDraft, freeIdentity } from '../../worker/sales-flow.mjs';
+import { createSalesDraft, finalizeIdentityForDraft } from '../../worker/sales-flow.mjs';
 import { sqliteD1 } from './helpers/sqlite-d1.mjs';
 
 const fixture = async name => JSON.parse(await readFile(new URL(`../../data/fixtures/question-discovery/${name}.json`, import.meta.url), 'utf8'));
@@ -90,10 +90,10 @@ test('an unregistered URL is inspected safely and keeps the canonical domain', a
   assert.equal(canonicalDomain(result.candidates[0].official_url), 'example.jp');
 });
 
-test('free reuse merges aliases and URL forms but separates stores, services and products', () => {
-  assert.equal(freeIdentity({ name: '株式会社〇〇', entity_type: 'company', official_url: 'https://www.example.jp/a' }), freeIdentity({ name: '〇〇', entity_type: 'company', official_url: 'https://example.jp/b' }));
-  assert.notEqual(freeIdentity({ name: '〇〇クリニック 新宿院', identity_type: 'store', entity_type: 'company', region: '新宿', official_url: 'https://example.jp/' }), freeIdentity({ name: '〇〇クリニック 渋谷院', identity_type: 'store', entity_type: 'company', region: '渋谷', official_url: 'https://example.jp/' }));
-  assert.notEqual(freeIdentity({ name: '〇〇サービス', entity_type: 'service', official_url: 'https://example.jp/' }), freeIdentity({ name: '〇〇商品', entity_type: 'product', official_url: 'https://example.jp/' }));
+test('paid identity merges aliases and URL forms but separates stores, services and products', () => {
+  assert.equal(stableIdentityKey({ name: '株式会社〇〇', entity_type: 'company', official_url: 'https://www.example.jp/a' }), stableIdentityKey({ name: '〇〇', entity_type: 'company', official_url: 'https://example.jp/b' }));
+  assert.notEqual(stableIdentityKey({ name: '〇〇クリニック 新宿院', identity_type: 'store', entity_type: 'company', region: '新宿', official_url: 'https://example.jp/' }), stableIdentityKey({ name: '〇〇クリニック 渋谷院', identity_type: 'store', entity_type: 'company', region: '渋谷', official_url: 'https://example.jp/' }));
+  assert.notEqual(stableIdentityKey({ name: '〇〇サービス', entity_type: 'service', official_url: 'https://example.jp/' }), stableIdentityKey({ name: '〇〇商品', entity_type: 'product', official_url: 'https://example.jp/' }));
 });
 
 test('a URL-free confirmed identity can enter the frozen 10-question flow', async t => {
@@ -106,7 +106,7 @@ test('a URL-free confirmed identity can enter the frozen 10-question flow', asyn
   assert.equal(draft.questions.length, 10);
   const order = await db.prepare('SELECT target_url,identity_key,entity_json FROM diagnosis_orders WHERE id=?').bind(draft.id).first();
   assert.equal(order.target_url, '');
-  assert.match(order.identity_key, /^free-v1:company:name:/);
+  assert.match(order.identity_key, /^paid-v2:company:name:/);
   assert.equal(JSON.parse(order.entity_json).official_url, '');
 });
 

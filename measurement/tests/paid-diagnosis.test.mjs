@@ -7,7 +7,7 @@ test('AI diagnosis is locked unless server-side payment state is paid', () => {
   assert.throws(() => assertPaidOrder({ payment_status: 'pending', diagnosis_status: 'queued' }), /決済/);
   assert.throws(() => assertPaidOrder({ payment_status: 'paid', diagnosis_status: 'complete' }), /開始/);
   assert.doesNotThrow(() => assertPaidOrder({ payment_status: 'paid', diagnosis_status: 'queued' }));
-  assert.equal(PRICE_JPY, 4980);
+  assert.equal(PRICE_JPY, 9800);
 });
 
 test('legacy one-shot AI execution stays fail-closed before v1 production connection', async () => {
