@@ -70,9 +70,34 @@ export function inferIdentityType(value, hints = {}) {
 }
 
 const downstreamType = identityType => identityType === 'store' ? 'company' : identityType;
+const RECRUITMENT_SIGNAL = /(?:^|[\W_])(recruit(?:ment)?|career|careers|jobs?)(?:[\W_]|$)|採用|求人/i;
+const THIRD_PARTY_HOST = /(?:^|\.)(?:indeed\.com|wantedly\.com|green-japan\.com|en-gage\.net|townwork\.net|mynavi\.jp|rikunabi\.com|facebook\.com|instagram\.com|x\.com|twitter\.com|prtimes\.jp)$/i;
+
+export function classifyIdentitySite(value = {}) {
+  const rawUrl = clean(value.url || value.official_url);
+  let url;
+  try { url = rawUrl ? normalizePublicUrl(rawUrl) : null; } catch { url = null; }
+  const host = url?.hostname.toLowerCase().replace(/^www\./, '') || '';
+  const urlSignals = `${host} ${url?.pathname || ''}`;
+  const titleSignals = [value.title, value.site_title].map(clean).join(' ');
+  const headings = (value.headings || []).map(clean).filter(Boolean);
+  const recruitmentHeadings = headings.filter(heading => RECRUITMENT_SIGNAL.test(heading)).length;
+  if (THIRD_PARTY_HOST.test(host)) return { role: 'third_party', primaryEligible: false, reason: '第三者サービス上のページです。' };
+  if (RECRUITMENT_SIGNAL.test(urlSignals)
+    || RECRUITMENT_SIGNAL.test(titleSignals)
+    || (recruitmentHeadings >= 2 && recruitmentHeadings / Math.max(headings.length, 1) >= 0.5)) {
+    return { role: 'recruitment', primaryEligible: false, reason: '採用・求人向けサイトです。' };
+  }
+  return { role: 'primary_candidate', primaryEligible: Boolean(url), reason: '' };
+}
+
 const asCandidate = value => {
   const identityType = value.identity_type || inferIdentityType(value.name, value);
-  const officialUrl = value.official_url ? normalizePublicUrl(value.official_url).href : '';
+  const suppliedUrl = value.official_url ? normalizePublicUrl(value.official_url).href : '';
+  const site = classifyIdentitySite({ ...value, url: suppliedUrl });
+  const officialUrl = site.primaryEligible ? suppliedUrl : '';
+  const relatedSites = [...(value.related_sites || [])];
+  if (suppliedUrl && !site.primaryEligible) relatedSites.push({ url: suppliedUrl, role: site.role });
   return {
     ...value,
     identity_id: value.identity_id || '',
@@ -82,6 +107,9 @@ const asCandidate = value => {
     entity_type: value.entity_type || downstreamType(identityType),
     official_url: officialUrl,
     canonical_domain: canonicalDomain(officialUrl),
+    official_site_status: officialUrl ? 'primary_candidate' : suppliedUrl ? 'related_only' : 'unconfirmed',
+    official_site_notice: site.reason,
+    related_sites: relatedSites,
     region: clean(value.region),
     industry: clean(value.industry),
     operator_name: clean(value.operator_name),
@@ -109,10 +137,11 @@ export async function resolveIdentityInput(input = {}, options = {}) {
     if (known.length > 1) return { status: 'ambiguous', query, message: '同じ公式サイトに複数の診断対象があります。診断する対象を選んでください。', candidates: known.map(asCandidate) };
     if (!options.inspectUrl) return { status: 'needs_details', query, message: '公式サイトは確認できました。対象情報を確認してください。', candidates: [asCandidate({ name: domain, official_url: normalizedUrl })] };
     const site = await options.inspectUrl(normalizedUrl);
+    const siteRole = classifyIdentitySite({ ...site, url: site.url || normalizedUrl });
     return { status: 'confirmation_required', query, candidates: [asCandidate({
       name: site.title || domain, official_url: site.url || normalizedUrl, identity_type: inferIdentityType(site.title, site),
       industry: '', main_services: (site.headings || []).slice(0, 8), headings: site.headings || [], site_title: site.title || ''
-    })] };
+    })], message: siteRole.primaryEligible ? '' : `${siteRole.reason} 診断対象のPrimary公式サイトとしては確定せず、内容をご確認ください。` };
   }
 
   let matches = catalog.filter(item => matchesName(item, query));

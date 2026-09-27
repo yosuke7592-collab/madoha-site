@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { canonicalDomain, inferIdentityType, resolveIdentityInput, stableIdentityKey } from '../../worker/identity-resolution.mjs';
+import { canonicalDomain, classifyIdentitySite, inferIdentityType, resolveIdentityInput, stableIdentityKey } from '../../worker/identity-resolution.mjs';
 import { createSalesDraft, finalizeIdentityForDraft } from '../../worker/sales-flow.mjs';
 import { sqliteD1 } from './helpers/sqlite-d1.mjs';
 
@@ -65,8 +65,26 @@ test('an ambiguous real-world name returns distinct candidates for user confirma
     assert.ok(candidate.name);
     assert.ok(candidate.industry);
     assert.ok(candidate.region);
-    assert.ok(candidate.official_url);
   }
+  assert.equal(result.candidates[0].official_url, '');
+  assert.equal(result.candidates[0].official_site_status, 'related_only');
+  assert.equal(result.candidates[0].related_sites[0].role, 'recruitment');
+  assert.equal(result.candidates[1].official_url, 'https://www.zeal.ne.jp/');
+});
+
+test('recruitment and third-party pages are never promoted to a primary official site', async () => {
+  assert.deepEqual(classifyIdentitySite({ url: 'https://recruit-example.jp/', title: '株式会社Example 採用情報' }), {
+    role: 'recruitment', primaryEligible: false, reason: '採用・求人向けサイトです。'
+  });
+  assert.equal(classifyIdentitySite({ url: 'https://www.wantedly.com/companies/example' }).primaryEligible, false);
+  const direct = await resolveIdentityInput({ query: 'https://careers.example.jp/' }, {
+    catalog: [], inspectUrl: async url => ({ url, title: '株式会社Example Careers', headings: ['採用情報', '募集職種'] })
+  });
+  assert.equal(direct.candidates[0].official_url, '');
+  assert.equal(direct.candidates[0].related_sites[0].role, 'recruitment');
+  assert.equal(classifyIdentitySite({
+    url: 'https://example.jp/', title: '株式会社Example', headings: ['事業案内', '会社概要', '採用情報']
+  }).primaryEligible, true);
 });
 
 test('unknown name with distinguishing details still requires final confirmation', async () => {
