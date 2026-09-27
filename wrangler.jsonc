@@ -20,5 +20,22 @@
     "binding": "ASSETS",
     "run_worker_first": ["/api/*", "/sample-kyoudo.html", "/sample-kyoudo-data.js", "/data/samples/kyoudo-housing-paid-diagnosis.json"],
     "not_found_handling": "single-page-application"
-  }
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "madoha-paid-diagnosis-production",
+      "database_id": "76c464ef-62fd-431b-b258-00680bbe0a5c",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "queues": {
+    "producers": [
+      { "binding": "DIAGNOSIS_QUEUE", "queue": "madoha-diagnosis-production" }
+    ],
+    "consumers": [
+      { "queue": "madoha-diagnosis-production", "max_batch_size": 1, "max_batch_timeout": 1 }
+    ]
+  },
+  "observability": { "enabled": true }
 }
