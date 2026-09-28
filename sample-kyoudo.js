@@ -1,5 +1,8 @@
 import {escapeHtml as e,preferredSources,renderSafeMarkdown,sourceHost as host,sourcePresentation} from './report-format.js';
 import {buildReportDashboard} from './report-dashboard.js';
+if(!document.querySelector('link[href*="dashboard-v2.css"]')){
+  const dashboardStyles=document.createElement('link');dashboardStyles.rel='stylesheet';dashboardStyles.href='dashboard-v2.css?v=1';document.head.append(dashboardStyles);
+}
 const channelNames={chatgpt:'ChatGPT',gemini:'Gemini',google_ai_mode:'Google AI Mode'};
 const siteNames={
   'kyoudo.jp':'協同住宅 公式サイト','shinurayasu.chiba.jp':'新浦安ナビ','hot2.jp':'HOT2 浦安駅おすすめ8選',
@@ -24,7 +27,8 @@ const channelMark={chatgpt:'AI',gemini:'✦',google_ai_mode:'G'};
 const channelClass={chatgpt:'chatgpt',gemini:'gemini',google_ai_mode:'google'};
 
 function metric(value,label,detail=''){
-  return `<div class="dashboard-metric"><strong>${e(value)}</strong><span>${e(label)}</span>${detail?`<small>${e(detail)}</small>`:''}</div>`;
+  const rate=label==='AI掲載'?Number.parseFloat(detail):NaN;
+  return `<div class="dashboard-metric ${Number.isFinite(rate)?'visibility-metric':''}"${Number.isFinite(rate)?` style="--rate:${Math.max(0,Math.min(100,rate))}"`:''}><strong>${e(value)}</strong><span>${e(label)}</span>${detail?`<small>${e(detail)}</small>`:''}</div>`;
 }
 function freeOverview(data,dashboard){
   const query=data.queries[0];
@@ -33,13 +37,13 @@ function freeOverview(data,dashboard){
 }
 function fullDashboard(data,dashboard){
   const maxCompetitor=Math.max(1,...dashboard.competitors.map(item=>item.appearances));
-  const channelMetrics=Object.entries(dashboard.byChannel).map(([channel,item])=>`<div class="dashboard-metric"><span class="provider-title"><i class="provider-badge ${channelClass[channel]}">${channelMark[channel]}</i>${e(channelShort[channel])}</span><strong>${item.appeared} / ${item.total}</strong><small>掲載率 ${item.rate}%</small></div>`).join('');
+  const channelMetrics=Object.entries(dashboard.byChannel).map(([channel,item])=>`<div class="dashboard-metric"><span class="provider-title"><i class="provider-badge ${channelClass[channel]}">${channelMark[channel]}</i>${e(channelShort[channel])}</span><strong>${item.appeared} / ${item.total}</strong><i class="channel-rate ${channelClass[channel]}" style="--rate:${item.rate}%"><b></b></i><small>掲載率 ${item.rate}%</small></div>`).join('');
   return `<section class="diagnosis-dashboard dashboard-shell"><header><p class="dashboard-kicker">MADOHA / AI VISIBILITY REPORT</p><h2>AI検索での、あなたの会社の見え方</h2><p>30件の実測結果から、掲載状況・推薦・競合との比較を整理しました。</p></header><div class="dashboard-metrics primary">${metric(`${dashboard.visibility.appeared} / ${dashboard.visibility.total}`,'AI掲載',`${dashboard.visibility.rate}%`)}${metric(`${dashboard.discoveryVisibility.appeared} / ${dashboard.discoveryVisibility.total}`,'会社名なしでの掲載',`会社名を指定しない質問でも、${dashboard.discoveryVisibility.total}回中${dashboard.discoveryVisibility.appeared}回候補に入りました`)}${metric(dashboard.recommendationCount,'推薦された回数')}${metric(dashboard.explicitRankCount,'1位・第一候補になった回数','AIから明確に1位／第一候補として紹介された回数')}${metric(dashboard.topCandidateCount,'上位候補','掲載位置3番目以内')}</div><section class="dashboard-section"><h3>AI別の掲載状況</h3><div class="dashboard-metrics channels">${channelMetrics}</div></section><section class="dashboard-section"><h3>質問別の掲載状況</h3><div class="heatmap-wrap"><table class="visibility-heatmap"><thead><tr><th>質問</th>${Object.values(channelShort).map(name=>`<th>${e(name)}</th>`).join('')}</tr></thead><tbody>${dashboard.heatmap.map((row,index)=>`<tr><th><small>${String(index+1).padStart(2,'0')}</small>${e(row.question)}</th>${Object.keys(channelShort).map(channel=>{const state=row.channels[channel];return `<td><span class="heat-${e(state)}">${state==='appeared'?'○ 掲載':state==='not_appeared'?'× 非掲載':'—'}</span></td>`}).join('')}</tr>`).join('')}</tbody></table></div></section><div class="dashboard-two-column"><section class="dashboard-section"><h3>AIが一緒に挙げた主な競合</h3>${dashboard.competitors.slice(0,8).map(item=>`<div class="bar-row"><div><b>${e(item.name)}</b><span>${item.appearances}回 · ${item.channels.map(channel=>channelShort[channel]).join(' / ')}</span></div><i><em style="width:${Math.max(4,item.appearances/maxCompetitor*100)}%"></em></i></div>`).join('')||'<p>競合名を確認できませんでした。</p>'}</section><section class="dashboard-section"><h3>よく参照されたドメイン</h3><ol class="source-ranking">${dashboard.sources.slice(0,8).map(item=>`<li><b>${e(item.domain)}</b><span>${item.references}回</span></li>`).join('')||'<li>参照元を取得できませんでした。</li>'}</ol></section></div><section class="dashboard-section priorities"><h3>改善優先ポイント</h3><p>実測で確認できた事実と、検討できる選択肢を分けて表示します。</p>${dashboard.priorities.map((item,index)=>`<article><small>PRIORITY ${String(index+1).padStart(2,'0')}</small><b>${e(item.fact)}</b><p>${e(item.suggestion)}</p></article>`).join('')}</section><p class="dashboard-score-note">独自の0〜100点は使用していません。「AI掲載」と「会社名なしでの掲載」という、実測で確認できる数値を表示しています。</p></section>`;
 }
 
 function observatoryDashboard(data,dashboard){
   const maxCompetitor=Math.max(1,...dashboard.competitors.map(item=>item.appearances));
-  const channels=Object.entries(dashboard.byChannel).map(([channel,item])=>`<div class="dashboard-metric"><span class="provider-title"><i class="provider-badge ${channelClass[channel]}">${channelMark[channel]}</i>${e(channelShort[channel])}</span><strong>${item.appeared} / ${item.total}</strong><small>掲載率 ${item.rate}%</small></div>`).join('');
+  const channels=Object.entries(dashboard.byChannel).map(([channel,item])=>`<div class="dashboard-metric"><span class="provider-title"><i class="provider-badge ${channelClass[channel]}">${channelMark[channel]}</i>${e(channelShort[channel])}</span><strong>${item.appeared} / ${item.total}</strong><i class="channel-rate ${channelClass[channel]}" style="--rate:${item.rate}%"><b></b></i><small>掲載率 ${item.rate}%</small></div>`).join('');
   const matrix=dashboard.heatmap.map((row,index)=>`<tr><th><small>${String(index+1).padStart(2,'0')}</small>${e(row.question)}</th>${Object.keys(channelShort).map(channel=>{const state=row.channels[channel];return `<td><a href="#evidence-${index+1}"><span class="heat-${e(state)}">${state==='appeared'?'○ 掲載':state==='not_appeared'?'× 非掲載':'—'}</span></a></td>`}).join('')}</tr>`).join('');
   const competitors=dashboard.competitors.slice(0,8).map(item=>`<div class="bar-row"><div><b>${e(item.name)}</b><span>${item.appearances}回 · ${item.channels.map(channel=>channelShort[channel]).join(' / ')} · ${item.questions.length}質問</span></div><i><em style="width:${Math.max(4,item.appearances/maxCompetitor*100)}%"></em></i></div>`).join('')||'<p>競合名を確認できませんでした。</p>';
   const sources=dashboard.sources.slice(0,8).map(item=>`<li><b>${e(item.domain)}</b><span>${item.references}回 · ${item.channels.map(channel=>channelShort[channel]).join(' / ')}</span></li>`).join('')||'<li>参照元を取得できませんでした。</li>';
