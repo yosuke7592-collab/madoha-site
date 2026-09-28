@@ -1,3 +1,9 @@
+if (!document.querySelector('link[href*="observatory-ui.css"]')) {
+  const observatoryStyles = document.createElement('link');
+  observatoryStyles.rel = 'stylesheet';
+  observatoryStyles.href = 'observatory-ui.css?v=4';
+  document.head.append(observatoryStyles);
+}
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 document.querySelectorAll('main > section, .sample-caution, #report > section').forEach((el) => el.dataset.reveal = '');
 if (reduced || !('IntersectionObserver' in window)) {
