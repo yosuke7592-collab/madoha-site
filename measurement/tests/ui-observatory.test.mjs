@@ -27,6 +27,8 @@ test('identity resolution uses a clear modal and releases the anchored page scro
   assert.match(html, /id="identity-modal"/);
   assert.match(html, /role="dialog" aria-modal="true"/);
   assert.match(html, /id="close-identity-modal"/);
+  assert.match(html, /id="entity-form"[^>]*autocomplete="off"/);
+  assert.match(html, /name="official_url"[^>]*autocomplete="off"[^>]*autocapitalize="none"/);
   assert.match(script, /openIdentityModal/);
   assert.match(script, /closeIdentityModal/);
   assert.match(script, /history\.replaceState/);

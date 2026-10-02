@@ -54,10 +54,10 @@
       <div class="identity-modal-card" role="dialog" aria-modal="true" aria-label="診断対象の確認">
         <button id="close-identity-modal" class="identity-modal-close" type="button" aria-label="閉じる">×</button>
         <section id="candidate-stage" class="identity-result" hidden><p class="panel-label">対象候補</p><h2>診断する対象を選んでください</h2><p id="candidate-message" class="candidate-message"></p><div id="identity-candidates"></div></section>
-        <form id="entity-form" class="identity-result identity-confirm" hidden novalidate>
+        <form id="entity-form" class="identity-result identity-confirm" hidden novalidate autocomplete="off">
           <p class="panel-label">対象の確認</p><h2 id="identity-confirm-title" tabindex="-1">この対象で合っていますか？</h2><div id="identity-summary"></div>
           <input name="name" type="hidden"><input name="entity_type" type="hidden"><input name="identity_type" type="hidden"><input name="identity_id" type="hidden"><input name="operator_name" type="hidden">
-          <div class="identity-details"><label>公式サイト（分かる場合のみ）<input name="official_url" type="url" placeholder="https://..."></label><label>業種・事業内容<input name="industry" required maxlength="120"></label><label>地域（地域に依存しない場合は空欄）<input name="region" maxlength="100"></label><label>主なサービス・商品（1行に1つ）<textarea name="main_services" required rows="4"></textarea></label><label>利用者の相談場面・よくある質問<textarea name="faq" rows="3"></textarea></label></div>
+          <div class="identity-details"><label>公式サイト（分かる場合のみ）<input name="official_url" type="url" placeholder="https://..." autocomplete="off" autocapitalize="none" spellcheck="false"></label><label>業種・事業内容<input name="industry" required maxlength="120"></label><label>地域（地域に依存しない場合は空欄）<input name="region" maxlength="100"></label><label>主なサービス・商品（1行に1つ）<textarea name="main_services" required rows="4"></textarea></label><label>利用者の相談場面・よくある質問<textarea name="faq" rows="3"></textarea></label></div>
           <div class="identity-actions"><button id="confirm-identity" type="submit">この対象を診断する</button><button id="retry-identity" class="secondary-button" type="button">別の対象を探す</button></div><p id="identity-confirm-status" class="identity-status" role="status" aria-live="polite"></p>
         </form>
       </div>
