@@ -15,15 +15,15 @@
   <link rel="stylesheet" href="top-v3.css?v=4">
   <link rel="stylesheet" href="reference-ui.css?v=1">
   <link rel="stylesheet" href="top-width.css?v=1">
-  <link rel="stylesheet" href="brand-v4.css?v=1">
-  <script type="module" src="sales.js?v=5"></script>
+  <link rel="stylesheet" href="brand-v4.css?v=2">
+  <script type="module" src="sales.js?v=6"></script>
 </head>
 <body>
 <a class="skip-link" href="#identity-search">診断対象の検索へ</a>
 <header class="global-header">
   <div class="global-header-inner">
     <a class="brand" href="index.html" aria-label="MADOHAトップ">MADOHA <small>AI SEARCH OBSERVATORY</small></a>
-    <nav aria-label="主要ナビゲーション"><a href="sample.html">診断サンプル</a><a href="#price">料金</a><a href="#how-it-works">診断の流れ</a><a href="company.html">MADOHAについて</a><a class="header-cta" href="#identity-search">診断を始める <b>→</b></a></nav>
+    <nav aria-label="主要ナビゲーション"><a href="sample.html">診断サンプル</a><a href="#price">料金</a><a href="#how-it-works">診断の流れ</a><a href="company.html">MADOHAについて</a></nav>
   </div>
 </header>
 <main>
@@ -31,7 +31,7 @@
     <div class="hero-grid" aria-hidden="true"></div>
     <div class="hero-copy">
       <p class="signal-label"><i></i> AI SEARCH OBSERVATION</p>
-      <h1>AIは、<br>あなたの会社を<br><em>どう答える？</em></h1>
+      <h1>AIは<br>あなたの会社を<br><em>どう答える？</em></h1>
       <p>会社名を知らない顧客から選ばれるか。AIが自社をどう説明するか。3つのAIへ実際に質問し、その見え方を記録します。</p>
       <span class="visually-hidden">架空企業の完成版サンプルも購入前に確認できます。</span>
     </div>
@@ -49,17 +49,22 @@
         <p class="input-types">会社 · 店舗 · サービス · 商品 · ブランド · URL</p>
         <p id="identity-status" class="identity-status" role="status" aria-live="polite"></p>
       </form>
-      <section id="candidate-stage" class="identity-result" hidden><p class="panel-label">SEARCH RESULTS</p><h2>診断する対象を選んでください</h2><p id="candidate-message"></p><div id="identity-candidates"></div></section>
-      <form id="entity-form" class="identity-result identity-confirm" hidden novalidate>
-        <p class="panel-label">CONFIRM IDENTITY</p><h2 id="identity-confirm-title">この対象で合っていますか？</h2><div id="identity-summary"></div>
-        <input name="name" type="hidden"><input name="entity_type" type="hidden"><input name="identity_type" type="hidden"><input name="identity_id" type="hidden"><input name="operator_name" type="hidden">
-        <div class="identity-details"><label>公式サイト（分かる場合のみ）<input name="official_url" type="url" placeholder="https://..."></label><label>業種・事業内容<input name="industry" required maxlength="120"></label><label>地域（地域に依存しない場合は空欄）<input name="region" maxlength="100"></label><label>主なサービス・商品（1行に1つ）<textarea name="main_services" required rows="4"></textarea></label><label>利用者の相談場面・よくある質問<textarea name="faq" rows="3"></textarea></label></div>
-        <div class="identity-actions"><button id="confirm-identity" type="submit">この対象を診断する</button><button id="retry-identity" class="secondary-button" type="button">別の対象を探す</button></div><p id="identity-confirm-status" class="identity-status" role="status" aria-live="polite"></p>
-      </form>
+    </div>
+    <div id="identity-modal" class="identity-modal" hidden>
+      <div class="identity-modal-card" role="dialog" aria-modal="true" aria-label="診断対象の確認">
+        <button id="close-identity-modal" class="identity-modal-close" type="button" aria-label="閉じる">×</button>
+        <section id="candidate-stage" class="identity-result" hidden><p class="panel-label">対象候補</p><h2>診断する対象を選んでください</h2><p id="candidate-message" class="candidate-message"></p><div id="identity-candidates"></div></section>
+        <form id="entity-form" class="identity-result identity-confirm" hidden novalidate>
+          <p class="panel-label">対象の確認</p><h2 id="identity-confirm-title" tabindex="-1">この対象で合っていますか？</h2><div id="identity-summary"></div>
+          <input name="name" type="hidden"><input name="entity_type" type="hidden"><input name="identity_type" type="hidden"><input name="identity_id" type="hidden"><input name="operator_name" type="hidden">
+          <div class="identity-details"><label>公式サイト（分かる場合のみ）<input name="official_url" type="url" placeholder="https://..."></label><label>業種・事業内容<input name="industry" required maxlength="120"></label><label>地域（地域に依存しない場合は空欄）<input name="region" maxlength="100"></label><label>主なサービス・商品（1行に1つ）<textarea name="main_services" required rows="4"></textarea></label><label>利用者の相談場面・よくある質問<textarea name="faq" rows="3"></textarea></label></div>
+          <div class="identity-actions"><button id="confirm-identity" type="submit">この対象を診断する</button><button id="retry-identity" class="secondary-button" type="button">別の対象を探す</button></div><p id="identity-confirm-status" class="identity-status" role="status" aria-live="polite"></p>
+        </form>
+      </div>
     </div>
     <div class="measurement-strip" aria-label="診断の構成"><span><b>10</b> QUESTIONS</span><i>×</i><span><b>3</b> AI CHANNELS</span><i>=</i><span><b>30</b> RESULTS</span></div>
   </section>
-  <section id="what-we-measure" class="story-section measure-story"><div class="measure-copy"><p class="section-kicker">PROBLEM</p><h2>候補に入るか<br>どう説明されるか</h2><p>顧客や取引先、求職者がAIへ質問する時代です。あなたの会社がどのように紹介され、どの競合と比較され、どんな情報が参照されているのかを可視化します。</p></div><div class="fact-list"><p><span class="fact-icon search-icon"></span><b>自社はAIに正しく<br>紹介されているか</b></p><p><span class="fact-icon trophy-icon"></span><b>競合と比べて<br>どう評価されているか</b></p><p><span class="fact-icon source-icon"></span><b>どの情報が<br>参照されているか</b></p><p><span class="fact-icon arrow-icon"></span><b>AIに推薦される<br>可能性があるか</b></p></div></section>
+  <section id="what-we-measure" class="story-section measure-story"><div class="measure-copy"><p class="section-kicker">PROBLEM</p><h2>候補に入るか<br>どう説明されるか</h2><p>顧客や取引先、求職者がAIへ質問する時代です。あなたの会社がどのように紹介され、どの競合と比較され、どんな情報が参照されているのかを可視化します。</p></div><div class="fact-list"><p><span class="fact-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="5.5"/><path d="m15 15 4.5 4.5"/><path d="M8.5 10.5h4M10.5 8.5v4"/></svg></span><b>自社はAIに正しく<br>紹介されているか</b></p><p><span class="fact-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 19V11M12 19V5M19 19v-9"/><path d="m4 7 5-3 4 3 7-4"/><path d="m17 3 3 .2-.8 2.8"/></svg></span><b>競合と比べて<br>どう評価されているか</b></p><p><span class="fact-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3.5h9l3 3V20H6z"/><path d="M15 3.5V7h3M9 11h6M9 14.5h6M9 18h4"/></svg></span><b>どの情報が<br>参照されているか</b></p><p><span class="fact-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 18 9 13l3 3 7-9"/><path d="M14 7h5v5"/><circle cx="6" cy="6" r="2"/></svg></span><b>AIに推薦される<br>可能性があるか</b></p></div></section>
   <section id="how-it-works" class="story-section workflow-story"><div class="workflow-copy"><p class="section-kicker">HOW IT WORKS</p><h2>3つのAIから<br>同じ条件で観測</h2><p>MADOHAは、同じ10の質問を3つのAIへ投げ、その回答を収集・分析。あなたの会社の見え方を客観的なデータとして可視化します。</p></div><ol class="workflow-steps"><li><i>01</i><span class="step-symbol">⌕</span><b>対象を入力</b><small>会社名・サービス名・URLから対象を特定</small></li><li><i>02</i><span class="step-symbol">▤</span><b>10の質問を自動生成</b><small>顧客の検討場面から質問を設計</small></li><li><i>03</i><span class="step-symbol">◉</span><b>3つのAIで同時検索</b><small>同じ条件で実際の回答を取得</small></li><li><i>04</i><span class="step-symbol">▥</span><b>30の回答を分析</b><small>競合・参照元・改善候補まで可視化</small></li></ol></section>
   <section class="story-section sample-story"><div class="sample-proof"><p class="section-kicker">SAMPLE REPORT</p><h2>実際の診断結果イメージ</h2><p>AIにどう紹介されるか、競合と比べてどう見られているか。購入後に届くダッシュボードと同じ構造で確認できます。</p><a href="sample.html">サンプルの詳細を見る <span>→</span></a></div><div class="sample-dashboard-preview" aria-label="診断結果ダッシュボードのプレビュー"><aside><b>MADOHA</b><span>ダッシュボード</span><span>AI別比較</span><span>質問別結果</span><span>競合比較</span><span>参照元</span><span>改善候補</span></aside><div class="preview-main"><header><b>AI検索での見え方</b><small>30件の実測結果</small></header><div class="preview-analytics"><div class="preview-donut" style="--rate:67"><strong>67<small>%</small></strong><span>AIに掲載された割合</span></div><div class="preview-channel-card"><b>AI別の見え方</b><div class="preview-channels"><i class="chatgpt" style="--v:70%"><span>ChatGPT</span><b>70%</b></i><i class="gemini" style="--v:60%"><span>Gemini</span><b>60%</b></i><i class="google" style="--v:70%"><span>Google AI Mode</span><b>70%</b></i></div></div></div><div class="preview-bottom"><div class="preview-competitors"><b>競合との比較</b><div><i style="--h:35%">A社</i><i style="--h:55%">B社</i><i class="target" style="--h:82%">あなたの会社</i><i style="--h:45%">C社</i><i style="--h:32%">D社</i></div></div><div class="preview-answer"><b>実際のAI回答</b><p><span class="mini-ai">◎</span>この企業は、業務改善とDX支援を行う企業として紹介されています。</p><a href="sample.html">回答全文を見る →</a></div></div></div></div></section>
   <section id="price" class="purchase-story"><p class="section-kicker">INITIAL AI SEARCH DIAGNOSIS</p><h2>初回AI検索診断</h2><p>10の質問 × 3つのAI。30の実測結果をWebとPDFで納品します。</p><div><span><small>税込</small><strong>9,800<em>円</em></strong></span><a href="#identity-search">今すぐ診断する →</a></div><ul><li>クレジットカードで1回払い</li><li>診断完了後すぐにレポート表示</li><li>PDFでダウンロード可能</li></ul></section>
