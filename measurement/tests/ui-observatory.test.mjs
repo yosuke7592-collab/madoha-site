@@ -18,6 +18,7 @@ test('TOP uses the lightweight AI observatory design and keeps the sales contrac
   assert.match(brandCss, /\.preview-competitors i:before/);
   assert.match(html, /10[\s\S]*3[\s\S]*30/);
   assert.match(html, /9,800円/);
+  assert.match(html, /purchase-story[\s\S]*<a href="index\.html">今すぐ診断する/);
   assert.match(css, /prefers-reduced-motion/);
   assert.doesNotMatch(`${html}\n${css}`, /three\.js|webgl|<canvas|<video/i);
 });
