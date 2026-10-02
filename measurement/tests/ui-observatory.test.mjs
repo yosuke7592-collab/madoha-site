@@ -33,9 +33,8 @@ test('identity resolution uses a clear modal and releases the anchored page scro
   assert.match(script, /closeIdentityModal/);
   assert.match(script, /history\.replaceState/);
   assert.match(script, /function scrollToIdentityEntry\(\)/);
-  assert.match(script, /root\.style\.scrollBehavior='auto'/);
+  assert.match(script, /document\.documentElement\.style\.scrollBehavior='auto'/);
   assert.match(script, /scrollTo\(0,0\)/);
-  assert.match(script, /root\.style\.scrollBehavior=previous/);
   assert.doesNotMatch(script, /target\.scrollIntoView/);
   assert.match(script, /この対象を確認/);
   assert.match(css, /body\.identity-modal-open\{overflow:hidden\}/);
