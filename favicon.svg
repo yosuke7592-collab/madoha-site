@@ -1,5 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#111b1d"/>
-  <path d="M15 43V20h6l11 14 11-14h6v23h-7V31L32 44 22 31v12z" fill="#f4f7f2"/>
-  <circle cx="49" cy="16" r="4" fill="#d9ff57"/>
+  <rect width="64" height="64" rx="14" fill="#061426"/>
+  <circle cx="32" cy="32" r="25" fill="url(#g)" stroke="#63dcff" stroke-width="1.5"/>
+  <path d="M15 43V20h6l11 14 11-14h6v23h-7V31L32 44 22 31v12z" fill="#ffffff"/>
+  <circle cx="50" cy="14" r="4" fill="#53d5ff"/>
+  <defs><radialGradient id="g" cx="34%" cy="28%"><stop stop-color="#56d8ff"/><stop offset=".55" stop-color="#1767e8"/><stop offset="1" stop-color="#092d68"/></radialGradient></defs>
 </svg>

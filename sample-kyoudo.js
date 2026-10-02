@@ -3,6 +3,9 @@ import {buildReportDashboard} from './report-dashboard.js';
 if(!document.querySelector('link[href*="dashboard-v2.css"]')){
   const dashboardStyles=document.createElement('link');dashboardStyles.rel='stylesheet';dashboardStyles.href='dashboard-v2.css?v=1';document.head.append(dashboardStyles);
 }
+if(!document.querySelector('link[data-dashboard-brand]')){
+  const brandStyles=document.createElement('link');brandStyles.rel='stylesheet';brandStyles.href='brand-v4.css?v=1';brandStyles.dataset.dashboardBrand='true';document.head.append(brandStyles);
+}
 const channelNames={chatgpt:'ChatGPT',gemini:'Gemini',google_ai_mode:'Google AI Mode'};
 const siteNames={
   'kyoudo.jp':'協同住宅 公式サイト','shinurayasu.chiba.jp':'新浦安ナビ','hot2.jp':'HOT2 浦安駅おすすめ8選',
@@ -117,6 +120,7 @@ export function render(data){
     <section class="closing-section sources-section"><header><p>検索結果で使用した主なWeb情報</p><h2>参照情報</h2></header><div class="source-lines">${catalogSources.map(source=>{const display=sourcePresentation(source);const link=display.href?`<a href="${e(display.href)}" target="_blank" rel="noopener noreferrer">${e(display.domain)}${display.via?` · ${e(display.via)}`:''}</a>`:`<span>${e(display.domain)}</span>`;const role=display.via?'Geminiが回答の根拠として参照したWeb情報':source.role;return `<p><b>${e(siteNames[display.domain]||display.name)}</b><span>${e(role)}</span>${link}</p>`}).join('')}</div></section>
     <section class="measurement-note"><h2>測定条件・注意書き</h2><p>会社名を入れない検索${e(nonbrand.length)}問と、会社名を入れた検索${e(branded.length)}問を、ChatGPT、Gemini、Google AI Modeで各1回検索しました。合計${e(totalResults)}件の検索結果です。</p><p>${e(data.reliabilityNotice||'本診断は測定時点におけるAI検索の回答を記録したものです。確認できた注意点はMADOHAが補足表示します。')}</p><p>AIの回答は変動するため、同じ質問でも結果が異なる場合があります。また、改善施策による特定の表示・推薦結果を保証するものではありません。</p>${data.sample?`<p class="sample-caution"><b>架空企業の完成版サンプル：</b>企業・サービス・競合・回答・参照元はすべて商品表示を確認するための架空データです。実在企業の診断結果や実測API回答ではありません。</p>`:''}</section>
   </main><footer class="end"><b>MADOHA</b><p>検索結果 + 参照情報 + 必要最小限の見解</p><a href="index.html#identity-search">初回AI検索診断を始める（9,800円）</a></footer>`;
+  document.querySelectorAll('.diagnosis-dashboard>header h2').forEach(title=>{title.textContent=title.textContent.replace('AI検索での、','AI検索での')});
   document.querySelector('.report-intro')?.setAttribute('id','evidence');
   document.querySelectorAll('.query-block').forEach((block,index)=>block.id=`evidence-${index+1}`);
 }
