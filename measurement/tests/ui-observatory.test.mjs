@@ -66,6 +66,10 @@ test('about page shares the TOP brand system and explains MADOHA visually', asyn
   assert.match(html, /assets\/about\/about-three-ai-lenses\.webp/);
   assert.match(html, /10<\/strong> QUESTIONS[\s\S]*3<\/strong> AI CHANNELS[\s\S]*30<\/strong> RESULTS/);
   assert.match(html, /会社名なしで質問/);
+  assert.match(html, /注文住宅を建てるなら<br>どの会社がいい？/);
+  assert.doesNotMatch(html, /浦安で注文住宅/);
+  assert.match(html, /about-v2-hero-chatgpt[\s\S]*about-v2-hero-gemini[\s\S]*about-v2-hero-google/);
+  assert.match(html, /about-v2-difference-title"><span>選ばれ方が<\/span><span>変わった<\/span>/);
   assert.match(html, /従来検索[\s\S]*AI検索/);
   assert.match(html, /href="index\.html">AI検索診断を始める/);
   assert.doesNotMatch(html, /index\.html#identity-search/);
