@@ -47,8 +47,16 @@ test('sample chrome keeps only the compact MADOHA and diagnosis footer links', a
   assert.doesNotMatch(html, /class="header-cta"/);
   assert.doesNotMatch(html, /sample-next-step/);
   assert.match(script, /<footer class="end"><a class="brand"/);
-  assert.match(script, />AI検索診断<\/a><\/footer>/);
+  assert.match(script, /<a href="index\.html">AI検索診断<\/a><\/footer>/);
+  assert.doesNotMatch(script, /index\.html#identity-search/);
   assert.doesNotMatch(script, /検索結果 \+ 参照情報 \+ 必要最小限の見解/);
+});
+
+test('about page diagnosis calls to action return to the top of MADOHA', async () => {
+  const html = await load('company.html');
+  assert.match(html, /class="about-cta" href="index\.html"/);
+  assert.match(html, /class="about-cta about-cta-dark" href="index\.html"/);
+  assert.doesNotMatch(html, /index\.html#identity-search/);
 });
 
 test('paid dashboard exposes executive summary, provider comparison, matrix and Evidence navigation', async () => {
