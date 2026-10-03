@@ -52,11 +52,27 @@ test('sample chrome keeps only the compact MADOHA and diagnosis footer links', a
   assert.doesNotMatch(script, /検索結果 \+ 参照情報 \+ 必要最小限の見解/);
 });
 
-test('about page diagnosis calls to action return to the top of MADOHA', async () => {
-  const html = await load('company.html');
-  assert.match(html, /class="about-cta" href="index\.html"/);
-  assert.match(html, /class="about-cta about-cta-dark" href="index\.html"/);
+test('about page shares the TOP brand system and explains MADOHA visually', async () => {
+  const [html, css, hero, lenses] = await Promise.all([
+    load('company.html'),
+    load('about-v2.css'),
+    readFile(new URL('../../assets/about/about-ai-search-hero.webp', import.meta.url)),
+    readFile(new URL('../../assets/about/about-three-ai-lenses.webp', import.meta.url)),
+  ]);
+  assert.match(html, /class="global-header"/);
+  assert.match(html, /MADOHA <small>AI SEARCH OBSERVATORY<\/small>/);
+  assert.match(html, /<h1><span>AIに<\/span><span>あなたの会社は<\/span><em>どう見えているか<\/em><\/h1>/);
+  assert.match(html, /assets\/about\/about-ai-search-hero\.webp/);
+  assert.match(html, /assets\/about\/about-three-ai-lenses\.webp/);
+  assert.match(html, /10<\/strong> QUESTIONS[\s\S]*3<\/strong> AI CHANNELS[\s\S]*30<\/strong> RESULTS/);
+  assert.match(html, /会社名なしで質問/);
+  assert.match(html, /従来検索[\s\S]*AI検索/);
+  assert.match(html, /href="index\.html">AI検索診断を始める/);
   assert.doesNotMatch(html, /index\.html#identity-search/);
+  assert.doesNotMatch(html, /styles\.css|polish\.css|polish\.js/);
+  assert.match(css, /@media\(max-width:390px\)/);
+  assert.ok(hero.length > 20_000);
+  assert.ok(lenses.length > 20_000);
 });
 
 test('paid dashboard exposes executive summary, provider comparison, matrix and Evidence navigation', async () => {
