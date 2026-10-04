@@ -73,10 +73,14 @@ body{font-size:16px;color:var(--m-ink);background:#fff}
 .fact-list{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .fact-list p{min-height:106px;display:flex;align-items:center;gap:18px;margin:0;padding:20px 22px;border:1px solid #e0e9f3;border-radius:14px;background:#fff;box-shadow:0 16px 36px rgba(19,66,125,.08)}
 .fact-list b{font-size:15px;line-height:1.65}
-.fact-icon{display:grid;place-items:center;width:50px;height:50px;flex:0 0 50px;border:1px solid #d8e6fb;border-radius:15px;background:linear-gradient(145deg,#f7fbff,#eaf2ff);color:#1767e8;box-shadow:0 8px 20px rgba(23,103,232,.1)}
-.fact-icon svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.fact-icon{position:relative;display:grid;place-items:center;width:56px;height:56px;flex:0 0 56px;border:1px solid rgba(61,173,255,.55);border-radius:18px;background:radial-gradient(circle at 28% 22%,rgba(55,206,255,.32),transparent 38%),linear-gradient(145deg,#123f75,#071c36);color:#edfaff;box-shadow:0 12px 26px rgba(5,44,91,.2),inset 0 1px 0 rgba(255,255,255,.18)}
+.fact-icon::after{content:"";position:absolute;inset:5px;border:1px solid rgba(166,226,255,.18);border-radius:13px;pointer-events:none}
+.fact-icon svg{position:relative;z-index:1;width:30px;height:30px;fill:none;stroke:currentColor;stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 2px 5px rgba(54,202,255,.25))}
+.fact-list p:nth-child(2) .fact-icon{background:radial-gradient(circle at 28% 22%,rgba(95,126,255,.34),transparent 38%),linear-gradient(145deg,#173c7b,#0a1b3c)}
+.fact-list p:nth-child(3) .fact-icon{background:radial-gradient(circle at 28% 22%,rgba(41,211,190,.3),transparent 38%),linear-gradient(145deg,#123f67,#071d35)}
+.fact-list p:nth-child(4) .fact-icon{background:radial-gradient(circle at 28% 22%,rgba(112,101,255,.36),transparent 38%),linear-gradient(145deg,#183970,#0a1936)}
 .workflow-story{display:grid;grid-template-columns:minmax(0,360px) minmax(0,1fr);gap:70px;align-items:center;background:#fbfdff}
-.workflow-copy h2{margin:5px 0 16px}.workflow-copy>p:last-child{color:#384a5d;margin:0}
+.workflow-copy h2{margin:5px 0 16px;font-size:clamp(40px,3vw,48px)}.workflow-copy h2 span{display:block;white-space:nowrap}.workflow-copy>p:last-child{color:#384a5d;margin:0}
 .workflow-steps{list-style:none;display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin:0;padding:0}
 .workflow-steps li{position:relative;text-align:center;padding:0 12px}
 .workflow-steps li:not(:last-child):after{content:"→";position:absolute;right:-8px;top:38px;color:#6da8ff;font-size:22px}
