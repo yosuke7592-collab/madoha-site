@@ -99,6 +99,13 @@ const asCandidate = value => {
   const officialUrl = site.primaryEligible ? suppliedUrl : '';
   const relatedSites = [...(value.related_sites || [])];
   if (suppliedUrl && !site.primaryEligible) relatedSites.push({ url: suppliedUrl, role: site.role });
+  const faq = [...new Set((value.faq || []).map(clean).filter(Boolean))];
+  const suppliedFaqEntries = Array.isArray(value.faq_entries) ? value.faq_entries : [];
+  const faqEntries = faq.map(text => {
+    const saved = suppliedFaqEntries.find(entry => clean(entry?.value || entry) === text);
+    const sourceType = saved?.source_type === 'user_input' || saved?.source === 'user_input' ? 'user_input' : 'official_site';
+    return { value: text, source_type: sourceType };
+  });
   return {
     ...value,
     identity_id: value.identity_id || '',
@@ -116,7 +123,8 @@ const asCandidate = value => {
     operator_name: clean(value.operator_name),
     main_services: [...new Set((value.main_services || []).map(clean).filter(Boolean))],
     main_products: [...new Set((value.main_products || []).map(clean).filter(Boolean))],
-    faq: [...new Set((value.faq || []).map(clean).filter(Boolean))],
+    faq,
+    faq_entries: faqEntries,
     headings: [...new Set((value.headings || []).map(clean).filter(Boolean))],
     identification_status: 'confirmation_required'
   };

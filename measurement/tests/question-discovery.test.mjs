@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { generateQuestionDiscovery, normalizeDiscoveryInput, qaGeneratedQuestions, recommendQuestionMix } from '../question-discovery.mjs';
+import { detectInputWarnings, generateQuestionDiscovery, normalizeDiscoveryInput, qaGeneratedQuestions, recommendQuestionMix } from '../question-discovery.mjs';
 import { validateQuestionSet } from '../../worker/question-review.mjs';
 
 const load = async name => JSON.parse(await readFile(new URL(`../../data/fixtures/question-discovery/${name}.json`, import.meta.url), 'utf8'));
@@ -94,7 +94,26 @@ test('nationwide specialist queries do not add an artificial region phrase',()=>
 
 test('FAQ evidence drives customer situations and traceable selection reasons',()=>{
   const result=generateQuestionDiscovery(product); const excel=result.questions.find(item=>item.question_text.includes('Excel'));
-  assert.equal(excel.discovery_evidence[0].type,'faq'); assert.match(excel.selection_reason,/公式FAQ/); assert.match(excel.measurement_purpose,/Excelから移行/);
+  assert.equal(excel.discovery_evidence[0].type,'faq'); assert.equal(excel.discovery_evidence[0].source_type,'official_site'); assert.match(excel.selection_reason,/公式サイト/); assert.match(excel.measurement_purpose,/Excelから移行/);
+});
+
+test('user-entered consultation context keeps its provenance and contributes at most two generalized questions',()=>{
+  const input=structuredClone(kyoudo);input.entity.faq=['子育て中で内見時間を取りにくいのでオンラインで相談したい','平日の昼は仕事なので夜間に相談したい','予算の範囲で比較したい'];input.entity.faq_entries=input.entity.faq.map(value=>({value,source_type:'user_input'}));
+  const result=generateQuestionDiscovery(input),userQuestions=result.questions.filter(item=>item.discovery_evidence[0]?.source_type==='user_input');
+  assert.equal(userQuestions.length,2);assert.ok(userQuestions.some(item=>item.question_text.includes('住宅購入をオンラインで相談できる不動産会社')));assert.ok(userQuestions.some(item=>item.question_text.includes('都合のよい時間に住宅購入を相談できる不動産会社')));
+  assert.ok(userQuestions.every(item=>!item.question_text.includes('子育て中で内見時間を取りにくい')));assert.ok(userQuestions.every(item=>item.selection_reason.includes('入力された相談場面')&&!item.selection_reason.includes('公式')));
+});
+
+test('empty consultation context falls back safely without inventing FAQ evidence',()=>{
+  const input=structuredClone(kyoudo);input.entity.faq=[];input.entity.faq_entries=[];input.entity.headings=[];
+  const result=generateQuestionDiscovery(input);assert.equal(result.questions.length,10);assert.ok(result.questions.every(item=>item.discovery_evidence.every(evidence=>evidence.type!=='faq')));
+});
+
+test('industry and service mismatch warns only with high confidence and allows compound businesses',()=>{
+  assert.deepEqual(detectInputWarnings({industry:'住宅・不動産',main_services:['住宅購入','注文住宅']}),[]);
+  const mismatch=detectInputWarnings({industry:'相続税務',main_services:['住宅購入','注文住宅']});assert.equal(mismatch.length,1);assert.equal(mismatch[0].code,'input:industry_service_mismatch');
+  assert.deepEqual(detectInputWarnings({industry:'住宅・不動産と相続税務',main_services:['住宅購入','相続税申告']}),[]);
+  assert.deepEqual(detectInputWarnings({industry:'相続税務',main_services:['相続税申告','住宅売却サポート']}),[]);
 });
 
 test('semantic duplicate keys reject different wording for the same scenario',()=>{

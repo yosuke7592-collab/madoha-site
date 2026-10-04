@@ -40,6 +40,12 @@ test('identity resolution uses a clear modal and releases the anchored page scro
   assert.match(html, /id="region-enabled"[^>]*role="switch"/);
   assert.match(html, /id="region-condition-list"/);
   assert.match(html, /最大3件/);
+  assert.match(html, /診断する業種や質問の方向性を決めるために使用します/);
+  assert.match(html, /診断するテーマの候補として使用します/);
+  assert.match(html, /入力した内容はAIへの質問候補を作るために使用します/);
+  assert.match(html, /id="input-warnings"/);
+  assert.match(script, /faq_entries=faqEntries\(entity\.faq\)/);
+  assert.match(script, /renderInputWarnings/);
   assert.match(script, /region_conditions=selectedRegionConditions\(\)/);
   assert.match(script, /openIdentityModal/);
   assert.match(script, /closeIdentityModal/);

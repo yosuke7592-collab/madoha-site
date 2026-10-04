@@ -7,7 +7,9 @@ const isLocal=e=>e.entity_type==='company'&&e.region_enabled&&e.region_condition
 export function normalizeDiscoveryInput(raw={}){
   const e=raw.entity||raw;
   const regionEnabled=e.region_enabled===true||e.region_enabled==='true';const regionConditions=regionEnabled?uniq(Array.isArray(e.region_conditions)?e.region_conditions:[]):[];if(regionConditions.length>3)throw new TypeError('地域条件は最大3件までです。');
-  return {entity:{id:clean(e.id||e.identity_id),identity_id:clean(e.identity_id||e.id),name:clean(e.name),entity_type:clean(e.entity_type||'company'),identity_type:clean(e.identity_type||e.entity_type||'company'),official_url:clean(e.official_url||e.url),canonical_domain:clean(e.canonical_domain),operator_name:clean(e.operator_name),identification_status:clean(e.identification_status||'confirmed'),region:clean(e.region||e.area),region_enabled:regionEnabled,region_conditions:regionConditions,display_region:clean(e.display_region||e.region||e.area),industry:clean(e.industry||e.category),main_services:uniq(e.main_services||e.services||[]),main_products:uniq(e.main_products||e.products||[]),faq:list(e.faq),headings:list(e.headings),target_customers:list(e.target_customers),aliases:uniq(e.aliases||[]),api_location_name:clean(e.api_location_name),api_location_code:Number.isInteger(Number(e.api_location_code))?Number(e.api_location_code):null,api_language_code:clean(e.api_language_code||'ja')},source_signals:(raw.source_signals||[]).map(s=>typeof s==='string'?{type:'existing',value:clean(s),source:'取得済み情報'}:{type:clean(s.type||'existing'),value:clean(s.value||s.label),source:clean(s.source)||'取得済み情報',url:clean(s.url)}).filter(s=>s.value),intents:uniq(raw.intents||[]),related_search_signals:uniq(raw.related_search_signals||raw.search_demand_signals||[])};
+  const savedFaqEntries=Array.isArray(e.faq_entries)?e.faq_entries.map(entry=>({value:clean(entry?.value||entry),source_type:(entry?.source_type||entry?.source)==='user_input'?'user_input':'official_site'})).filter(entry=>entry.value):[];
+  const faqValues=list(e.faq).length?list(e.faq):savedFaqEntries.map(entry=>entry.value);const faqEntries=faqValues.map(value=>savedFaqEntries.find(entry=>entry.value===value)||{value,source_type:'official_site'});
+  return {entity:{id:clean(e.id||e.identity_id),identity_id:clean(e.identity_id||e.id),name:clean(e.name),entity_type:clean(e.entity_type||'company'),identity_type:clean(e.identity_type||e.entity_type||'company'),official_url:clean(e.official_url||e.url),canonical_domain:clean(e.canonical_domain),operator_name:clean(e.operator_name),identification_status:clean(e.identification_status||'confirmed'),region:clean(e.region||e.area),region_enabled:regionEnabled,region_conditions:regionConditions,display_region:clean(e.display_region||e.region||e.area),industry:clean(e.industry||e.category),main_services:uniq(e.main_services||e.services||[]),main_products:uniq(e.main_products||e.products||[]),faq:faqValues,faq_entries:faqEntries,headings:list(e.headings),target_customers:list(e.target_customers),aliases:uniq(e.aliases||[]),api_location_name:clean(e.api_location_name),api_location_code:Number.isInteger(Number(e.api_location_code))?Number(e.api_location_code):null,api_language_code:clean(e.api_language_code||'ja')},source_signals:(raw.source_signals||[]).map(s=>typeof s==='string'?{type:'existing',value:clean(s),source:'取得済み情報'}:{type:clean(s.type||'existing'),value:clean(s.value||s.label),source:clean(s.source)||'取得済み情報',url:clean(s.url)}).filter(s=>s.value),intents:uniq(raw.intents||[]),related_search_signals:uniq(raw.related_search_signals||raw.search_demand_signals||[])};
 }
 
 export function recommendQuestionMix(raw){
@@ -33,11 +35,41 @@ const RULES=[
  [/外部.{0,6}連携|プラグイン|API/,'integration','導入 / 契約判断','既存ツールと連携したい','連携性','既存の業務ツールと連携しやすい業務管理サービスは？','既存環境との連携を条件に探す企業へ、AIが対象製品を候補として示すか確認します。']
 ];
 
-function scenarios(input){
-  const evidence=[...input.entity.faq.map(value=>({value,type:'faq',source:'公式FAQ'})),...input.entity.headings.map(value=>({value,type:'heading',source:'公式サイト見出し'})),...input.source_signals,...input.related_search_signals.map(value=>({value,type:'related_search',source:'関連検索'}))];
-  const productOnly=new Set(['excel','cross-team','no-code','scale','price','integration']);
-  return RULES.flatMap(([pattern,id,intent,situation,axis,question,purpose])=>{if(productOnly.has(id)&&input.entity.entity_type!=='product')return[];const hit=evidence.find(x=>pattern.test(x.value));return hit?[{id,intent,situation,axis,question,purpose,evidence:[{type:hit.type,value:hit.value,source:hit.source}]}]:[]});
+const PRODUCT_RULES=new Set(['excel','cross-team','no-code','scale','price','integration']);
+const USER_CONTEXTS=[
+  [/オンライン|リモート|Web|ウェブ/,'online','利用判断',offering=>`${offering}をオンラインで相談できる`,'オンライン相談'],
+  [/土日|休日|夜間|営業時間|時間を取りにく/,'schedule','利用判断',offering=>`都合のよい時間に${offering}を相談できる`,'相談時間'],
+  [/急ぎ|至急|期限|すぐに/,'urgent','課題解決',offering=>`${offering}を早めに相談できる`,'対応速度'],
+  [/費用|料金|予算|価格/,'budget','価格 / 条件',offering=>`${offering}の費用を事前に比較できる`,'費用条件'],
+  [/初めて|不安|分からな|わからな/,'first-time','利用判断',offering=>`${offering}を初めてでも相談しやすい`,'相談しやすさ'],
+  [/一括|まとめて/,'bundled','課題解決',offering=>`${offering}をまとめて相談できる`,'一括対応'],
+  [/比較|選び|探して/,'compare','比較',offering=>`${offering}を比較するとき候補になる`,'比較判断'],
+  [/困って|悩んで|相談したい|対応できる/,'individual','課題解決',offering=>`${offering}について個別の事情を相談できる`,'個別相談']
+];
+
+const BUSINESS_DOMAINS=[
+  {id:'tax',industry:/(税理士|税務|相続|会計)/,service:/(相続|税務|申告|税理士|会計)/},
+  {id:'housing',industry:/(不動産|住宅|建築|工務店)/,service:/(住宅|不動産|注文住宅|リフォーム|売却|賃貸|土地|物件)/},
+  {id:'medical',industry:/(医療|病院|歯科|クリニック)/,service:/(診療|治療|歯科|検診|クリニック|医療)/},
+  {id:'legal',industry:/(弁護士|法律|司法書士)/,service:/(法律|訴訟|契約書|登記|債務|離婚)/},
+  {id:'food',industry:/(飲食|レストラン|カフェ|食品)/,service:/(飲食|料理|ランチ|ディナー|カフェ|食品)/}
+];
+
+export function detectInputWarnings(entity={}){
+  const industry=clean(entity.industry),offerings=uniq([...(entity.main_services||[]),...(entity.main_products||[])]);const industryDomains=BUSINESS_DOMAINS.filter(domain=>domain.industry.test(industry));
+  if(industryDomains.length!==1||offerings.length<2||offerings.some(value=>industryDomains[0].service.test(value)))return[];
+  const conflicts=BUSINESS_DOMAINS.filter(domain=>domain.id!==industryDomains[0].id&&offerings.filter(value=>domain.service.test(value)).length>=2);
+  return conflicts.length===1?[{code:'input:industry_service_mismatch',message:'入力された業種とサービス内容に不一致の可能性があります。診断質問を確認してください。'}]:[];
 }
+
+function scenarios(input){
+  const evidence=[...input.entity.faq_entries.map(entry=>({value:entry.value,type:'faq',source_type:entry.source_type,source:entry.source_type==='user_input'?'ユーザー入力':'公式サイト'})),...input.entity.headings.map(value=>({value,type:'heading',source_type:'official_site',source:'公式サイト見出し'})),...input.source_signals,...input.related_search_signals.map(value=>({value,type:'related_search',source:'関連検索'}))];
+  return RULES.flatMap(([pattern,id,intent,situation,axis,question,purpose])=>{if(PRODUCT_RULES.has(id)&&input.entity.entity_type!=='product')return[];const hit=evidence.find(x=>pattern.test(x.value));return hit?[{id,intent,situation,axis,question,purpose,evidence:[{type:hit.type,value:hit.value,source:hit.source,source_type:hit.source_type}]}]:[]});
+}
+
+function offeringForContext(entity,value){const offerings=uniq([...entity.main_services,...entity.main_products]);return offerings.find(offering=>key(value).includes(key(offering))||key(offering).includes(key(value)))||offerings[0]}
+function providerFor(entity){if(entity.entity_type==='product')return'ツール・製品';if(entity.entity_type==='service')return'サービス';if(/税理士|税務|相続|会計/.test(entity.industry))return'税理士';if(/不動産|住宅|建築|工務店/.test(entity.industry))return'不動産会社';if(/医療|病院|歯科|クリニック/.test(entity.industry))return'医療機関';if(/弁護士|法律|司法書士/.test(entity.industry))return'専門家';return'会社'}
+function genericUserScenarios(input,detected=[]){const used=new Set(detected.map(item=>item.id)),items=[];for(const entry of input.entity.faq_entries.filter(item=>item.source_type==='user_input')){const matched=RULES.some(([pattern,id])=>(!PRODUCT_RULES.has(id)||input.entity.entity_type==='product')&&pattern.test(entry.value));if(matched)continue;const context=USER_CONTEXTS.find(([pattern])=>pattern.test(entry.value));if(!context)continue;const [,contextId,intent,phrase,axis]=context,offering=offeringForContext(input.entity,entry.value);if(!offering)continue;const id=`user-${contextId}-${key(offering)}`;if(used.has(id))continue;used.add(id);const need=phrase(offering),provider=providerFor(input.entity);items.push({id,intent,situation:need,axis,question:`${need}${provider}は？`,purpose:`${need}選択肢として、AIが対象を候補に挙げるか確認します。`,evidence:[{type:'faq',value:entry.value,source:'ユーザー入力',source_type:'user_input'}]});if(items.length===2)break}return items}
 
 function fallbacks(input,detected=[]){
   const offerings=uniq([...input.entity.main_services,...input.entity.main_products,...input.intents]);
@@ -89,9 +121,9 @@ export function qaGeneratedQuestions(candidates,entityName){
 
 export function generateQuestionDiscovery(raw){
   const input=normalizeDiscoveryInput(raw),e=input.entity;if(!e.name||!e.industry||(!e.main_services.length&&!e.main_products.length))throw new TypeError('企業名、業種、主要サービスまたは商品が必要です。');
-  const mix=recommendQuestionMix(input),detected=scenarios(input),selected=[],used=new Set();for(const s of [...detected,...fallbacks(input,detected)]){if(selected.length>=mix.discovery_count)break;if(!used.has(s.id)){used.add(s.id);selected.push(s)}}if(selected.length<mix.discovery_count)throw new Error(`根拠のある利用場面が不足しています（${selected.length}/${mix.discovery_count}）。`);
-  const candidates=selected.map((s,i)=>{const region=regionForQuestion(e,i),regionEvidence=region?[{type:'user_region_condition',value:region,source:'ユーザーが指定した地域条件'}]:[];return{question_text:discoveryText(e,s,region),kind:'nonbrand',intent:s.intent,scenario_id:s.id,decision_axis:s.axis,selection_reason:`${s.evidence[0].source}で「${s.evidence[0].value}」を確認でき、顧客の「${s.situation}」場面に関係するため選びました。${region?`指定された地域条件「${region}」をこの質問に使用します。`:''}`,measurement_purpose:s.purpose,alternatives:alternatives(e,s,region),evidence:[...s.evidence,...regionEvidence],generation_rule:`scenario:${s.id}:${i+1}`} });
+  const mix=recommendQuestionMix(input),detected=scenarios(input),userScenarios=genericUserScenarios(input,detected),selected=[],used=new Set();for(const s of [...detected,...userScenarios,...fallbacks(input,detected)]){if(selected.length>=mix.discovery_count)break;if(!used.has(s.id)){used.add(s.id);selected.push(s)}}if(selected.length<mix.discovery_count)throw new Error(`根拠のある利用場面が不足しています（${selected.length}/${mix.discovery_count}）。`);
+  const candidates=selected.map((s,i)=>{const region=regionForQuestion(e,i),regionEvidence=region?[{type:'user_region_condition',value:region,source:'ユーザーが指定した地域条件',source_type:'user_input'}]:[],basis=s.evidence[0].source_type==='user_input'?`入力された相談場面「${s.evidence[0].value}」が、顧客の「${s.situation}」場面に関係するため選びました。`:`${s.evidence[0].source}で「${s.evidence[0].value}」を確認でき、顧客の「${s.situation}」場面に関係するため選びました。`;return{question_text:discoveryText(e,s,region),kind:'nonbrand',intent:s.intent,scenario_id:s.id,decision_axis:s.axis,selection_reason:`${basis}${region?`指定された地域条件「${region}」をこの質問に使用します。`:''}`,measurement_purpose:s.purpose,alternatives:alternatives(e,s,region),evidence:[...s.evidence,...regionEvidence],generation_rule:`scenario:${s.id}:${i+1}`} });
   const identitySource=e.official_url?'公式サイト':'確認済みの対象情報';const templates=BRAND[e.entity_type]||BRAND.company,offering=e.main_services[0]||e.main_products[0];for(let i=0;i<mix.brand_count;i++){const [intent,make,purpose]=templates[i%templates.length];candidates.push({question_text:make(e.name,offering),kind:'branded',intent,scenario_id:`brand-${intent}`,decision_axis:intent,selection_reason:`${identitySource}で対象名と提供内容を確認でき、${intent}が購入・依頼前の判断に必要なため選びました。`,measurement_purpose:purpose,alternatives:brandAlternatives(e,intent,offering),evidence:[{type:'official_entity',value:e.name,source:identitySource}],generation_rule:`brand:${e.entity_type}:${intent}`})}
   const qa=qaGeneratedQuestions(candidates,e.name);if(qa.accepted.length!==10)throw new Error(`QA通過後の質問が10問に達しません（${qa.accepted.length}/10）。`);
-  const questions=qa.accepted.map((q,i)=>({id:`qd-${String(i+1).padStart(2,'0')}`,order:i+1,...q,source_signals:q.evidence.map(x=>x.value),discovery_evidence:q.evidence,generation_source:'rule_based_v2',proposed_question_text:q.question_text,proposed_kind:q.kind,user_modified:false,confirmed:false}));return {schema_version:'question-discovery-v2',generated_at:new Date().toISOString(),entity:e,inputs:input,mix,questions,rejected:qa.rejected};
+  const questions=qa.accepted.map((q,i)=>({id:`qd-${String(i+1).padStart(2,'0')}`,order:i+1,...q,source_signals:q.evidence.map(x=>x.value),discovery_evidence:q.evidence,generation_source:'rule_based_v2',proposed_question_text:q.question_text,proposed_kind:q.kind,user_modified:false,confirmed:false}));return {schema_version:'question-discovery-v2',generated_at:new Date().toISOString(),entity:e,inputs:input,input_warnings:detectInputWarnings(e),mix,questions,rejected:qa.rejected};
 }
