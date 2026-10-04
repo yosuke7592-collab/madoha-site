@@ -64,6 +64,28 @@ test('identity resolution uses a clear modal and releases the anchored page scro
   assert.match(css, /#identity-candidates button\.identity-candidate/);
 });
 
+test('ten-question review keeps the metadata internal and presents direct editing only', async () => {
+  const [html, script, css] = await Promise.all([load('index.html'), load('sales.js'), load('brand-v4.css')]);
+  assert.match(html, /MADOHAが設計した10質問を確認/);
+  assert.match(html, /実際にAIへ送る質問文です<br>必要に応じて質問文を調整できます/);
+  assert.doesNotMatch(html, /id="mix-reason"/);
+  assert.doesNotMatch(html, /質問文と検索種別を調整できます/);
+  assert.match(script, /class="question-number">QUESTION/);
+  assert.match(script, /class="commit-question"[^>]*hidden>変更を確定/);
+  assert.match(script, /question-edit-status/);
+  assert.doesNotMatch(script, /data-kind=/);
+  assert.doesNotMatch(script, /<b>選定理由<\/b>/);
+  assert.doesNotMatch(script, /<b>この質問で分かること<\/b>/);
+  assert.doesNotMatch(script, /scrollIntoView/);
+  assert.match(script, /setQuestionReviewActive\(true\)/);
+  assert.match(script, /setQuestionReviewActive\(false\)/);
+  assert.match(script, /const submitted=readQuestions\(\)/);
+  assert.match(script, /kind:q\.kind/);
+  assert.match(css, /\.question-edit-card textarea\{[^}]*width:100%/);
+  assert.match(css, /\.question-review-active #what-we-measure/);
+  assert.match(css, /@media\(max-width:700px\)[\s\S]*\.question-review\{width:calc\(100% - 24px\)/);
+});
+
 test('sample chrome keeps only the compact MADOHA and diagnosis footer links', async () => {
   const [html, script] = await Promise.all([load('sample.html'), load('sample-kyoudo.js')]);
   assert.doesNotMatch(html, /class="header-cta"/);
