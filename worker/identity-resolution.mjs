@@ -37,9 +37,10 @@ export const KNOWN_IDENTITIES = Object.freeze([
   },
   {
     identity_id: 'company-zeal-delivery', name: '株式会社ZEAL', aliases: ['ZEAL', 'zeal', 'ジール'],
-    identity_type: 'company', entity_type: 'company', official_url: 'https://recruit-zeal.com/',
+    identity_type: 'company', entity_type: 'company', official_url: 'https://www.zeal2019.co.jp/',
     region: '千葉県船橋市', industry: '軽貨物運送・物流', operator_name: '株式会社ZEAL',
-    main_services: ['軽貨物配送', '宅配'], faq: [], headings: ['軽貨物配送', '採用情報']
+    service_regions: ['千葉県全域'],
+    main_services: ['個人宅向け軽貨物宅配サービス'], faq: [], headings: ['軽貨物運送', '個人宅への軽貨物宅配サービス', '対応エリア']
   },
   {
     identity_id: 'company-zeal-cruise', name: '株式会社ジール', aliases: ['ZEAL', 'zeal', 'ジール'],
@@ -148,8 +149,8 @@ export async function resolveIdentityInput(input = {}, options = {}) {
     const site = await options.inspectUrl(normalizedUrl);
     const siteRole = classifyIdentitySite({ ...site, url: site.url || normalizedUrl });
     return { status: 'confirmation_required', query, candidates: [asCandidate({
-      name: site.title || domain, official_url: site.url || normalizedUrl, identity_type: inferIdentityType(site.title, site),
-      industry: '', main_services: (site.headings || []).slice(0, 8), headings: site.headings || [], site_title: site.title || ''
+      name: site.identity_name || site.title || domain, official_url: site.url || normalizedUrl, identity_type: inferIdentityType(site.identity_name || site.title, site),
+      industry: site.industry || '', main_services: site.main_services || [], service_regions: site.service_regions || [], headings: site.headings || [], site_title: site.title || ''
     })], message: siteRole.primaryEligible ? '' : `${siteRole.reason} 診断対象のPrimary公式サイトとしては確定せず、内容をご確認ください。` };
   }
 

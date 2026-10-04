@@ -118,6 +118,17 @@ test('empty consultation context falls back safely without inventing FAQ evidenc
   const result=generateQuestionDiscovery(input);assert.equal(result.questions.length,10);assert.ok(result.questions.every(item=>item.discovery_evidence.every(evidence=>evidence.type!=='faq')));
 });
 
+test('a verified single service expands into distinct customer decision axes without inventing services or prices',()=>{
+  const input={entity:{name:'株式会社Example Logistics',entity_type:'company',official_url:'https://example.jp/',region_enabled:true,region_conditions:['千葉県全域'],industry:'軽貨物運送・物流',main_services:['個人宅向け軽貨物宅配サービス'],faq:[],headings:['事業内容']}};
+  const result=generateQuestionDiscovery(input),nonbrand=result.questions.filter(item=>item.kind==='nonbrand'),branded=result.questions.filter(item=>item.kind==='branded');
+  assert.equal(nonbrand.length,6);assert.equal(branded.length,4);
+  assert.equal(new Set(nonbrand.map(item=>item.decision_axis)).size,6);
+  assert.ok(nonbrand.every(item=>item.source_signals.includes('個人宅向け軽貨物宅配サービス')));
+  assert.ok(nonbrand.every(item=>!/(料金|価格|即日|法人向け|冷蔵|大型)/.test(item.question_text)));
+  assert.deepEqual(nonbrand.map(item=>item.discovery_evidence.find(evidence=>evidence.type==='user_region_condition')?.value||''),['千葉県全域','','千葉県全域','','千葉県全域','']);
+  assert.ok(nonbrand.some(item=>item.intent==='発見'));assert.ok(nonbrand.some(item=>item.intent==='比較'));assert.ok(nonbrand.some(item=>item.intent==='信頼確認'));
+});
+
 test('industry and service mismatch warns only with high confidence and allows compound businesses',()=>{
   assert.deepEqual(detectInputWarnings({industry:'住宅・不動産',main_services:['住宅購入','注文住宅']}),[]);
   const mismatch=detectInputWarnings({industry:'相続税務',main_services:['住宅購入','注文住宅']});assert.equal(mismatch.length,1);assert.equal(mismatch[0].code,'input:industry_service_mismatch');

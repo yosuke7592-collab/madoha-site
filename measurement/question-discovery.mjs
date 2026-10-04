@@ -69,20 +69,39 @@ function scenarios(input){
 
 function offeringForContext(entity,value){const offerings=uniq([...entity.main_services,...entity.main_products]);return offerings.find(offering=>key(value).includes(key(offering))||key(offering).includes(key(value)))||offerings[0]}
 function providerFor(entity){if(entity.entity_type==='product')return'ツール・製品';if(entity.entity_type==='service')return'サービス';if(/税理士|税務|相続|会計/.test(entity.industry))return'税理士';if(/不動産|住宅|建築|工務店/.test(entity.industry))return'不動産会社';if(/医療|病院|歯科|クリニック/.test(entity.industry))return'医療機関';if(/弁護士|法律|司法書士/.test(entity.industry))return'専門家';return'会社'}
+function actionForOffering(offering=''){if(/配送|宅配|運送|工事|施工|修理|制作|清掃|代行|委託/.test(offering))return'依頼';if(/相談|支援|サポート|住宅|不動産|相続|税務|申告|売却|購入/.test(offering))return'相談';return'利用'}
 function genericUserScenarios(input,detected=[]){const used=new Set(detected.map(item=>item.id)),items=[];for(const entry of input.entity.faq_entries.filter(item=>item.source_type==='user_input')){const matched=RULES.some(([pattern,id])=>(!PRODUCT_RULES.has(id)||input.entity.entity_type==='product')&&pattern.test(entry.value));if(matched)continue;const context=USER_CONTEXTS.find(([pattern])=>pattern.test(entry.value));if(!context)continue;const [,contextId,intent,phrase,axis]=context,offering=offeringForContext(input.entity,entry.value);if(!offering)continue;const id=`user-${contextId}-${key(offering)}`;if(used.has(id))continue;used.add(id);const need=phrase(offering),provider=providerFor(input.entity);items.push({id,intent,situation:need,axis,question:`${need}${provider}は？`,purpose:`${need}選択肢として、AIが対象を候補に挙げるか確認します。`,evidence:[{type:'faq',value:entry.value,source:'ユーザー入力',source_type:'user_input'}]});if(items.length===2)break}return items}
+
+const DECISION_AXES=[
+  ['compare','比較','比較候補',offering=>`${offering}の依頼先を比較したい。どの会社が候補？`,offering=>`${offering}を探す利用者に、AIが比較候補として対象を挙げるか確認します。`],
+  ['fit','利用判断','依頼内容との適合',offering=>`${offering}を検討するとき、依頼内容に合う会社は？`,offering=>`${offering}の依頼内容に合う選択肢として、AIが対象を示すか確認します。`],
+  ['scope','価格 / 条件','対応内容の確認',(offering,action)=>`${offering}を${action}するとき、対応内容を事前に確認できる会社は？`,offering=>`${offering}の対応内容を確認する場面で、AIが対象を候補に挙げるか確認します。`],
+  ['trust','信頼確認','信頼性',offering=>`${offering}を安心して任せられる会社は？`,offering=>`${offering}の依頼先として、AIが対象の信頼性を説明できるか確認します。`],
+  ['prepare','導入 / 契約判断','依頼前確認',(offering,action)=>`${offering}を${action}する前に、依頼先へ何を確認すべき？`,offering=>`${offering}の相談前に、AIが対象を含む依頼先の確認点を示せるか確認します。`]
+];
+
+function decisionAxisFallbacks(input,offerings){
+  if(input.entity.entity_type==='product')return[];
+  const items=[];
+  for(const [axisId,intent,axis,question,purpose] of DECISION_AXES)for(const offering of offerings)items.push({id:`offering-${axisId}-${key(offering)}`,intent,situation:`${offering}を検討している`,axis,question:question(offering,actionForOffering(offering)),purpose:purpose(offering),evidence:[{type:'service_or_product',value:offering,source:'確認済みのサービス・商品情報'}]});
+  return items;
+}
 
 function fallbacks(input,detected=[]){
   const offerings=uniq([...input.entity.main_services,...input.entity.main_products,...input.intents]);
   const ids=new Set(detected.map(x=>x.id));
-  return offerings.filter(offering=>!(ids.has('land-build')&&/注文住宅/.test(offering))&&!(ids.has('used-renovation')&&/(中古|リフォーム)/.test(offering))).map((offering,i)=>{
+  const available=offerings.filter(offering=>!(ids.has('land-build')&&/注文住宅/.test(offering))&&!(ids.has('used-renovation')&&/(中古|リフォーム)/.test(offering)));
+  const base=available.map((offering,i)=>{
     let question=`${offering}について相談先を探している`;
     if(input.entity.entity_type==='product')question=`${offering}に使えるツールを比較したい`;
     else if(/相続|税務/.test(input.entity.industry))question=`${offering}の実績が豊富な税理士は？`;
     else if(/住宅購入/.test(offering))question='住宅購入を資金計画から相談できる不動産会社は？';
     else if(/賃貸$/.test(offering))question='賃貸物件を探すなら、どの不動産会社が候補？';
     else if(/売却/.test(offering))question='家を売るとき、査定や売却方法を相談できる会社は？';
+    else question=`${offering}を依頼できる${providerFor(input.entity)}は？`;
     return {id:`offering-${key(offering)}`,intent:i%3===0?'発見':i%3===1?'比較':'利用判断',situation:`${offering}を検討している`,axis:i%3===0?'候補発見':i%3===1?'比較条件':'利用判断',question,purpose:`${offering}を検討する利用者に、AIが対象${input.entity.entity_type==='product'?'製品':'企業'}を有力な選択肢として挙げるか確認します。`,evidence:[{type:'service_or_product',value:offering,source:'企業・製品情報'}]};
   });
+  return [...base,...decisionAxisFallbacks(input,available.length?available:offerings)];
 }
 
 function discoveryText(e,s,region=''){
@@ -108,7 +127,7 @@ function brandAlternatives(e,intent,offering){
 }
 
 const BRAND={
- company:[['会社理解',n=>`${n}はどんな会社？`,'AIが事業内容と対応範囲を正しく説明できるか確認します。'],['信頼確認',n=>`${n}の評判や信頼性は？`,'AIが第三者評価や実績を依頼判断の材料として示せるか確認します。'],['比較',n=>`${n}は同業他社と比べて何が強い？`,'AIが競合との違いを具体的な根拠とともに説明できるか確認します。'],['利用判断',(n,s)=>`${n}へ${s}を相談する前に何を確認すべき？`,'AIが相談前の注意点や不足情報を適切に示せるか確認します。'],['専門性',n=>`${n}にはどの分野の専門性がある？`,'AIが公開情報から専門領域を正しく理解しているか確認します。']],
+ company:[['会社理解',n=>`${n}はどんな会社？`,'AIが事業内容と対応範囲を正しく説明できるか確認します。'],['信頼確認',n=>`${n}の評判や信頼性は？`,'AIが第三者評価や実績を依頼判断の材料として示せるか確認します。'],['比較',n=>`${n}は同業他社と比べて何が強い？`,'AIが競合との違いを具体的な根拠とともに説明できるか確認します。'],['利用判断',(n,s)=>`${n}へ${s}を${actionForOffering(s)}する前に何を確認すべき？`,'AIが相談前の注意点や不足情報を適切に示せるか確認します。'],['専門性',n=>`${n}にはどの分野の専門性がある？`,'AIが公開情報から専門領域を正しく理解しているか確認します。']],
  product:[['製品理解',n=>`${n}はどんな業務に向いているツール？`,'AIが対象製品の用途と適する利用者を正しく説明できるか確認します。'],['比較',n=>`${n}と他の業務管理ツールの違いは？`,'AIが競合製品との違いを購入判断に役立つ形で説明できるか確認します。'],['価格 / 条件',n=>`${n}の料金と契約条件は？`,'AIが料金や利用条件を正しく説明できるか確認します。'],['導入 / 契約判断',n=>`${n}を導入する前に確認すべきことは？`,'AIが導入難度や制約を偏りなく提示できるか確認します。']],
  service:[['サービス理解',n=>`${n}はどんな人に向いているサービス？`,'AIが対象者と利用場面を正しく説明できるか確認します。'],['信頼確認',n=>`${n}の評判や信頼性は？`,'AIが第三者情報を利用判断の材料として示せるか確認します。'],['比較',n=>`${n}と似たサービスの違いは？`,'AIが他の選択肢との違いを説明できるか確認します。'],['利用判断',n=>`${n}を利用する前に確認すべきことは？`,'AIが利用条件や注意点を適切に示せるか確認します。'],['価格 / 条件',n=>`${n}の料金や利用条件は？`,'AIが費用と条件を正しく説明できるか確認します。']],
  brand:[['ブランド理解',n=>`${n}はどんなブランド？`,'AIがブランドの特徴と対象顧客を正しく説明できるか確認します。'],['信頼確認',n=>`${n}はどのように評価されている？`,'AIが評判や第三者評価を偏りなく説明できるか確認します。'],['比較',n=>`${n}と競合ブランドの違いは？`,'AIがブランド固有の違いを説明できるか確認します。'],['利用判断',n=>`${n}を選ぶ前に確認すべきことは？`,'AIが購入判断に必要な情報を示せるか確認します。'],['価格 / 条件',n=>`${n}の商品・サービスの価格帯は？`,'AIが価格情報を正しく扱えるか確認します。'],['専門性',n=>`${n}が特に強い分野は？`,'AIがブランドの専門領域を根拠とともに説明できるか確認します。']]

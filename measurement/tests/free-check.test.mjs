@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { analyzeHtml, normalizePublicUrl, runFreeCheck } from '../../worker/free-check.mjs';
+import { analyzeHtml, inspectIdentitySite, normalizePublicUrl, runFreeCheck } from '../../worker/free-check.mjs';
 
 test('rejects local and unsafe URLs', () => {
   for (const value of ['localhost', '127.0.0.1', '10.0.0.1', 'file:///etc/passwd']) assert.throws(() => normalizePublicUrl(value));
@@ -22,4 +22,18 @@ test('follows a safe redirect and returns a result', async () => {
   });
   assert.equal(result.host, 'www.example.com');
   assert.equal(calls, 2);
+});
+
+test('identity inspection prefers same-domain business pages and separates explicit service regions from company location',async()=>{
+  const pages=new Map([
+    ['https://example.jp/',`<html><head><title>配送のことなら株式会社Example Logistics</title></head><body><header><img alt="株式会社Example Logistics"><a href="/business/">事業案内</a><a href="/recruit/">採用情報</a></header><h2>MESSAGE</h2><h2>社員紹介</h2><p>所在地 東京都港区</p></body></html>`],
+    ['https://example.jp/business/',`<html><head><title>事業案内</title></head><body><h1>BUSINESS 事業案内</h1><h2>事業内容</h2><h3>DELIVERY SERVICE 個人宅への軽貨物宅配サービス</h3><h2>対応エリア</h2><img alt="千葉県全域"></body></html>`]
+  ]);
+  const result=await inspectIdentitySite('https://example.jp/',async url=>new Response(pages.get(url.href)||'',{status:pages.has(url.href)?200:404,headers:{'content-type':'text/html'}}));
+  assert.equal(result.identity_name,'株式会社Example Logistics');
+  assert.equal(result.industry,'軽貨物運送・物流');
+  assert.deepEqual(result.main_services,['個人宅への軽貨物宅配サービス']);
+  assert.deepEqual(result.service_regions,['千葉県全域']);
+  assert.ok(result.main_services.every(value=>!/採用|社員|MESSAGE/i.test(value)));
+  assert.ok(!result.service_regions.includes('東京都港区'));
 });

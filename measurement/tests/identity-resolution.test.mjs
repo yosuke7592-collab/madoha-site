@@ -66,9 +66,9 @@ test('an ambiguous real-world name returns distinct candidates for user confirma
     assert.ok(candidate.industry);
     assert.ok(candidate.region);
   }
-  assert.equal(result.candidates[0].official_url, '');
-  assert.equal(result.candidates[0].official_site_status, 'related_only');
-  assert.equal(result.candidates[0].related_sites[0].role, 'recruitment');
+  assert.equal(result.candidates[0].official_url, 'https://www.zeal2019.co.jp/');
+  assert.deepEqual(result.candidates[0].service_regions, ['千葉県全域']);
+  assert.deepEqual(result.candidates[0].main_services, ['個人宅向け軽貨物宅配サービス']);
   assert.equal(result.candidates[1].official_url, 'https://www.zeal.ne.jp/');
 });
 
@@ -100,12 +100,15 @@ test('an unregistered URL is inspected safely and keeps the canonical domain', a
   const result = await resolveIdentityInput({ query: 'example.jp' }, { catalog: [], inspectUrl: async url => {
     calls += 1;
     assert.equal(url, 'https://example.jp/');
-    return { title: '青空サービス', url, headings: ['サービス案内', '料金'] };
+    return { title: '青空サービス', identity_name:'青空サービス', url, industry:'家事支援', main_services:['家事代行'], service_regions:['東京都'], headings: ['サービス案内', '料金'] };
   } });
   assert.equal(calls, 1);
   assert.equal(result.candidates[0].name, '青空サービス');
   assert.equal(result.candidates[0].canonical_domain, 'example.jp');
   assert.equal(canonicalDomain(result.candidates[0].official_url), 'example.jp');
+  assert.equal(result.candidates[0].industry,'家事支援');
+  assert.deepEqual(result.candidates[0].main_services,['家事代行']);
+  assert.deepEqual(result.candidates[0].service_regions,['東京都']);
 });
 
 test('paid identity merges aliases and URL forms but separates stores, services and products', () => {
