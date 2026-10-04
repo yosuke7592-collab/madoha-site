@@ -62,6 +62,9 @@ test('identity resolution uses a clear modal and releases the anchored page scro
   assert.match(script, /この対象を確認/);
   assert.match(css, /body\.identity-modal-open\{overflow:hidden\}/);
   assert.match(css, /#identity-candidates button\.identity-candidate/);
+  assert.match(html, /class="identity-official-url">公式サイト/);
+  assert.match(css, /\.identity-official-url input\{margin-top:27\.5px\}/);
+  assert.match(css, /@media\(max-width:700px\)[\s\S]*\.identity-official-url input\{margin-top:7px\}/);
 });
 
 test('ten-question review keeps the metadata internal and presents direct editing only', async () => {
