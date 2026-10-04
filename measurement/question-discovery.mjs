@@ -97,7 +97,7 @@ function alternatives(e,s,region=''){
   if(e.entity_type==='product') return [`${s.situation}。少人数でも導入しやすいツールは？`,`${s.situation}。専門知識なしで使いやすいサービスは？`,`${s.situation}。既存業務から移行しやすい製品は？`];
   const p=region?`${region}で、`:''; return [`${p}${s.situation}場合、実績を確認できる相談先は？`,`${p}${s.situation}場合、専門性で選ぶならどこ？`,`${p}${s.situation}場合、相談前に何を比較すべき？`];
 }
-function regionForQuestion(e,index){if(!isLocal(e)||index%2!==0)return'';return e.region_conditions[index/2]||''}
+function regionForQuestion(e,index){if(!isLocal(e)||index%2!==0)return'';return e.region_conditions[(index/2)%e.region_conditions.length]||''}
 function brandAlternatives(e,intent,offering){
   const n=e.name;
   if(intent.includes('価格'))return [`${n}を利用すると総額はいくらかかる？`,`${n}にはどんな契約条件や制限がある？`];

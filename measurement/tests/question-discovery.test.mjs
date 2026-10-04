@@ -30,11 +30,20 @@ test('keeps up to three user-entered region conditions independent without split
   const separateResult=generateQuestionDiscovery(separate);const separateText=separateResult.questions.map(item=>item.question_text);
   assert.deepEqual(separateResult.entity.region_conditions,['市川','浦安']);
   assert.ok(separateText.some(text=>text.startsWith('市川で、')));assert.ok(separateText.some(text=>text.startsWith('浦安で、')));
-  assert.ok(separateText.every(text=>!text.includes('市川・浦安')));assert.ok(separateText.filter(text=>/^(市川|浦安)で、/.test(text)).length<10);
+  assert.ok(separateText.every(text=>!text.includes('市川・浦安')));assert.equal(separateText.filter(text=>/^(市川|浦安)で、/.test(text)).length,3);
+  assert.deepEqual(separateResult.questions.filter(item=>item.kind==='nonbrand').map(item=>item.question_text.match(/^(市川|浦安)で、/)?.[1]||''),['市川','','浦安','','市川','']);
   const combined=structuredClone(kyoudo);combined.entity.region_enabled=true;combined.entity.region_conditions=['市川・浦安'];
   const combinedResult=generateQuestionDiscovery(combined);assert.deepEqual(combinedResult.entity.region_conditions,['市川・浦安']);
-  assert.ok(combinedResult.questions.some(item=>item.question_text.startsWith('市川・浦安で、')));
+  assert.equal(combinedResult.questions.filter(item=>item.question_text.startsWith('市川・浦安で、')).length,3);
   assert.ok(combinedResult.questions.every(item=>!item.question_text.startsWith('市川で、')&&!item.question_text.startsWith('浦安で、')));
+});
+
+test('cycles region conditions across nonbrand positions one three and five while leaving branded questions unchanged',()=>{
+  const input=structuredClone(kyoudo);input.entity.region_enabled=true;input.entity.region_conditions=['市川','浦安','船橋'];
+  const result=generateQuestionDiscovery(input),nonbrand=result.questions.filter(item=>item.kind==='nonbrand'),branded=result.questions.filter(item=>item.kind==='branded');
+  assert.deepEqual(nonbrand.map(item=>item.discovery_evidence.find(evidence=>evidence.type==='user_region_condition')?.value||''),['市川','','浦安','','船橋','']);
+  assert.ok(branded.every(item=>item.discovery_evidence.every(evidence=>evidence.type!=='user_region_condition')));
+  assert.ok(branded.every(item=>!item.question_text.startsWith('市川で、')&&!item.question_text.startsWith('浦安で、')&&!item.question_text.startsWith('船橋で、')));
 });
 
 test('does not turn company location into a search region when region targeting is off',()=>{
