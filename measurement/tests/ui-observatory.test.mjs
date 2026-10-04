@@ -70,11 +70,17 @@ test('identity resolution uses a clear modal and releases the anchored page scro
 test('ten-question review keeps the metadata internal and presents direct editing only', async () => {
   const [html, script, css] = await Promise.all([load('index.html'), load('sales.js'), load('brand-v4.css')]);
   assert.match(html, /MADOHAが設計した10質問を確認/);
-  assert.match(html, /実際にAIへ送る質問文です<br>必要に応じて質問文を調整できます/);
+  assert.match(html, /実際にAIへ送る10の質問です<br>変更したい質問は「編集」から調整できます/);
   assert.doesNotMatch(html, /id="mix-reason"/);
   assert.doesNotMatch(html, /質問文と検索種別を調整できます/);
   assert.match(script, /class="question-number">QUESTION/);
+  assert.match(script, /class="edit-question"[^>]*>✎ 編集/);
+  assert.match(script, /class="question-readonly"/);
+  assert.match(script, /display\.hidden=true;editor\.hidden=false;edit\.hidden=true;button\.hidden=false/);
+  assert.match(script, /textarea\.focus\(\)/);
   assert.match(script, /class="commit-question"[^>]*hidden>変更を確定/);
+  assert.match(script, /display\.textContent=value/);
+  assert.match(script, /display\.hidden=false;editor\.hidden=true;edit\.hidden=false/);
   assert.match(script, /question-edit-status/);
   assert.doesNotMatch(script, /data-kind=/);
   assert.doesNotMatch(script, /<b>選定理由<\/b>/);
@@ -85,6 +91,9 @@ test('ten-question review keeps the metadata internal and presents direct editin
   assert.match(script, /const submitted=readQuestions\(\)/);
   assert.match(script, /kind:q\.kind/);
   assert.match(css, /\.question-edit-card textarea\{[^}]*width:100%/);
+  assert.match(css, /\.question-card-head\{[^}]*justify-content:space-between/);
+  assert.match(css, /\.edit-question\{[^}]*background:transparent/);
+  assert.match(css, /\.question-readonly\{[^}]*font:500 18px/);
   assert.match(css, /\.question-review-active #what-we-measure/);
   assert.match(css, /@media\(max-width:700px\)[\s\S]*\.question-review\{width:calc\(100% - 24px\)/);
 });
