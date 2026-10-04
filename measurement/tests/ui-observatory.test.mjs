@@ -44,8 +44,13 @@ test('identity resolution uses a clear modal and releases the anchored page scro
   assert.match(html, /診断するテーマの候補として使用します/);
   assert.match(html, /入力した内容はAIへの質問候補を作るために使用します/);
   assert.match(html, /id="input-warnings"/);
+  assert.match(html, />診断する質問を作成<\/button>/);
+  assert.match(html, /id="sales-paused"[\s\S]*現在、診断の受付準備中です/);
+  assert.match(html, /id="checkout-controls"/);
   assert.match(script, /faq_entries=faqEntries\(entity\.faq\)/);
   assert.match(script, /renderInputWarnings/);
+  assert.match(script, /cfg\.sales_enabled===true/);
+  assert.match(script, /#checkout-controls/);
   assert.match(script, /region_conditions=selectedRegionConditions\(\)/);
   assert.match(script, /openIdentityModal/);
   assert.match(script, /closeIdentityModal/);
