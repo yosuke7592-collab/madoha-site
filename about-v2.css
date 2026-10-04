@@ -65,8 +65,7 @@
 .about-v2-equation{display:flex;justify-content:center;align-items:baseline;gap:14px;margin:30px 0 0;color:#64788d;font-size:11px;font-weight:900;letter-spacing:.1em}.about-v2-equation strong{color:#071526;font-size:31px;letter-spacing:-.04em}.about-v2-equation i{color:#2b8df4;font-style:normal}
 
 .about-v2-difference{background:#fff}
-.about-v2-difference>.about-v2-shell{display:grid;grid-template-columns:minmax(350px,.65fr) minmax(0,1.35fr);gap:54px;align-items:start}
-.about-v2-difference .about-v2-heading{padding-top:4px}
+.about-v2-difference>.about-v2-shell{display:grid;grid-template-columns:minmax(350px,.65fr) minmax(0,1.35fr);gap:54px;align-items:center}
 .about-v2-difference-title{font-size:clamp(50px,4.5vw,62px)!important}.about-v2-difference-title span{display:block;white-space:nowrap}
 .about-v2-comparison{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .about-v2-search-card{min-height:330px;padding:30px;border:1px solid #dfe7f0;border-radius:19px;background:#f7f9fc}

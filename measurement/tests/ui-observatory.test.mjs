@@ -19,6 +19,8 @@ test('TOP uses the lightweight AI observatory design and keeps the sales contrac
   assert.match(html, /<h2><span>3つのAIから<\/span><span>同じ条件で観測<\/span><\/h2>/);
   assert.doesNotMatch(html, /3つのAIから<br>同じ条件で観測/);
   assert.match(brandCss, /\.preview-competitors i:before/);
+  assert.match(html, /<h2><span>実際の診断結果<\/span><span>イメージ<\/span><\/h2>/);
+  assert.match(brandCss, /\.sample-proof \.section-kicker\{color:#1767e8\}/);
   assert.match(html, /10[\s\S]*3[\s\S]*30/);
   assert.match(html, /9,800円/);
   assert.match(html, /purchase-story[\s\S]*<a href="index\.html">今すぐ診断する/);
@@ -73,7 +75,7 @@ test('about page shares the TOP brand system and explains MADOHA visually', asyn
   assert.doesNotMatch(html, /浦安で注文住宅/);
   assert.match(html, /about-v2-hero-chatgpt[\s\S]*about-v2-hero-gemini[\s\S]*about-v2-hero-google/);
   assert.match(html, /about-v2-difference-title"><span>選ばれ方が<\/span><span>変わった<\/span>/);
-  assert.match(css, /about-v2-difference>\.about-v2-shell\{[^}]*align-items:start/);
+  assert.match(css, /about-v2-difference>\.about-v2-shell\{[^}]*align-items:center/);
   assert.match(html, /従来検索[\s\S]*AI検索/);
   assert.match(html, /href="index\.html">AI検索診断を始める/);
   assert.doesNotMatch(html, /index\.html#identity-search/);
