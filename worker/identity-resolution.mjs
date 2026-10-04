@@ -14,6 +14,7 @@ export const KNOWN_IDENTITIES = Object.freeze([
     identity_id: 'company-kyoudo-housing', name: '株式会社協同住宅', aliases: ['協同住宅'],
     identity_type: 'company', entity_type: 'company', official_url: 'https://www.kyoudo.jp/',
     region: '浦安・市川', industry: '住宅・不動産', operator_name: '株式会社協同住宅',
+    service_regions: ['浦安・市川'],
     main_services: ['住宅購入', '賃貸', '注文住宅', 'リフォーム', '不動産売却', '中古住宅購入とリフォーム'],
     faq: ['土地を買って注文住宅を建てるまでの流れ', '今の家に住みながら売却できるか', '中古住宅を購入してリフォームまで相談する'],
     headings: ['物件を買う', '物件を借りる', '注文住宅', 'リフォーム', '物件を売る・貸す']

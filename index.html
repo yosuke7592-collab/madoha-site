@@ -15,8 +15,8 @@
   <link rel="stylesheet" href="top-v3.css?v=4">
   <link rel="stylesheet" href="reference-ui.css?v=1">
   <link rel="stylesheet" href="top-width.css?v=1">
-  <link rel="stylesheet" href="brand-v4.css?v=2">
-  <script type="module" src="sales.js?v=10"></script>
+  <link rel="stylesheet" href="brand-v4.css?v=3">
+  <script type="module" src="sales.js?v=11"></script>
 </head>
 <body>
 <a class="skip-link" href="#identity-search">診断対象の検索へ</a>
@@ -56,8 +56,8 @@
         <section id="candidate-stage" class="identity-result" hidden><p class="panel-label">対象候補</p><h2>診断する対象を選んでください</h2><p id="candidate-message" class="candidate-message"></p><div id="identity-candidates"></div></section>
         <form id="entity-form" class="identity-result identity-confirm" hidden novalidate autocomplete="off">
           <p class="panel-label">対象の確認</p><h2 id="identity-confirm-title" tabindex="-1">この対象で合っていますか？</h2><div id="identity-summary"></div>
-          <input name="name" type="hidden"><input name="entity_type" type="hidden"><input name="identity_type" type="hidden"><input name="identity_id" type="hidden"><input name="operator_name" type="hidden">
-          <div class="identity-details"><label>公式サイト（分かる場合のみ）<input name="official_url" type="url" placeholder="https://..." autocomplete="off" autocapitalize="none" spellcheck="false"></label><label>業種・事業内容<input name="industry" required maxlength="120"></label><label>地域（地域に依存しない場合は空欄）<input name="region" maxlength="100"></label><label>主なサービス・商品（1行に1つ）<textarea name="main_services" required rows="4"></textarea></label><label>利用者の相談場面・よくある質問<textarea name="faq" rows="3"></textarea></label></div>
+          <input name="name" type="hidden"><input name="entity_type" type="hidden"><input name="identity_type" type="hidden"><input name="identity_id" type="hidden"><input name="operator_name" type="hidden"><input name="region" type="hidden">
+          <div class="identity-details"><label>公式サイト（分かる場合のみ）<input name="official_url" type="url" placeholder="https://..." autocomplete="off" autocapitalize="none" spellcheck="false"></label><label>業種・事業内容<input name="industry" required maxlength="120"></label><section class="region-setting" aria-labelledby="region-setting-title"><div class="region-setting-head"><div><h3 id="region-setting-title">地域を指定して診断する</h3><p>顧客がサービスを探す地域を指定する場合にONにしてください</p></div><label class="region-toggle"><input id="region-enabled" type="checkbox" role="switch" aria-controls="region-condition-panel"><span aria-hidden="true"></span><b>OFF</b></label></div><div id="region-condition-panel" hidden><div id="region-condition-list"></div><button id="add-region-condition" class="region-add" type="button">＋ 地域を追加</button><p class="region-help">最大3件。「市川・浦安」のように1つで登録した場合は、その組み合わせを1つの地域条件として扱います。</p></div></section><label>主なサービス・商品（1行に1つ）<textarea name="main_services" required rows="4"></textarea></label><label>利用者の相談場面・よくある質問<textarea name="faq" rows="3"></textarea></label></div>
           <div class="identity-actions"><button id="confirm-identity" type="submit">この対象を診断する</button><button id="retry-identity" class="secondary-button" type="button">別の対象を探す</button></div><p id="identity-confirm-status" class="identity-status" role="status" aria-live="polite"></p>
         </form>
       </div>

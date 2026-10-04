@@ -35,6 +35,12 @@ test('identity resolution uses a clear modal and releases the anchored page scro
   assert.match(html, /id="close-identity-modal"/);
   assert.match(html, /id="entity-form"[^>]*autocomplete="off"/);
   assert.match(html, /name="official_url"[^>]*autocomplete="off"[^>]*autocapitalize="none"/);
+  assert.doesNotMatch(html, /地域（地域に依存しない場合は空欄）/);
+  assert.match(html, /地域を指定して診断する/);
+  assert.match(html, /id="region-enabled"[^>]*role="switch"/);
+  assert.match(html, /id="region-condition-list"/);
+  assert.match(html, /最大3件/);
+  assert.match(script, /region_conditions=selectedRegionConditions\(\)/);
   assert.match(script, /openIdentityModal/);
   assert.match(script, /closeIdentityModal/);
   assert.match(script, /history\.replaceState/);

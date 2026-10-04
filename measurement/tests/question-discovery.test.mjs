@@ -25,6 +25,29 @@ test('recommends a dynamic 6:4 mix and a customer-readable reason for Kyoudo', (
   assert.deepEqual([mix.discovery_count, mix.brand_count], [6, 4]); assert.match(mix.reason, /地域/); assert.doesNotMatch(mix.reason, /スコア|heuristic/i);
 });
 
+test('keeps up to three user-entered region conditions independent without splitting or joining them',()=>{
+  const separate=structuredClone(kyoudo);separate.entity.region_enabled=true;separate.entity.region_conditions=['市川','浦安'];
+  const separateResult=generateQuestionDiscovery(separate);const separateText=separateResult.questions.map(item=>item.question_text);
+  assert.deepEqual(separateResult.entity.region_conditions,['市川','浦安']);
+  assert.ok(separateText.some(text=>text.startsWith('市川で、')));assert.ok(separateText.some(text=>text.startsWith('浦安で、')));
+  assert.ok(separateText.every(text=>!text.includes('市川・浦安')));assert.ok(separateText.filter(text=>/^(市川|浦安)で、/.test(text)).length<10);
+  const combined=structuredClone(kyoudo);combined.entity.region_enabled=true;combined.entity.region_conditions=['市川・浦安'];
+  const combinedResult=generateQuestionDiscovery(combined);assert.deepEqual(combinedResult.entity.region_conditions,['市川・浦安']);
+  assert.ok(combinedResult.questions.some(item=>item.question_text.startsWith('市川・浦安で、')));
+  assert.ok(combinedResult.questions.every(item=>!item.question_text.startsWith('市川で、')&&!item.question_text.startsWith('浦安で、')));
+});
+
+test('does not turn company location into a search region when region targeting is off',()=>{
+  const input=structuredClone(kyoudo);input.entity.region='千葉県市川市';input.entity.region_enabled=false;input.entity.region_conditions=[];
+  const result=generateQuestionDiscovery(input);assert.equal(result.entity.region,'千葉県市川市');assert.deepEqual(result.entity.region_conditions,[]);
+  assert.ok(result.questions.every(item=>!item.question_text.includes('千葉県市川市')));assert.equal(result.mix.inputs.local,false);
+});
+
+test('rejects more than three region conditions before question generation',()=>{
+  const input=structuredClone(kyoudo);input.entity.region_enabled=true;input.entity.region_conditions=['A','B','C','D'];
+  assert.throws(()=>generateQuestionDiscovery(input),/最大3件/);
+});
+
 test('generates ten traceable Kyoudo questions with purpose, reason and alternatives', () => {
   const result = generateQuestionDiscovery(kyoudo);
   assert.equal(result.questions.length, 10); assert.equal(new Set(result.questions.map(item => item.question_text)).size, 10);

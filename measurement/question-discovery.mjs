@@ -2,11 +2,12 @@ const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
 const list=v=>Array.isArray(v)?v.map(clean).filter(Boolean):[];
 const uniq=v=>[...new Set(v.map(clean).filter(Boolean))];
 const key=v=>clean(v).normalize('NFKC').toLowerCase().replace(/[？！?！。、,.「」『』\s]/g,'');
-const isLocal=e=>e.entity_type==='company'&&e.region&&!/^(全国|日本全国|国内|オンライン)$/.test(e.region);
+const isLocal=e=>e.entity_type==='company'&&e.region_enabled&&e.region_conditions.length>0;
 
 export function normalizeDiscoveryInput(raw={}){
   const e=raw.entity||raw;
-  return {entity:{id:clean(e.id||e.identity_id),identity_id:clean(e.identity_id||e.id),name:clean(e.name),entity_type:clean(e.entity_type||'company'),identity_type:clean(e.identity_type||e.entity_type||'company'),official_url:clean(e.official_url||e.url),canonical_domain:clean(e.canonical_domain),operator_name:clean(e.operator_name),identification_status:clean(e.identification_status||'confirmed'),region:clean(e.region||e.area),display_region:clean(e.display_region||e.region||e.area),industry:clean(e.industry||e.category),main_services:uniq(e.main_services||e.services||[]),main_products:uniq(e.main_products||e.products||[]),faq:list(e.faq),headings:list(e.headings),target_customers:list(e.target_customers),aliases:uniq(e.aliases||[]),api_location_name:clean(e.api_location_name),api_location_code:Number.isInteger(Number(e.api_location_code))?Number(e.api_location_code):null,api_language_code:clean(e.api_language_code||'ja')},source_signals:(raw.source_signals||[]).map(s=>typeof s==='string'?{type:'existing',value:clean(s),source:'取得済み情報'}:{type:clean(s.type||'existing'),value:clean(s.value||s.label),source:clean(s.source)||'取得済み情報',url:clean(s.url)}).filter(s=>s.value),intents:uniq(raw.intents||[]),related_search_signals:uniq(raw.related_search_signals||raw.search_demand_signals||[])};
+  const regionEnabled=e.region_enabled===true||e.region_enabled==='true';const regionConditions=regionEnabled?uniq(Array.isArray(e.region_conditions)?e.region_conditions:[]):[];if(regionConditions.length>3)throw new TypeError('地域条件は最大3件までです。');
+  return {entity:{id:clean(e.id||e.identity_id),identity_id:clean(e.identity_id||e.id),name:clean(e.name),entity_type:clean(e.entity_type||'company'),identity_type:clean(e.identity_type||e.entity_type||'company'),official_url:clean(e.official_url||e.url),canonical_domain:clean(e.canonical_domain),operator_name:clean(e.operator_name),identification_status:clean(e.identification_status||'confirmed'),region:clean(e.region||e.area),region_enabled:regionEnabled,region_conditions:regionConditions,display_region:clean(e.display_region||e.region||e.area),industry:clean(e.industry||e.category),main_services:uniq(e.main_services||e.services||[]),main_products:uniq(e.main_products||e.products||[]),faq:list(e.faq),headings:list(e.headings),target_customers:list(e.target_customers),aliases:uniq(e.aliases||[]),api_location_name:clean(e.api_location_name),api_location_code:Number.isInteger(Number(e.api_location_code))?Number(e.api_location_code):null,api_language_code:clean(e.api_language_code||'ja')},source_signals:(raw.source_signals||[]).map(s=>typeof s==='string'?{type:'existing',value:clean(s),source:'取得済み情報'}:{type:clean(s.type||'existing'),value:clean(s.value||s.label),source:clean(s.source)||'取得済み情報',url:clean(s.url)}).filter(s=>s.value),intents:uniq(raw.intents||[]),related_search_signals:uniq(raw.related_search_signals||raw.search_demand_signals||[])};
 }
 
 export function recommendQuestionMix(raw){
@@ -45,24 +46,26 @@ function fallbacks(input,detected=[]){
     let question=`${offering}について相談先を探している`;
     if(input.entity.entity_type==='product')question=`${offering}に使えるツールを比較したい`;
     else if(/相続|税務/.test(input.entity.industry))question=`${offering}の実績が豊富な税理士は？`;
-    else if(/住宅購入/.test(offering))question=`${input.entity.region}で住宅購入を資金計画から相談できる不動産会社は？`;
-    else if(/賃貸$/.test(offering))question=`${input.entity.region}で賃貸物件を探すなら、どの不動産会社が候補？`;
-    else if(/売却/.test(offering))question=`${input.entity.region}で家を売るとき、査定や売却方法を相談できる会社は？`;
+    else if(/住宅購入/.test(offering))question='住宅購入を資金計画から相談できる不動産会社は？';
+    else if(/賃貸$/.test(offering))question='賃貸物件を探すなら、どの不動産会社が候補？';
+    else if(/売却/.test(offering))question='家を売るとき、査定や売却方法を相談できる会社は？';
     return {id:`offering-${key(offering)}`,intent:i%3===0?'発見':i%3===1?'比較':'利用判断',situation:`${offering}を検討している`,axis:i%3===0?'候補発見':i%3===1?'比較条件':'利用判断',question,purpose:`${offering}を検討する利用者に、AIが対象${input.entity.entity_type==='product'?'製品':'企業'}を有力な選択肢として挙げるか確認します。`,evidence:[{type:'service_or_product',value:offering,source:'企業・製品情報'}]};
   });
 }
 
-function discoveryText(e,s){
-  if(s.question.endsWith('？')) return s.question;
+function discoveryText(e,s,region=''){
+  const prefix=region?`${region}で、`:'';
+  if(s.question.endsWith('？')) return `${prefix}${s.question}`;
   if(e.entity_type==='product') return `${s.question}。どの製品が適している？`;
   if(e.entity_type==='service') return `${s.question}とき、どのサービスが向いている？`;
   if(e.entity_type==='brand') return `${s.situation}人に評価されているブランドは？`;
-  return `${isLocal(e)?`${e.region}で、`:''}${s.question}。どの会社へ相談すべき？`;
+  return `${prefix}${s.question}。どの会社へ相談すべき？`;
 }
-function alternatives(e,s){
+function alternatives(e,s,region=''){
   if(e.entity_type==='product') return [`${s.situation}。少人数でも導入しやすいツールは？`,`${s.situation}。専門知識なしで使いやすいサービスは？`,`${s.situation}。既存業務から移行しやすい製品は？`];
-  const p=isLocal(e)?`${e.region}で、`:''; return [`${p}${s.situation}場合、実績を確認できる相談先は？`,`${p}${s.situation}場合、専門性で選ぶならどこ？`,`${p}${s.situation}場合、相談前に何を比較すべき？`];
+  const p=region?`${region}で、`:''; return [`${p}${s.situation}場合、実績を確認できる相談先は？`,`${p}${s.situation}場合、専門性で選ぶならどこ？`,`${p}${s.situation}場合、相談前に何を比較すべき？`];
 }
+function regionForQuestion(e,index){if(!isLocal(e)||index%2!==0)return'';return e.region_conditions[index/2]||''}
 function brandAlternatives(e,intent,offering){
   const n=e.name;
   if(intent.includes('価格'))return [`${n}を利用すると総額はいくらかかる？`,`${n}にはどんな契約条件や制限がある？`];
@@ -87,7 +90,7 @@ export function qaGeneratedQuestions(candidates,entityName){
 export function generateQuestionDiscovery(raw){
   const input=normalizeDiscoveryInput(raw),e=input.entity;if(!e.name||!e.industry||(!e.main_services.length&&!e.main_products.length))throw new TypeError('企業名、業種、主要サービスまたは商品が必要です。');
   const mix=recommendQuestionMix(input),detected=scenarios(input),selected=[],used=new Set();for(const s of [...detected,...fallbacks(input,detected)]){if(selected.length>=mix.discovery_count)break;if(!used.has(s.id)){used.add(s.id);selected.push(s)}}if(selected.length<mix.discovery_count)throw new Error(`根拠のある利用場面が不足しています（${selected.length}/${mix.discovery_count}）。`);
-  const candidates=selected.map((s,i)=>({question_text:discoveryText(e,s),kind:'nonbrand',intent:s.intent,scenario_id:s.id,decision_axis:s.axis,selection_reason:`${s.evidence[0].source}で「${s.evidence[0].value}」を確認でき、顧客の「${s.situation}」場面に関係するため選びました。`,measurement_purpose:s.purpose,alternatives:alternatives(e,s),evidence:s.evidence,generation_rule:`scenario:${s.id}:${i+1}`}));
+  const candidates=selected.map((s,i)=>{const region=regionForQuestion(e,i),regionEvidence=region?[{type:'user_region_condition',value:region,source:'ユーザーが指定した地域条件'}]:[];return{question_text:discoveryText(e,s,region),kind:'nonbrand',intent:s.intent,scenario_id:s.id,decision_axis:s.axis,selection_reason:`${s.evidence[0].source}で「${s.evidence[0].value}」を確認でき、顧客の「${s.situation}」場面に関係するため選びました。${region?`指定された地域条件「${region}」をこの質問に使用します。`:''}`,measurement_purpose:s.purpose,alternatives:alternatives(e,s,region),evidence:[...s.evidence,...regionEvidence],generation_rule:`scenario:${s.id}:${i+1}`} });
   const identitySource=e.official_url?'公式サイト':'確認済みの対象情報';const templates=BRAND[e.entity_type]||BRAND.company,offering=e.main_services[0]||e.main_products[0];for(let i=0;i<mix.brand_count;i++){const [intent,make,purpose]=templates[i%templates.length];candidates.push({question_text:make(e.name,offering),kind:'branded',intent,scenario_id:`brand-${intent}`,decision_axis:intent,selection_reason:`${identitySource}で対象名と提供内容を確認でき、${intent}が購入・依頼前の判断に必要なため選びました。`,measurement_purpose:purpose,alternatives:brandAlternatives(e,intent,offering),evidence:[{type:'official_entity',value:e.name,source:identitySource}],generation_rule:`brand:${e.entity_type}:${intent}`})}
   const qa=qaGeneratedQuestions(candidates,e.name);if(qa.accepted.length!==10)throw new Error(`QA通過後の質問が10問に達しません（${qa.accepted.length}/10）。`);
   const questions=qa.accepted.map((q,i)=>({id:`qd-${String(i+1).padStart(2,'0')}`,order:i+1,...q,source_signals:q.evidence.map(x=>x.value),discovery_evidence:q.evidence,generation_source:'rule_based_v2',proposed_question_text:q.question_text,proposed_kind:q.kind,user_modified:false,confirmed:false}));return {schema_version:'question-discovery-v2',generated_at:new Date().toISOString(),entity:e,inputs:input,mix,questions,rejected:qa.rejected};
