@@ -226,3 +226,61 @@ body.identity-modal-open{overflow:hidden}
   .end{width:calc(100% - 24px)!important;padding:22px 18px!important}.end .brand small{display:none}.end>a:last-child{font-size:13px!important}
   .diagnosis-dashboard{width:calc(100% - 24px)!important;display:block!important;margin:24px auto 50px!important}.dashboard-jumpnav{position:static;display:flex!important;flex-direction:row;overflow:auto!important;padding:0 12px!important;scrollbar-width:none}.dashboard-jumpnav::-webkit-scrollbar{display:none}.dashboard-jumpnav:before{display:none}.dashboard-jumpnav a{white-space:nowrap;padding:13px 10px!important}.diagnosis-dashboard>header{padding:26px 20px!important}.diagnosis-dashboard>header h2{font-size:29px!important}.diagnosis-dashboard .dashboard-metrics.primary{grid-template-columns:1fr!important;padding:16px 20px!important}.diagnosis-dashboard .dashboard-metrics.primary .dashboard-metric{grid-column:auto!important;border-right:0!important;border-bottom:1px solid var(--m-line)!important}.dashboard-section{padding:28px 20px!important}.dashboard-two-column{display:block!important}.compact-hero{width:calc(100% - 24px)!important;padding:32px 22px!important}.report-tools,.reliability-common-note,.search-report,.end,.sample-next-step{width:calc(100% - 24px)!important}.answer-markdown,.answer-markdown p,.answer-markdown li{font-size:16px!important}.query-block summary h3{font-size:19px!important}
 }
+
+/* Purchase confirmation: one decision, one clear action */
+.checkout-review-active main{min-height:0;background:linear-gradient(180deg,#f4f8fd 0,#fff 100%)}
+.checkout-review-active #input-stage,
+.checkout-review-active #questions-stage,
+.checkout-review-active #progress-stage,
+.checkout-review-active #what-we-measure,
+.checkout-review-active #how-it-works,
+.checkout-review-active .sample-story,
+.checkout-review-active #price,
+.checkout-review-active #monitoring-stage,
+.checkout-review-active #report{display:none!important}
+.checkout-review-active #sales-error:empty{display:none}
+.checkout-review-active footer{margin-top:0}
+.purchase-confirmation{
+  width:min(760px,calc(100% - 40px));
+  margin:54px auto 44px;
+  padding:50px 58px 42px;
+  border:1px solid #d9e5f2;
+  border-radius:18px;
+  background:#fff;
+  box-shadow:0 24px 70px rgba(13,48,87,.12);
+  text-align:center;
+}
+.purchase-confirmation .eyebrow{margin:0 0 12px;color:#1767e8;font-size:12px;font-weight:900;letter-spacing:.14em}
+.purchase-confirmation h1{margin:0;color:#071526;font-size:clamp(34px,4vw,46px);line-height:1.2;letter-spacing:-.035em;outline:0}
+.checkout-summary{max-width:610px;margin:20px auto 0;color:#475d74;font-size:17px;line-height:1.85}
+.checkout-mobile-break{display:none}
+.checkout-price{margin:26px 0 22px;color:#071526;font-size:42px;font-weight:900;line-height:1.1;letter-spacing:-.04em}
+.checkout-price span{font-size:17px;font-weight:700;letter-spacing:0}
+#checkout-controls{display:grid;justify-items:center;gap:12px}
+#checkout-controls[hidden],#cf-turnstile[hidden]{display:none!important}
+#checkout-controls #checkout{width:min(100%,440px);min-height:58px;margin:0;border:0;border-radius:9px;background:linear-gradient(135deg,#0b1e33,#12385c);box-shadow:0 12px 28px rgba(4,26,49,.2);color:#fff;font-size:17px;font-weight:900;letter-spacing:.015em;cursor:pointer}
+#checkout-controls #checkout:hover{transform:translateY(-1px);box-shadow:0 15px 32px rgba(4,26,49,.25)}
+#checkout-controls #checkout:focus-visible{outline:3px solid rgba(23,103,232,.28);outline-offset:3px}
+#checkout-controls #checkout:disabled{cursor:wait;opacity:.58;transform:none}
+.checkout-payment-note{margin:0;color:#6b7d90;font-size:13px;line-height:1.6}
+.purchase-confirmation .sales-paused{max-width:540px;margin:18px auto 0;text-align:left}
+.diagnosis-notes{margin-top:34px;padding-top:27px;border-top:1px solid #e2eaf3;text-align:left}
+.diagnosis-notes h2{margin:0 0 13px;color:#1c3045;font-size:16px;line-height:1.4}
+.diagnosis-notes ul{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.diagnosis-notes li{position:relative;margin:0;padding-left:17px;color:#5f7185;font-size:13px;line-height:1.65}
+.diagnosis-notes li:before{content:"";position:absolute;left:2px;top:.72em;width:4px;height:4px;border-radius:50%;background:#7f93a8}
+
+@media(max-width:700px){
+  .purchase-confirmation{width:calc(100% - 24px);margin:22px auto 28px;padding:34px 20px 30px;border-radius:14px}
+  .purchase-confirmation h1{font-size:32px}
+  .checkout-summary{margin-top:16px;font-size:16px;line-height:1.75}
+  .checkout-summary br:not(.checkout-mobile-break){display:none}
+  .checkout-mobile-break{display:block}
+  .checkout-price{margin:23px 0 20px;font-size:36px}
+  .checkout-price span{font-size:16px}
+  #checkout-controls #checkout{min-height:56px;font-size:16px}
+  .checkout-payment-note{max-width:290px}
+  .purchase-confirmation .sales-paused{margin-top:16px}
+  .diagnosis-notes{margin-top:28px;padding-top:24px}
+  .diagnosis-notes li{font-size:13px}
+}

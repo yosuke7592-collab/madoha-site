@@ -98,6 +98,24 @@ test('ten-question review keeps the metadata internal and presents direct editin
   assert.match(css, /@media\(max-width:700px\)[\s\S]*\.question-review\{width:calc\(100% - 24px\)/);
 });
 
+test('purchase confirmation isolates the buying decision while sales remain guarded', async () => {
+  const [html, script, css] = await Promise.all([load('index.html'), load('sales.js'), load('brand-v4.css')]);
+  assert.match(html, /class="product-stage upgrade-value purchase-confirmation"/);
+  assert.match(html, /<p class="checkout-price">9,800円<span>（税込）<\/span><\/p>/);
+  assert.match(html, />9,800円で診断を開始<\/button>/);
+  assert.match(html, /診断結果は実行時点のAI検索結果を記録したものです/);
+  assert.match(html, /診断開始後の10質問は測定条件として固定されます/);
+  assert.doesNotMatch(html, /AIへの掲載状況と、会社名なしでも候補に入るか/);
+  assert.doesNotMatch(html, /3つのAIごとの違いと質問別の強み・弱み/);
+  assert.match(script, /function setCheckoutReviewActive/);
+  assert.match(script, /if\(!salesEnabled\)\{\$\('#sales-paused'\)\.hidden=false/);
+  assert.match(script, /showCheckoutStage\(\)/);
+  assert.match(css, /\.checkout-review-active #what-we-measure/);
+  assert.match(css, /\.checkout-review-active \.sample-story/);
+  assert.match(css, /\.checkout-review-active #price/);
+  assert.doesNotMatch(css, /\.checkout-review-active footer\{display:none/);
+});
+
 test('sample chrome keeps only the compact MADOHA and diagnosis footer links', async () => {
   const [html, script] = await Promise.all([load('sample.html'), load('sample-kyoudo.js')]);
   assert.doesNotMatch(html, /class="header-cta"/);

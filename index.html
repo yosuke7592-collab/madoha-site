@@ -15,8 +15,8 @@
   <link rel="stylesheet" href="top-v3.css?v=4">
   <link rel="stylesheet" href="reference-ui.css?v=1">
   <link rel="stylesheet" href="top-width.css?v=1">
-  <link rel="stylesheet" href="brand-v4.css?v=7">
-  <script type="module" src="sales.js?v=15"></script>
+  <link rel="stylesheet" href="brand-v4.css?v=8">
+  <script type="module" src="sales.js?v=16"></script>
 </head>
 <body>
 <a class="skip-link" href="#identity-search">診断対象の検索へ</a>
@@ -76,7 +76,27 @@
       <button id="accept-warnings" type="button" hidden>注意点を確認して、このまま使用</button>
     </div>
   </section>
-  <section id="checkout-stage" class="product-stage upgrade-value" hidden><p class="eyebrow">INITIAL DIAGNOSIS</p><h2>初回AI検索診断</h2><p>確定した10質問をChatGPT・Gemini・Google AI Modeで実測し、合計30回答をWebとPDFにまとめます。</p><p class="price">9,800円 <small>税込・1回払い</small></p><ul><li>AIへの掲載状況と、会社名なしでも候補に入るか</li><li>3つのAIごとの違いと質問別の強み・弱み</li><li>競合、推薦、第一候補、参照情報</li><li>30件すべてのAI回答と根拠情報</li></ul><div id="sales-paused" class="sales-paused" role="status" hidden><strong>現在、診断の受付準備中です</strong><span>診断する10質問は保存されています。受付開始後にこの続きから進められます。</span></div><div id="checkout-controls"><div id="cf-turnstile"></div><button id="checkout" type="button" disabled>9,800円（税込）で診断を開始する</button><p>カード情報はStripeの決済画面で入力します。会員登録・月額課金はありません。</p></div></section>
+  <section id="checkout-stage" class="product-stage upgrade-value purchase-confirmation" hidden>
+    <p class="eyebrow">INITIAL DIAGNOSIS</p>
+    <h1 id="checkout-title" tabindex="-1">初回AI検索診断</h1>
+    <p class="checkout-summary">確定した10質問を<br class="checkout-mobile-break">ChatGPT・Gemini・Google AI Modeで実際に調査し、<br>合計30回答をWebとPDFにまとめます。</p>
+    <p class="checkout-price">9,800円<span>（税込）</span></p>
+    <div id="checkout-controls">
+      <div id="cf-turnstile"></div>
+      <button id="checkout" type="button" disabled>9,800円で診断を開始</button>
+      <p class="checkout-payment-note">カード情報はStripeの決済画面で入力します。会員登録・月額課金はありません。</p>
+    </div>
+    <div id="sales-paused" class="sales-paused" role="status" hidden><strong>現在、診断の受付準備中です</strong><span>診断する10質問は保存されています。受付開始後にこの続きから進められます。</span></div>
+    <div class="diagnosis-notes">
+      <h2>診断について</h2>
+      <ul>
+        <li>診断結果は実行時点のAI検索結果を記録したものです</li>
+        <li>AIの回答内容や掲載状況は、日時や各サービスの仕様変更により変化する場合があります</li>
+        <li>MADOHAは各AIサービスの公式UIそのものを再現するものではなく、各サービスの検索対応API等を利用して測定します</li>
+        <li>診断開始後の10質問は測定条件として固定されます</li>
+      </ul>
+    </div>
+  </section>
   <section id="progress-stage" class="product-stage" hidden aria-live="polite"><p class="eyebrow">RESEARCH PROGRESS</p><h1 id="progress-label"></h1><p id="progress-count"></p></section><p id="sales-error" role="alert"></p>
   <section id="what-we-measure" class="story-section measure-story"><div class="measure-copy"><p class="section-kicker">PROBLEM</p><h2>候補に入るか<br>どう説明されるか</h2><p>顧客や取引先、求職者がAIへ質問する時代です。あなたの会社がどのように紹介され、どの競合と比較され、どんな情報が参照されているのかを可視化します。</p></div><div class="fact-list"><p><span class="fact-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><circle cx="14" cy="14" r="7"/><path d="m19 19 5 5"/><path d="M13 10.5v7M9.5 14h7"/><path d="M24 6v4M22 8h4"/></svg></span><b>自社はAIに正しく<br>紹介されているか</b></p><p><span class="fact-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><rect x="5" y="15" width="6" height="11" rx="2"/><rect x="13" y="9" width="6" height="17" rx="2"/><rect x="21" y="5" width="6" height="21" rx="2"/><path d="m6 10 6-4 5 2 8-5"/><path d="m22 3 3 .2-.6 3"/></svg></span><b>競合と比べて<br>どう評価されているか</b></p><p><span class="fact-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M9 5h11l4 4v17H9z"/><path d="M20 5v5h4M13 15h7M13 19h7"/><circle cx="7" cy="24" r="3"/><path d="m9.5 22.5 4-3"/></svg></span><b>どの情報が<br>参照されているか</b></p><p><span class="fact-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="m16 5 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2-4.5-4.4 6.2-.9z"/><path d="M6 27h20"/></svg></span><b>AIに推薦される<br>可能性があるか</b></p></div></section>
   <section id="how-it-works" class="story-section workflow-story"><div class="workflow-copy"><p class="section-kicker">HOW IT WORKS</p><h2><span>3つのAIから</span><span>同じ条件で観測</span></h2><p>MADOHAは、同じ10の質問を3つのAIへ投げ、その回答を収集・分析。あなたの会社の見え方を客観的なデータとして可視化します。</p></div><ol class="workflow-steps"><li><i>01</i><span class="step-symbol">⌕</span><b>対象を入力</b><small>会社名・サービス名・URLから対象を特定</small></li><li><i>02</i><span class="step-symbol">▤</span><b>10の質問を自動生成</b><small>顧客の検討場面から質問を設計</small></li><li><i>03</i><span class="step-symbol">◉</span><b>3つのAIで同時検索</b><small>同じ条件で実際の回答を取得</small></li><li><i>04</i><span class="step-symbol">▥</span><b>30の回答を分析</b><small>競合・参照元・改善候補まで可視化</small></li></ol></section>
