@@ -11,7 +11,20 @@
 .diagnosis-running-note { margin-top: 22px; }
 .diagnosis-running-note span,
 .result-access-note span { color: #53657a; }
+.result-access-note small {
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px solid #dbe7f3;
+  color: #65778b;
+  font-size: 12px;
+  line-height: 1.75;
+}
 .result-access-note { max-width: 1120px; margin: 28px auto; padding: 22px 28px; }
+.diagnosis-delivery-note,
+.diagnosis-support-note { margin: 16px 0 0; color: #53677c; font-size: 13px; line-height: 1.75; }
+.diagnosis-support-note { margin-top: 7px; }
+.diagnosis-support-note button { border: 0; padding: 0; background: none; color: #155fbe; font: inherit; text-decoration: underline; cursor: pointer; }
+.diagnosis-support-note a { color: #155fbe; }
 .global-footer-inner nav button {
   border: 0;
   padding: 0;

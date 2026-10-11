@@ -113,8 +113,16 @@ test('purchase confirmation isolates the buying decision while sales remain guar
   assert.match(html, /class="product-stage upgrade-value purchase-confirmation"/);
   assert.match(html, /<p class="checkout-price">9,800円<span>（税込）<\/span><\/p>/);
   assert.match(html, />9,800円で診断を開始<\/button>/);
-  assert.match(html, /診断結果は実行時点のAI検索結果を記録したものです/);
+  assert.match(html, /診断結果は実施時点のAI検索結果/);
   assert.match(html, /診断開始後の10質問は測定条件として固定されます/);
+  assert.match(html, /掲載・推薦・順位や、改善による効果を保証するものではありません/);
+  assert.match(html, /購入時のメールアドレスへ結果URLをお送りします/);
+  assert.match(html, /data-open-result-resend/);
+  assert.match(html, /info@madoha\.jp/);
+  assert.match(html, /legal\.html#terms/);
+  assert.match(html, /legal\.html#privacy/);
+  assert.match(html, /legal\.html#commerce/);
+  assert.match(script, /openResultResendDialog/);
   assert.doesNotMatch(html, /AIへの掲載状況と、会社名なしでも候補に入るか/);
   assert.doesNotMatch(html, /3つのAIごとの違いと質問別の強み・弱み/);
   assert.match(script, /function setCheckoutReviewActive/);
@@ -124,6 +132,18 @@ test('purchase confirmation isolates the buying decision while sales remain guar
   assert.match(css, /\.checkout-review-active \.sample-story/);
   assert.match(css, /\.checkout-review-active #price/);
   assert.doesNotMatch(css, /\.checkout-review-active footer\{display:none/);
+});
+
+test('legal page covers service limits, privacy and commerce disclosures', async () => {
+  const legal = await load('legal.html');
+  assert.match(legal, /id="terms"/);
+  assert.match(legal, /id="privacy"/);
+  assert.match(legal, /id="commerce"/);
+  assert.match(legal, /9,800円（税込）/);
+  assert.match(legal, /掲載、推薦、順位および改善効果を保証しません/);
+  assert.match(legal, /MADOHAでは保持しません/);
+  assert.match(legal, /株式会社SOG/);
+  assert.match(legal, /info@madoha\.jp/);
 });
 
 test('sample chrome keeps only the compact MADOHA and diagnosis footer links', async () => {

@@ -16,8 +16,8 @@
   <link rel="stylesheet" href="reference-ui.css?v=1">
   <link rel="stylesheet" href="top-width.css?v=1">
   <link rel="stylesheet" href="brand-v4.css?v=11">
-  <link rel="stylesheet" href="result-access.css?v=1">
-  <script type="module" src="sales.js?v=18"></script>
+  <link rel="stylesheet" href="result-access.css?v=2">
+  <script type="module" src="sales.js?v=19"></script>
 </head>
 <body>
 <a class="skip-link" href="#identity-search">診断対象の検索へ</a>
@@ -91,11 +91,13 @@
     <div class="diagnosis-notes">
       <h2>診断について</h2>
       <ul>
-        <li>診断結果は実行時点のAI検索結果を記録したものです</li>
-        <li>AIの回答内容や掲載状況は、日時や各サービスの仕様変更により変化する場合があります</li>
-        <li>MADOHAは各AIサービスの公式UIそのものを再現するものではなく、各サービスの検索対応API等を利用して測定します</li>
+        <li>診断結果は実施時点のAI検索結果であり、回答内容や掲載状況は後から変化する場合があります</li>
+        <li>ChatGPT・Gemini・Google AI Modeに対応する検索機能・API等で測定し、一般向け画面を完全に再現するものではありません</li>
+        <li>掲載・推薦・順位や、改善による効果を保証するものではありません</li>
         <li>診断開始後の10質問は測定条件として固定されます</li>
       </ul>
+      <p class="diagnosis-delivery-note">診断完了後、購入時のメールアドレスへ結果URLをお送りします。画面を閉じても診断は継続します。</p>
+      <p class="diagnosis-support-note">メールが確認できない場合は「<button type="button" data-open-result-resend>診断結果URLを再送</button>」をご利用ください。それでも確認できない場合は <a href="mailto:info@madoha.jp">info@madoha.jp</a> へお問い合わせください。</p>
     </div>
   </section>
   <section id="progress-stage" class="product-stage" hidden aria-live="polite"><p class="eyebrow">RESEARCH PROGRESS</p><h1 id="progress-label"></h1><p id="progress-count"></p><div id="diagnosis-running-note" class="diagnosis-running-note" hidden><strong>この画面を閉じても診断は継続します</strong><span>診断完了後、購入時のメールアドレスへ結果を見るためのURLをお送りします。</span></div></section><p id="sales-error" role="alert"></p>
@@ -105,9 +107,9 @@
   <section id="price" class="purchase-story"><p class="section-kicker">INITIAL AI SEARCH DIAGNOSIS</p><h2>初回AI検索診断</h2><p>10の質問 × 3つのAI。30の実測結果をWebとPDFで納品します。</p><div><span><small>税込</small><strong>9,800<em>円</em></strong></span><a href="index.html">今すぐ診断する →</a></div><ul><li>クレジットカードで1回払い</li><li>診断完了後すぐにレポート表示</li><li>PDFでダウンロード可能</li></ul></section>
 </main>
 <div id="report"></div>
-<section id="result-access-note" class="result-access-note" hidden><strong>この診断結果は後から再閲覧できます</strong><span>購入時のメールに届いた専用URLから、いつでも結果を確認できます。PDF保存／印刷もご利用いただけます。</span></section>
+<section id="result-access-note" class="result-access-note" hidden><strong>この診断結果は後から再閲覧できます</strong><span>購入時のメールに届いた専用URLから、いつでも結果を確認できます。PDF保存／印刷もご利用いただけます。</span><small>本結果は記載された測定日時・条件で確認したAI検索結果です。回答や掲載状況は変化する場合があり、参照情報や他社の掲載状況は掲載順位やその要因を示すものではありません。</small></section>
 <section id="monitoring-stage" class="product-stage upgrade-value" hidden><p class="eyebrow">NEXT STEP</p><h2>変化を継続して確認したい方へ</h2><p>今回確定した質問を基準に、AI検索上の変化を月次で比較できるモニタリング機能を準備しています。</p><button id="monitoring-interest" type="button">月次モニタリングに興味がある</button></section>
-<footer><div class="global-footer-inner"><a class="brand" href="index.html">MADOHA</a><p>AI検索で企業がどう見えているかを観測する。</p><nav><a href="sample.html">完成版サンプル</a><a href="company.html">MADOHAについて</a><button id="open-result-resend" type="button">診断結果URLを再送</button></nav></div></footer>
+<footer><div class="global-footer-inner"><a class="brand" href="index.html">MADOHA</a><p>AI検索で企業がどう見えているかを観測する。</p><nav><a href="sample.html">完成版サンプル</a><a href="company.html">MADOHAについて</a><a href="legal.html#terms">利用規約</a><a href="legal.html#privacy">プライバシー</a><a href="legal.html#commerce">特商法表示</a><button id="open-result-resend" type="button" data-open-result-resend>診断結果URLを再送</button></nav></div></footer>
 <dialog id="result-resend-dialog" class="result-resend-dialog" aria-labelledby="result-resend-title">
   <button id="close-result-resend" class="dialog-close" type="button" aria-label="閉じる">×</button>
   <p class="eyebrow">RESULT ACCESS</p>

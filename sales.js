@@ -56,7 +56,8 @@ function handleIdentityAnchor(){if(location.hash!=='#identity-search')return;req
 document.addEventListener('click',event=>{const link=event.target.closest('a[href="#identity-search"]');if(!link)return;event.preventDefault();scrollToIdentityEntry()});
 handleIdentityAnchor();
 const resendDialog=$('#result-resend-dialog'),resendForm=$('#result-resend-form'),resendStatus=$('#result-resend-status');
-$('#open-result-resend').onclick=()=>{resendStatus.textContent='';resendForm.reset();resendDialog.showModal();queueMicrotask(()=>$('#result-resend-email').focus())};
+function openResultResendDialog(){resendStatus.textContent='';resendForm.reset();resendDialog.showModal();queueMicrotask(()=>$('#result-resend-email').focus())}
+document.querySelectorAll('[data-open-result-resend]').forEach(button=>button.addEventListener('click',openResultResendDialog));
 $('#close-result-resend').onclick=()=>resendDialog.close();
 resendDialog.addEventListener('click',event=>{if(event.target===resendDialog)resendDialog.close()});
 resendForm.onsubmit=async event=>{event.preventDefault();const button=resendForm.querySelector('button[type="submit"]'),email=$('#result-resend-email').value.trim();if(!email){resendStatus.textContent='メールアドレスを入力してください。';return}button.disabled=true;resendStatus.textContent='確認しています…';try{const result=await api('result/resend','POST',{email});resendStatus.textContent=result.message||'該当する診断結果がある場合はメールを送信しました'}catch{resendStatus.textContent='時間をおいて、もう一度お試しください。'}finally{button.disabled=false}};

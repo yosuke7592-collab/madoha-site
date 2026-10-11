@@ -1,5 +1,5 @@
 import { normalizePublicUrl, runFreeCheck } from './free-check.mjs';
-import { applyStripeEvent, createCheckout, isIsolatedTestEnvironment, secureTextEqual, verifyCheckoutAccess, verifyStripeSignature } from './paid-diagnosis.mjs';
+import { applyStripeEvent, isIsolatedTestEnvironment, secureTextEqual, verifyCheckoutAccess, verifyStripeSignature } from './paid-diagnosis.mjs';
 import { finalizeLiveSmoke, getBuyerDiagnosis, processDiagnosisQueueMessage, reprocessCompletedDiagnosis, resumePendingGoogleAiMode, retryFailedGemini, retryGoogleAiModeLive } from './diagnosis-pipeline.mjs';
 import { confirmQuestionSet, getQuestionReview, saveQuestionDraft } from './question-review.mjs';
 import { generateAndSaveQuestionDiscovery } from './question-discovery.mjs';
@@ -137,12 +137,7 @@ export default {
       }
     }
     if (url.pathname === '/api/checkout' && request.method === 'POST') {
-      if (env.MADOHA_ENABLE_SALES_FLOW === 'true') return json({ error: '診断対象と10質問を確定してから購入してください。' }, 409);
-      try {
-        const body = await request.json();
-        const targetUrl = normalizePublicUrl(body?.url).href;
-        return json({ ok: true, ...(await createCheckout(env, { siteUrl: url.origin, targetUrl })) });
-      } catch (error) { return json({ ok: false, error: error.message || '決済を開始できませんでした。' }, 400); }
+      return json({ ok: false, error: '診断対象と10質問を確定してから購入してください。' }, 410);
     }
     if (url.pathname === '/api/stripe/webhook' && request.method === 'POST') {
       const raw = await request.text();
