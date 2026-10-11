@@ -95,6 +95,8 @@ test('ten-question review keeps the metadata internal and presents direct editin
   assert.match(css, /\.edit-question\{[^}]*background:transparent/);
   assert.match(css, /\.question-readonly\{[^}]*font:500 18px/);
   assert.match(css, /\.question-review-active #what-we-measure/);
+  assert.match(css, /\.question-review-active #what-we-measure,[\s\S]*\.question-review-active footer\{[\s\S]*display:none!important/);
+  assert.match(html, /brand-v4\.css\?v=11/);
   assert.match(css, /@media\(max-width:700px\)[\s\S]*\.question-review\{width:calc\(100% - 24px\)/);
 });
 

@@ -4,7 +4,7 @@ if(!document.querySelector('link[href*="dashboard-v2.css"]')){
   const dashboardStyles=document.createElement('link');dashboardStyles.rel='stylesheet';dashboardStyles.href='dashboard-v2.css?v=1';document.head.append(dashboardStyles);
 }
 if(!document.querySelector('link[data-dashboard-brand]')){
-  const brandStyles=document.createElement('link');brandStyles.rel='stylesheet';brandStyles.href='brand-v4.css?v=10';brandStyles.dataset.dashboardBrand='true';document.head.append(brandStyles);
+  const brandStyles=document.createElement('link');brandStyles.rel='stylesheet';brandStyles.href='brand-v4.css?v=11';brandStyles.dataset.dashboardBrand='true';document.head.append(brandStyles);
 }
 if(!document.querySelector('link[data-result-resilience]')){
   const resilienceStyles=document.createElement('link');resilienceStyles.rel='stylesheet';resilienceStyles.href='result-resilience.css?v=1';resilienceStyles.dataset.resultResilience='true';document.head.append(resilienceStyles);

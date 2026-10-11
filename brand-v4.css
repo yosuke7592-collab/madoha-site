@@ -317,6 +317,15 @@ body.identity-modal-open{overflow:hidden}
   }
 }
 
+/* The question review is an isolated step, including on narrow viewports. */
+.question-review-active #what-we-measure,
+.question-review-active #how-it-works,
+.question-review-active .sample-story,
+.question-review-active #price,
+.question-review-active footer{
+  display:none!important;
+}
+
 /* Provider marks and narrow source rows shared by sample and paid reports. */
 .provider-title{min-width:0}
 .provider-badge.provider-logo{
