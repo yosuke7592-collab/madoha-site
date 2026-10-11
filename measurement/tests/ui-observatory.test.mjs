@@ -155,7 +155,10 @@ test('about page shares the TOP brand system and explains MADOHA visually', asyn
 });
 
 test('paid dashboard exposes executive summary, provider comparison, matrix and Evidence navigation', async () => {
-  const [script, css, resilienceCss] = await Promise.all([load('sample-kyoudo.js'), load('observatory-ui.css'), load('result-resilience.css')]);
+  const [script, css, resilienceCss, brandCss, geminiLogo, googleLogo] = await Promise.all([
+    load('sample-kyoudo.js'), load('observatory-ui.css'), load('result-resilience.css'),
+    load('brand-v4.css'), load('gemini-logo.svg'), load('google-ai-logo.svg')
+  ]);
   assert.match(script, /AI SEARCH OBSERVATORY/);
   assert.match(script, /dashboard-summary/);
   assert.match(script, /質問 × 3AI/);
@@ -168,7 +171,17 @@ test('paid dashboard exposes executive summary, provider comparison, matrix and 
   assert.doesNotMatch(script, /よく参照されたドメイン/);
   assert.match(script, /正常に取得できた結果は/);
   assert.match(script, /measurementProvenance/);
+  assert.match(script, /chatgpt-logo\.svg/);
+  assert.match(script, /gemini-logo\.svg/);
+  assert.match(script, /google-ai-logo\.svg/);
+  assert.match(script, /channelIcon\(row\.channel\)/);
   assert.match(css, /@media\(max-width:430px\)/);
   assert.match(resilienceCss, /measurement-provenance/);
   assert.match(resilienceCss, /overflow-wrap: anywhere/);
+  assert.match(brandCss, /\.provider-badge\.provider-logo/);
+  assert.match(brandCss, /\.source-ranking li>span/);
+  assert.match(brandCss, /white-space:normal!important/);
+  assert.match(geminiLogo, /linearGradient/);
+  assert.match(googleLogo, /#4285F4/);
+  assert.match(googleLogo, /#34A853/);
 });

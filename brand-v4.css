@@ -316,3 +316,35 @@ body.identity-modal-open{overflow:hidden}
     grid-template-columns:minmax(82px,95px) minmax(40px,1fr) 35px;
   }
 }
+
+/* Provider marks and narrow source rows shared by sample and paid reports. */
+.provider-title{min-width:0}
+.provider-badge.provider-logo{
+  display:block!important;
+  width:28px!important;
+  height:28px!important;
+  flex:0 0 28px;
+  padding:0!important;
+  border:0!important;
+  border-radius:7px!important;
+  background:#fff!important;
+  object-fit:contain;
+}
+.provider-badge.provider-logo.chatgpt{border-radius:50%!important}
+.ai-result>header h4:before{content:none!important;display:none!important}
+.ai-result>header h4 .provider-logo{width:30px!important;height:30px!important;flex-basis:30px}
+.source-ranking li{min-width:0}
+.source-ranking b{min-width:0;word-break:normal;overflow-wrap:anywhere}
+
+@media(max-width:700px){
+  .source-ranking li{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    gap:4px!important;
+  }
+  .source-ranking li>span{
+    white-space:normal!important;
+    text-align:left!important;
+    line-height:1.6;
+  }
+}
