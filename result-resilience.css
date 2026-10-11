@@ -1,0 +1,96 @@
+.section-explainer {
+  margin: -10px 0 22px !important;
+  color: var(--obs-muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.empty-note {
+  color: var(--obs-muted);
+  line-height: 1.7;
+}
+
+.measurement-provenance,
+.measurement-conditions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 14px 0 20px;
+  padding: 12px 14px;
+  border: 1px solid var(--obs-line);
+  border-radius: 8px;
+  background: #f7fafd;
+}
+
+.measurement-provenance div,
+.measurement-conditions div {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.measurement-provenance dt,
+.measurement-conditions dt {
+  color: var(--obs-muted);
+  font-size: 12px;
+}
+
+.measurement-provenance dd,
+.measurement-conditions dd {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.compact-hero h1 {
+  max-width: calc(100% - 300px);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.compact-hero > p,
+.dashboard-kicker,
+.diagnosis-dashboard > header h2,
+.dashboard-summary {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.priorities article p small {
+  display: block;
+  margin-bottom: 3px;
+}
+
+.measurement-conditions {
+  margin: 18px 0;
+}
+
+.measurement-conditions div {
+  min-width: 180px;
+}
+
+@media (max-width: 800px) {
+  .compact-hero h1 {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 430px) {
+  .compact-hero > p,
+  .dashboard-kicker {
+    line-height: 1.7;
+  }
+
+  .measurement-provenance,
+  .measurement-conditions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+
+  .measurement-conditions div {
+    min-width: 0;
+  }
+}

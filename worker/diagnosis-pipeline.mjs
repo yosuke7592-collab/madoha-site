@@ -65,11 +65,7 @@ export function baseReport(order, questions) {
     measurement: { snapshotDate: new Date().toISOString().slice(0, 10), queryCount: 10, repetitions: 1 },
     queryDiscovery: { method: '対象企業のサービス、地域、検索需要、関連情報から確定した10問を使用' },
     queries: questions.map(question => ({ id: question.id, query: question.query, intent: question.intent, kind: question.kind, selectionReason: question.selection_reason, measurementPurpose: question.measurement_purpose, channels: [] })),
-    sources: [], actions: [
-      { target: 'AIが参照できる公式サイト情報を充実させる', change: '会社情報、対応サービス、対応地域を事実に基づいて整理する選択肢です。' },
-      { target: '第三者サイト上の企業情報を整理する', change: '公開されている会社情報の名称や内容を確認する選択肢です。' },
-      { target: '実績・事例・口コミなど不足情報を補う', change: '公開可能な事実がある場合に情報を追加する選択肢です。' }
-    ]
+    sources: [], actions: []
   };
 }
 
@@ -236,7 +232,7 @@ export async function processDiagnosisQueueMessage(env, body, options = {}) {
       const error = Object.assign(new Error('恒久的なプロバイダーエラーで診断を停止しました。'), { code: result.stopped.code });
       await failDiagnosis(env.DB, diagnosisId, error); return { action: 'ack', state: 'failed', result };
     }
-    const complete = result.measurements.filter(row => !row.error && !row.provider_metadata?.pending).length;
+    const complete = result.measurements.filter(row => !row.error && !row.provider_metadata?.pending && row.raw_answer?.trim()).length;
     if (complete === 30) {
       const report = measurementsToPaidReport(baseReport(order, questions), result.measurements);
       report.sources = [...new Map(result.measurements.flatMap(row => row.sources).map(source => [source.url, { name: source.title || source.domain, role: source.citation_text || 'AI回答が参照したWeb情報', url: source.url }])).values()];

@@ -193,6 +193,15 @@ export function measurementsToPaidReport(baseReport, measurements) {
           competitors: row.mentioned_entities.filter(item => !item.target).map(item => item.name),
           sources: row.sources.map(item => item.url), strengths: row.provider_metadata?.strengths || [],
           informationGaps: row.provider_metadata?.information_gaps || [], accuracy: row.provider_metadata?.accuracy || '要確認',
+          measuredAt: row.measured_at || null,
+          provenance: {
+            model: row.provider_metadata?.model || null,
+            retrievalMode: row.provider_metadata?.retrieval_mode || null,
+            apiLocationName: row.provider_metadata?.api_location_name || null,
+            apiLocationCode: row.provider_metadata?.api_location_code || null,
+            languageCode: row.provider_metadata?.language_code || null,
+            locale: row.locale || null
+          },
           reliability: row.reliability || { status: 'clear', warnings: [], local_information_present: false, raw_answer_preserved: true },
           error: row.error
         };
@@ -260,7 +269,7 @@ export class D1MeasurementStore {
     return row?.measurement_json ? JSON.parse(row.measurement_json) : null;
   }
   async save(row) {
-    const state = row.error ? 'failed' : row.provider_metadata?.pending ? 'submitted' : 'complete';
+    const state = row.error ? 'failed' : row.provider_metadata?.pending ? 'submitted' : !row.raw_answer?.trim() ? 'failed' : 'complete';
     await this.db.prepare(`INSERT INTO paid_measurements (diagnosis_id,question_id,channel,question_order,channel_order,run_id,status,estimated_cost_usd,measurement_json,measured_at,updated_at)
       VALUES (?,?,?,?,?,?,?,?,?,?,datetime('now')) ON CONFLICT(diagnosis_id,question_id,channel) DO UPDATE SET
       question_order=excluded.question_order,channel_order=excluded.channel_order,run_id=excluded.run_id,status=excluded.status,estimated_cost_usd=excluded.estimated_cost_usd,measurement_json=excluded.measurement_json,measured_at=excluded.measured_at,updated_at=datetime('now')`)
@@ -312,7 +321,7 @@ export async function runPaidMeasurements({ diagnosis, questions, adapters, stor
     }
   }
   const stored = await store.list(diagnosis.id);
-  const completeCount = stored.filter(row => !row.error && !row.provider_metadata?.pending).length;
+  const completeCount = stored.filter(row => !row.error && !row.provider_metadata?.pending && row.raw_answer?.trim()).length;
   const addCosts = (result, row, key) => ({ ...result, [row[key]]: round((result[row[key]] || 0) + row.estimated_cost) });
   const cost_by_channel = stored.reduce((result, row) => addCosts(result, row, 'channel'), {});
   const cost_by_question = stored.reduce((result, row) => addCosts(result, row, 'question_id'), {});

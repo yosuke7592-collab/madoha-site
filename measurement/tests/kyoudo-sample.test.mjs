@@ -49,10 +49,10 @@ test('report starts with ten search results and keeps evaluation labels out of c
   assert.match(reportSource, /ChatGPT/);
   assert.match(reportSource, /Gemini/);
   assert.match(reportSource, /Google AI Mode/);
-  assert.match(reportSource, /改善する場合の選択肢/);
+  assert.match(reportSource, /観測事実から追加で確認できること/);
   assert.match(reportSource, /特定の表示・推薦結果を保証するものではありません/);
-  assert.match(reportSource, /nonbrand\.length\*channelCount/);
-  assert.match(reportSource, /branded\.length\*channelCount/);
+  assert.match(reportSource, /validResultCount\(nonbrand\)/);
+  assert.match(reportSource, /validResultCount\(branded\)/);
   assert.match(reportSource, /index\+nonbrand\.length/);
   assert.match(reportSource, /hasWarning\?'注意あり':row\.answer\?'回答あり':'回答なし'/);
   assert.match(reportSource, /catalogSources=preferredSources/);
@@ -68,7 +68,7 @@ test('final sample shows substantial answers and keeps analysis secondary', () =
   assert.ok(rows.every(row => row.answer.length >= 75));
   assert.ok(rows.filter(row => row.comment).length <= 4);
   assert.ok(!JSON.stringify(sample.queries).match(/地域工務店|住宅メーカー|施工事例を公開する地域会社|売却実績を公開する地域会社/));
-  assert.match(reportSource, /data\.actions\.slice\(0,3\)/);
+  assert.match(reportSource, /actionCandidates\.slice\(0,4\)/);
   assert.match(reportSource, /sourceRole/);
   assert.match(reportSource, /host\(item\.url\)===host\(url\)/);
   assert.match(reportSource, /renderSafeMarkdown\(row\.answer/);

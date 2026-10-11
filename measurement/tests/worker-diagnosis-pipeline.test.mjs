@@ -26,7 +26,7 @@ class FakeDb {
           db.order.runner_lock_token = args[0]; db.order.diagnosis_status = 'running'; db.order.pipeline_state = 'measuring'; return { meta: { changes: 1 } };
         }
         if (sql.includes('completed_measurements=(SELECT COUNT')) {
-          const rows = await db.measurements.list(db.order.id); db.order.completed_measurements = rows.filter(row => !row.error && !row.provider_metadata?.pending).length; return { meta: { changes: 1 } };
+          const rows = await db.measurements.list(db.order.id); db.order.completed_measurements = rows.filter(row => !row.error && !row.provider_metadata?.pending && row.raw_answer?.trim()).length; return { meta: { changes: 1 } };
         }
         if (sql.includes("pipeline_state='paused_cost_limit'")) { db.order.pipeline_state = 'paused_cost_limit'; db.order.pipeline_error_code = args[0]; db.order.runner_lock_token = null; return { meta: { changes: 1 } }; }
         if (sql.includes("pipeline_state='failed'")) { db.order.diagnosis_status = 'failed'; db.order.pipeline_state = 'failed'; db.order.pipeline_error_code = args[0]; db.order.error_message = args[1]; db.order.runner_lock_token = null; return { meta: { changes: 1 } }; }

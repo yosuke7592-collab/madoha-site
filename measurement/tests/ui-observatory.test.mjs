@@ -155,12 +155,20 @@ test('about page shares the TOP brand system and explains MADOHA visually', asyn
 });
 
 test('paid dashboard exposes executive summary, provider comparison, matrix and Evidence navigation', async () => {
-  const [script, css] = await Promise.all([load('sample-kyoudo.js'), load('observatory-ui.css')]);
+  const [script, css, resilienceCss] = await Promise.all([load('sample-kyoudo.js'), load('observatory-ui.css'), load('result-resilience.css')]);
   assert.match(script, /AI SEARCH OBSERVATORY/);
   assert.match(script, /dashboard-summary/);
-  assert.match(script, /10質問 × 3AI/);
+  assert.match(script, /質問 × 3AI/);
   assert.match(script, /dashboard-matrix/);
   assert.match(script, /href="#evidence-/);
-  assert.match(script, /改善候補/);
+  assert.match(script, /今回の回答で確認された企業/);
+  assert.match(script, /今回のAI回答で確認された参照情報/);
+  assert.match(script, /今回の測定対象なし/);
+  assert.match(script, /確認候補/);
+  assert.doesNotMatch(script, /よく参照されたドメイン/);
+  assert.match(script, /正常に取得できた結果は/);
+  assert.match(script, /measurementProvenance/);
   assert.match(css, /@media\(max-width:430px\)/);
+  assert.match(resilienceCss, /measurement-provenance/);
+  assert.match(resilienceCss, /overflow-wrap: anywhere/);
 });

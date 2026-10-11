@@ -1,1 +1,1 @@
-export { buildReportDashboard } from '../report-dashboard.js';
+export { buildReportDashboard, buildDashboardSummary } from '../report-dashboard.js';

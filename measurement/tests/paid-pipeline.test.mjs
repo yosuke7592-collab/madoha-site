@@ -182,6 +182,20 @@ test('common measurements adapt to the unchanged Web/PDF report shape', async ()
   const report = measurementsToPaidReport(base, result.measurements);
   assert.equal(report.queries.length, 10); assert.ok(report.queries.every(query => query.channels.length === 3));
   assert.equal(typeof report.queries[0].channels[0].answer, 'string'); assert.ok(Array.isArray(report.queries[0].channels[0].sources));
+  assert.ok(report.queries[0].channels[0].measuredAt);
+  assert.equal(report.queries[0].channels[0].provenance.locale, 'ja-JP');
+});
+
+test('empty provider answers never count as completed measurements', async () => {
+  class EmptyAdapter extends PaidAdapter {
+    estimateCost() { return 0; }
+    async execute(input) { return this.normalize(input, { raw_answer: '', estimated_cost: 0, measured_at: '2026-10-11T00:00:00.000Z' }); }
+  }
+  const emptyAdapters = Object.fromEntries(['chatgpt', 'gemini', 'google_ai_mode'].map(channel => [channel, new EmptyAdapter({ channel, registry })]));
+  const result = await runPaidMeasurements({ diagnosis, questions: questions.slice(0, 1), adapters: emptyAdapters, store: new MemoryMeasurementStore(), maxCost: 1 });
+  assert.equal(result.status, 'partial');
+  assert.equal(result.measurements.length, 3);
+  assert.ok(result.measurements.every(row => row.raw_answer === ''));
 });
 
 test('DataForSEO standard mode stores a task and resumes by polling it', async () => {
