@@ -86,6 +86,14 @@ test('ten-question review keeps the metadata internal and presents direct editin
   assert.doesNotMatch(script, /<b>選定理由<\/b>/);
   assert.doesNotMatch(script, /<b>この質問で分かること<\/b>/);
   assert.doesNotMatch(script, /scrollIntoView/);
+  assert.match(script, /function resetFlowScroll\(\)/);
+  assert.match(script, /window\.scrollTo\(\{top:0,left:0,behavior:'auto'\}\)/);
+  assert.match(script, /history\.pushState\(flowState\(step\)/);
+  assert.match(script, /window\.addEventListener\('popstate'/);
+  assert.match(script, /state\.step==='identity'/);
+  assert.match(script, /state\.step==='questions'/);
+  assert.match(script, /state\.step==='checkout'/);
+  assert.match(script, /focus\(\{preventScroll:true\}\)/);
   assert.match(script, /setQuestionReviewActive\(true\)/);
   assert.match(script, /setQuestionReviewActive\(false\)/);
   assert.match(script, /const submitted=readQuestions\(\)/);
