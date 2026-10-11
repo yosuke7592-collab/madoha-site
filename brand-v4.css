@@ -284,3 +284,35 @@ body.identity-modal-open{overflow:hidden}
   .diagnosis-notes{margin-top:28px;padding-top:24px}
   .diagnosis-notes li{font-size:13px}
 }
+
+/* Keep every public story section inside narrow mobile viewports. */
+@media(max-width:700px){
+  html,body{max-width:100%;overflow-x:clip}
+  .story-section,.measure-story,.workflow-story,.sample-story{
+    display:block!important;
+    width:100%;
+    min-width:0;
+  }
+  .measure-copy,.workflow-copy,.sample-proof,.fact-list,.workflow-steps,
+  .sample-dashboard-preview,.preview-main,.preview-analytics,.preview-bottom,
+  .preview-channel-card,.preview-competitors,.preview-answer{
+    width:100%;
+    min-width:0;
+    max-width:100%;
+  }
+  .workflow-steps{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  .sample-dashboard-preview{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+  .preview-analytics,.preview-bottom{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+  .preview-channels i{
+    grid-template-columns:minmax(82px,95px) minmax(40px,1fr) 35px;
+  }
+}
