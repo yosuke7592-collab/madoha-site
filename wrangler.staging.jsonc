@@ -22,7 +22,8 @@
   },
   "ratelimits": [
     { "name": "DIAGNOSIS_ENTRY_LIMITER", "namespace_id": "2004", "simple": { "limit": 30, "period": 60 } },
-    { "name": "DIAGNOSIS_CHECKOUT_LIMITER", "namespace_id": "2001", "simple": { "limit": 10, "period": 60 } }
+    { "name": "DIAGNOSIS_CHECKOUT_LIMITER", "namespace_id": "2001", "simple": { "limit": 10, "period": 60 } },
+    { "name": "RESULT_RESEND_LIMITER", "namespace_id": "2006", "simple": { "limit": 5, "period": 60 } }
   ],
   "d1_databases": [
     {

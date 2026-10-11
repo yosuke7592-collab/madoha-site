@@ -1,0 +1,43 @@
+.diagnosis-running-note,
+.result-access-note {
+  display: grid;
+  gap: 5px;
+  padding: 18px 20px;
+  border: 1px solid #cfe0f2;
+  border-radius: 9px;
+  background: #f5f9ff;
+  color: #17304d;
+}
+.diagnosis-running-note { margin-top: 22px; }
+.diagnosis-running-note span,
+.result-access-note span { color: #53657a; }
+.result-access-note { max-width: 1120px; margin: 28px auto; padding: 22px 28px; }
+.global-footer-inner nav button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.result-resend-dialog {
+  width: min(520px, calc(100% - 32px));
+  border: 1px solid #d7e2ee;
+  border-radius: 14px;
+  padding: 34px;
+  box-shadow: 0 24px 80px #06142655;
+  color: #071526;
+}
+.result-resend-dialog::backdrop { background: #061426aa; }
+.result-resend-dialog h2 { margin: 8px 0 10px; font-size: 28px; }
+.result-resend-dialog label { display: block; margin: 22px 0 0; font-size: 14px; font-weight: 700; }
+.result-resend-dialog input { display: block; width: 100%; margin-top: 7px; padding: 13px; border: 1px solid #bac9da; border-radius: 6px; font: inherit; }
+.result-resend-dialog form button { width: 100%; margin-top: 14px; padding: 14px; border: 0; border-radius: 6px; background: #071526; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+.result-resend-dialog form button:disabled { opacity: .55; }
+.dialog-close { position: absolute; right: 16px; top: 12px; border: 0; background: transparent; font-size: 25px; cursor: pointer; }
+.result-resend-dialog #result-resend-status { min-height: 1.6em; margin-bottom: 0; color: #36516e; }
+@media (max-width: 600px) {
+  .result-access-note { margin: 20px 14px; padding: 18px; }
+  .result-resend-dialog { padding: 28px 20px 22px; }
+}

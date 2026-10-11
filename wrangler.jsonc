@@ -13,7 +13,8 @@
   },
   "ratelimits": [
     { "name": "DIAGNOSIS_ENTRY_LIMITER", "namespace_id": "2003", "simple": { "limit": 30, "period": 60 } },
-    { "name": "DIAGNOSIS_CHECKOUT_LIMITER", "namespace_id": "2002", "simple": { "limit": 10, "period": 60 } }
+    { "name": "DIAGNOSIS_CHECKOUT_LIMITER", "namespace_id": "2002", "simple": { "limit": 10, "period": 60 } },
+    { "name": "RESULT_RESEND_LIMITER", "namespace_id": "2005", "simple": { "limit": 5, "period": 60 } }
   ],
   "assets": {
     "directory": ".",

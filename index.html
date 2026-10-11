@@ -16,7 +16,8 @@
   <link rel="stylesheet" href="reference-ui.css?v=1">
   <link rel="stylesheet" href="top-width.css?v=1">
   <link rel="stylesheet" href="brand-v4.css?v=8">
-  <script type="module" src="sales.js?v=16"></script>
+  <link rel="stylesheet" href="result-access.css?v=1">
+  <script type="module" src="sales.js?v=17"></script>
 </head>
 <body>
 <a class="skip-link" href="#identity-search">診断対象の検索へ</a>
@@ -97,13 +98,26 @@
       </ul>
     </div>
   </section>
-  <section id="progress-stage" class="product-stage" hidden aria-live="polite"><p class="eyebrow">RESEARCH PROGRESS</p><h1 id="progress-label"></h1><p id="progress-count"></p></section><p id="sales-error" role="alert"></p>
+  <section id="progress-stage" class="product-stage" hidden aria-live="polite"><p class="eyebrow">RESEARCH PROGRESS</p><h1 id="progress-label"></h1><p id="progress-count"></p><div id="diagnosis-running-note" class="diagnosis-running-note" hidden><strong>この画面を閉じても診断は継続します</strong><span>診断完了後、購入時のメールアドレスへ結果を見るためのURLをお送りします。</span></div></section><p id="sales-error" role="alert"></p>
   <section id="what-we-measure" class="story-section measure-story"><div class="measure-copy"><p class="section-kicker">PROBLEM</p><h2>候補に入るか<br>どう説明されるか</h2><p>顧客や取引先、求職者がAIへ質問する時代です。あなたの会社がどのように紹介され、どの競合と比較され、どんな情報が参照されているのかを可視化します。</p></div><div class="fact-list"><p><span class="fact-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><circle cx="14" cy="14" r="7"/><path d="m19 19 5 5"/><path d="M13 10.5v7M9.5 14h7"/><path d="M24 6v4M22 8h4"/></svg></span><b>自社はAIに正しく<br>紹介されているか</b></p><p><span class="fact-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><rect x="5" y="15" width="6" height="11" rx="2"/><rect x="13" y="9" width="6" height="17" rx="2"/><rect x="21" y="5" width="6" height="21" rx="2"/><path d="m6 10 6-4 5 2 8-5"/><path d="m22 3 3 .2-.6 3"/></svg></span><b>競合と比べて<br>どう評価されているか</b></p><p><span class="fact-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M9 5h11l4 4v17H9z"/><path d="M20 5v5h4M13 15h7M13 19h7"/><circle cx="7" cy="24" r="3"/><path d="m9.5 22.5 4-3"/></svg></span><b>どの情報が<br>参照されているか</b></p><p><span class="fact-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="m16 5 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2-4.5-4.4 6.2-.9z"/><path d="M6 27h20"/></svg></span><b>AIに推薦される<br>可能性があるか</b></p></div></section>
   <section id="how-it-works" class="story-section workflow-story"><div class="workflow-copy"><p class="section-kicker">HOW IT WORKS</p><h2><span>3つのAIから</span><span>同じ条件で観測</span></h2><p>MADOHAは、同じ10の質問を3つのAIへ投げ、その回答を収集・分析。あなたの会社の見え方を客観的なデータとして可視化します。</p></div><ol class="workflow-steps"><li><i>01</i><span class="step-symbol">⌕</span><b>対象を入力</b><small>会社名・サービス名・URLから対象を特定</small></li><li><i>02</i><span class="step-symbol">▤</span><b>10の質問を自動生成</b><small>顧客の検討場面から質問を設計</small></li><li><i>03</i><span class="step-symbol">◉</span><b>3つのAIで同時検索</b><small>同じ条件で実際の回答を取得</small></li><li><i>04</i><span class="step-symbol">▥</span><b>30の回答を分析</b><small>競合・参照元・改善候補まで可視化</small></li></ol></section>
   <section class="story-section sample-story"><div class="sample-proof"><p class="section-kicker">SAMPLE REPORT</p><h2><span>実際の診断結果</span><span>イメージ</span></h2><p>AIにどう紹介されるか、競合と比べてどう見られているか。購入後に届くダッシュボードと同じ構造で確認できます。</p><a href="sample.html">サンプルの詳細を見る <span>→</span></a></div><div class="sample-dashboard-preview" aria-label="診断結果ダッシュボードのプレビュー"><aside><b>MADOHA</b><span>ダッシュボード</span><span>AI別比較</span><span>質問別結果</span><span>競合比較</span><span>参照元</span><span>改善候補</span></aside><div class="preview-main"><header><b>AI検索での見え方</b><small>30件の実測結果</small></header><div class="preview-analytics"><div class="preview-donut" style="--rate:67"><strong>67<small>%</small></strong><span>AIに掲載された割合</span></div><div class="preview-channel-card"><b>AI別の見え方</b><div class="preview-channels"><i class="chatgpt" style="--v:70%"><span>ChatGPT</span><b>70%</b></i><i class="gemini" style="--v:60%"><span>Gemini</span><b>60%</b></i><i class="google" style="--v:70%"><span>Google AI Mode</span><b>70%</b></i></div></div></div><div class="preview-bottom"><div class="preview-competitors"><b>競合との比較</b><div><i style="--h:35%">A社</i><i style="--h:55%">B社</i><i class="target" style="--h:82%">あなたの会社</i><i style="--h:45%">C社</i><i style="--h:32%">D社</i></div></div><div class="preview-answer"><b>実際のAI回答</b><p><span class="mini-ai">◎</span>この企業は、業務改善とDX支援を行う企業として紹介されています。</p><a href="sample.html">回答全文を見る →</a></div></div></div></div></section>
   <section id="price" class="purchase-story"><p class="section-kicker">INITIAL AI SEARCH DIAGNOSIS</p><h2>初回AI検索診断</h2><p>10の質問 × 3つのAI。30の実測結果をWebとPDFで納品します。</p><div><span><small>税込</small><strong>9,800<em>円</em></strong></span><a href="index.html">今すぐ診断する →</a></div><ul><li>クレジットカードで1回払い</li><li>診断完了後すぐにレポート表示</li><li>PDFでダウンロード可能</li></ul></section>
 </main>
 <div id="report"></div>
+<section id="result-access-note" class="result-access-note" hidden><strong>この診断結果は後から再閲覧できます</strong><span>購入時のメールに届いた専用URLから、いつでも結果を確認できます。PDF保存／印刷もご利用いただけます。</span></section>
 <section id="monitoring-stage" class="product-stage upgrade-value" hidden><p class="eyebrow">NEXT STEP</p><h2>変化を継続して確認したい方へ</h2><p>今回確定した質問を基準に、AI検索上の変化を月次で比較できるモニタリング機能を準備しています。</p><button id="monitoring-interest" type="button">月次モニタリングに興味がある</button></section>
-<footer><div class="global-footer-inner"><a class="brand" href="index.html">MADOHA</a><p>AI検索で企業がどう見えているかを観測する。</p><nav><a href="sample.html">完成版サンプル</a><a href="company.html">MADOHAについて</a></nav></div></footer>
+<footer><div class="global-footer-inner"><a class="brand" href="index.html">MADOHA</a><p>AI検索で企業がどう見えているかを観測する。</p><nav><a href="sample.html">完成版サンプル</a><a href="company.html">MADOHAについて</a><button id="open-result-resend" type="button">診断結果URLを再送</button></nav></div></footer>
+<dialog id="result-resend-dialog" class="result-resend-dialog" aria-labelledby="result-resend-title">
+  <button id="close-result-resend" class="dialog-close" type="button" aria-label="閉じる">×</button>
+  <p class="eyebrow">RESULT ACCESS</p>
+  <h2 id="result-resend-title">診断結果URLを再送</h2>
+  <p>購入時のメールアドレスを入力してください。</p>
+  <form id="result-resend-form" novalidate>
+    <label for="result-resend-email">メールアドレス</label>
+    <input id="result-resend-email" name="email" type="email" autocomplete="email" inputmode="email" required maxlength="320">
+    <button type="submit">結果URLを再送</button>
+  </form>
+  <p id="result-resend-status" role="status" aria-live="polite"></p>
+</dialog>
 </body></html>
