@@ -1,0 +1,21 @@
+import { spawnSync } from 'node:child_process';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
+import { generateReportPdf } from '../worker/report-pdf.mjs';
+
+const diagnosisId=process.argv[2];
+if(!/^[0-9a-f-]{36}$/i.test(diagnosisId||''))throw new Error('Usage: node scripts/generate_production_report_pdf.mjs <diagnosis-id> [output-directory]');
+const runner=process.platform==='win32'?'npx.cmd':'npx';
+const sql=`SELECT report_json FROM diagnosis_orders WHERE id='${diagnosisId}' AND payment_status='paid' AND sales_stage='completed'`;
+const directory=resolve(process.argv[3]||join(import.meta.dirname,'..','output','pdf'));
+await mkdir(directory,{recursive:true});
+const commandArg=process.platform==='win32'?`"${sql}"`:sql;
+const result=spawnSync(runner,['wrangler','d1','execute','madoha-paid-diagnosis-production','--remote','--json','--command',commandArg],{cwd:resolve(import.meta.dirname,'..'),encoding:'utf8',windowsHide:true,shell:process.platform==='win32',maxBuffer:32*1024*1024});
+if(result.status!==0)throw new Error(result.stderr||result.error?.message||'Production report could not be read.');
+const jsonStart=result.stdout.indexOf('[\n'),jsonEnd=result.stdout.lastIndexOf(']');
+if(jsonStart<0||jsonEnd<jsonStart)throw new Error('Production report response was not JSON.');
+const payload=JSON.parse(result.stdout.slice(jsonStart,jsonEnd+1)),row=payload?.[0]?.results?.[0]||payload?.results?.[0];
+if(!row?.report_json)throw new Error('Completed report not found.');
+const pdf=generateReportPdf(JSON.parse(row.report_json));
+const path=join(directory,pdf.filename);await writeFile(path,pdf.bytes);
+process.stdout.write(JSON.stringify({path,pageCount:pdf.pageCount,bytes:pdf.bytes.length}));

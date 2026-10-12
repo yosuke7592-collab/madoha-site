@@ -4,6 +4,7 @@ import { finalizeLiveSmoke, getBuyerDiagnosis, processDiagnosisQueueMessage, rep
 import { confirmQuestionSet, getQuestionReview, saveQuestionDraft } from './question-review.mjs';
 import { generateAndSaveQuestionDiscovery } from './question-discovery.mjs';
 import { handleSalesRequest, applyUpgradeEvent, dispatchSalesOutbox, processSalesQueue } from './sales-flow.mjs';
+import { handleReportPdfRequest } from './report-pdf-route.mjs';
 import { limitPublicSalesEntry } from './public-rate-limit.mjs';
 
 const json = (body, status = 200, extra = {}) => new Response(JSON.stringify(body), {
@@ -20,6 +21,8 @@ export default {
     const url = new URL(request.url);
     const limitedResponse = await limitPublicSalesEntry(request, env);
     if (limitedResponse) return limitedResponse;
+    const reportPdfResponse = await handleReportPdfRequest(request, env);
+    if (reportPdfResponse) return reportPdfResponse;
     const salesResponse = await handleSalesRequest(request, env);
     if (salesResponse) return salesResponse;
     if (url.pathname === '/api/integration/enqueue' && request.method === 'POST') {

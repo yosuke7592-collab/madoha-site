@@ -81,8 +81,8 @@ test('migration 0008 preserves existing orders and adds isolated delivery storag
   assert.equal((await db.prepare('SELECT COUNT(*) n FROM diagnosis_delivery').first()).n,0);
 });
 
-test('public UI stores result token then removes it from the address bar and keeps PDF print',async()=>{
+test('public UI stores result token then removes it from the address bar and keeps authenticated PDF download',async()=>{
   const [script,html]=await Promise.all([readFile(new URL('../../sales.js',import.meta.url),'utf8'),readFile(new URL('../../index.html',import.meta.url),'utf8')]);
   assert.match(script,/madoha-result-/);assert.match(script,/history\.replaceState\(history\.state/);assert.match(script,/location\.hash\.startsWith\('#result_token='/);
-  assert.match(script,/PDFとして保存／印刷/);assert.match(html,/この診断結果は後から再閲覧できます/);assert.match(html,/診断結果URLを再送/);assert.match(html,/参照情報や他社の掲載状況は掲載順位やその要因を示すものではありません/);
+  assert.match(script,/PDFをダウンロード/);assert.match(script,/x-diagnosis-token/);assert.doesNotMatch(script,/window\.print/);assert.match(html,/この診断結果は後から再閲覧できます/);assert.match(html,/診断結果URLを再送/);assert.match(html,/参照情報や他社の掲載状況は掲載順位やその要因を示すものではありません/);
 });
