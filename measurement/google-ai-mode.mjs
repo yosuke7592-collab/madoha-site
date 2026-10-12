@@ -6,6 +6,14 @@ export const DATAFORSEO_LANGUAGES_URL = 'https://api.dataforseo.com/v3/serp/goog
 export const DATAFORSEO_JAPAN_LOCATION = Object.freeze({ locationName: 'Japan', locationCode: 2392 });
 const fatal = (message, code, providerMetadata = {}) => Object.assign(new Error(message), { code, fatal: true, retryable: false, providerMetadata });
 const rows = payload => Array.isArray(payload?.tasks?.[0]?.result) ? payload.tasks[0].result : [];
+const responseJson = response => response.json().catch(() => ({}));
+const catalogStatus = (response, payload) => ({
+  http_status: Number(response?.status) || null,
+  api_status_code: Number(payload?.status_code) || null,
+  api_status_message: typeof payload?.status_message === 'string' ? payload.status_message : null,
+  task_status_code: Number(payload?.tasks?.[0]?.status_code) || null,
+  task_status_message: typeof payload?.tasks?.[0]?.status_message === 'string' ? payload.tasks[0].status_message : null
+});
 
 export function resolveDataForSeoTarget(input) {
   const entity = input?.entity || {}; let locationName = String(entity.api_location_name || '').trim();
@@ -23,13 +31,34 @@ export async function validateDataForSeoTarget(fetchImpl, authorization, target)
   const headers = { authorization }; const [locationResponse, languageResponse] = await Promise.all([
     fetchImpl(DATAFORSEO_LOCATIONS_URL, { method: 'GET', headers }), fetchImpl(DATAFORSEO_LANGUAGES_URL, { method: 'GET', headers })
   ]);
-  if (!locationResponse.ok || !languageResponse.ok) throw fatal('DataForSEO location/language一覧を確認できませんでした。', 'preflight_failed');
-  const [locationPayload, languagePayload] = await Promise.all([locationResponse.json(), languageResponse.json()]);
+  const [locationPayload, languagePayload] = await Promise.all([responseJson(locationResponse), responseJson(languageResponse)]);
+  const providerMetadata = {
+    locations: catalogStatus(locationResponse, locationPayload),
+    languages: catalogStatus(languageResponse, languagePayload)
+  };
+  if (!locationResponse.ok || !languageResponse.ok) throw fatal('DataForSEO location/language一覧を確認できませんでした。', 'preflight_failed', providerMetadata);
+  if ((providerMetadata.locations.api_status_code && providerMetadata.locations.api_status_code !== 20000)
+    || (providerMetadata.languages.api_status_code && providerMetadata.languages.api_status_code !== 20000)) {
+    throw fatal('DataForSEO location/language一覧がエラーを返しました。', 'preflight_failed', providerMetadata);
+  }
   const location = rows(locationPayload).find(item => Number(item.location_code) === target.locationCode && item.location_name === target.locationName);
   const language = rows(languagePayload).find(item => item.language_code === target.languageCode);
   if (!location) throw fatal(`DataForSEOで無効なlocationです: ${target.locationName} (${target.locationCode})`, 'invalid_location');
   if (!language) throw fatal(`DataForSEOで無効なlanguageです: ${target.languageCode}`, 'invalid_language');
   return { location, language };
+}
+
+export async function inspectDataForSeoPreflight(fetchImpl, authorization) {
+  const headers = { authorization }; const [locationResponse, languageResponse] = await Promise.all([
+    fetchImpl(DATAFORSEO_LOCATIONS_URL, { method: 'GET', headers }), fetchImpl(DATAFORSEO_LANGUAGES_URL, { method: 'GET', headers })
+  ]);
+  const [locationPayload, languagePayload] = await Promise.all([responseJson(locationResponse), responseJson(languageResponse)]);
+  const location = rows(locationPayload).find(item => Number(item.location_code) === 2392 && item.location_name === 'Japan');
+  const language = rows(languagePayload).find(item => item.language_code === 'ja');
+  return {
+    locations: { ...catalogStatus(locationResponse, locationPayload), target_found: Boolean(location) },
+    languages: { ...catalogStatus(languageResponse, languagePayload), target_found: Boolean(language) }
+  };
 }
 
 function collectText(value, result = []) {

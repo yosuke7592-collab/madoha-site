@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { D1MeasurementStore, FixturePaidAdapter, LIVE_LOCK_MESSAGE, MemoryMeasurementStore, PaidAdapter, derivePaidEntities, executeWithRetry, measurementsToPaidReport, runPaidMeasurements, sourceObjects, validatePaidMeasurement } from '../paid-pipeline.mjs';
 import { OpenAiPaidAdapter } from '../openai-paid.mjs';
 import { GeminiPaidAdapter } from '../gemini.mjs';
-import { GoogleAiModePaidAdapter, resolveDataForSeoTarget } from '../google-ai-mode.mjs';
+import { GoogleAiModePaidAdapter, inspectDataForSeoPreflight, resolveDataForSeoTarget, validateDataForSeoTarget } from '../google-ai-mode.mjs';
 
 const entity = { id: 'kyoudo', name: '株式会社協同住宅', aliases: ['協同住宅'], display_region: '千葉県浦安市・市川市', api_location_name: 'Urayasu,Chiba,Japan', api_location_code: 1009274, api_language_code: 'ja' };
 const registry = [entity, { id: 'a', name: '明和地所', canonicalName: '明和地所' }, { id: 'b', name: '富士屋商事', canonicalName: '富士屋商事' }];
@@ -265,6 +265,23 @@ test('DataForSEO rejects an invalid API location before a paid Live call', async
   const adapter = new GoogleAiModePaidAdapter({ registry, fetchImpl: async url => { calls.push(url); return { ok: true, json: async () => ({ tasks: [{ result: url.includes('/locations/') ? [{ location_code: 1009274, location_name: 'Urayasu,Chiba,Japan' }] : [{ language_code: 'ja' }] }] }) }; } });
   await assert.rejects(() => adapter.execute({ diagnosis_id: 'd', entity: bad, question_id: 'q', question_text: '質問', channel: 'google_ai_mode', run_id: 'r', max_cost: 1 }, { MADOHA_ENABLE_LIVE_MEASUREMENT: 'true', DATAFORSEO_LOGIN: 'mock', DATAFORSEO_PASSWORD: 'mock' }), error => error.code === 'invalid_location');
   assert.equal(calls.some(url => url.endsWith('/live/advanced')), false);
+});
+
+test('DataForSEO preflight preserves sanitized HTTP and API error evidence', async () => {
+  const fetchImpl = async url => url.includes('/locations/')
+    ? { ok: false, status: 401, json: async () => ({ status_code: 40201, status_message: 'Authentication failed.' }) }
+    : { ok: true, status: 200, json: async () => ({ status_code: 20000, status_message: 'Ok.', tasks: [{ status_code: 20000, status_message: 'Ok.', result: [{ language_code: 'ja' }] }] }) };
+  await assert.rejects(() => validateDataForSeoTarget(fetchImpl, 'Basic redacted', { locationName: 'Japan', locationCode: 2392, languageCode: 'ja' }), error => {
+    assert.equal(error.code, 'preflight_failed');
+    assert.deepEqual(error.providerMetadata.locations, { http_status: 401, api_status_code: 40201, api_status_message: 'Authentication failed.', task_status_code: null, task_status_message: null });
+    assert.equal(error.providerMetadata.languages.http_status, 200);
+    assert.equal(JSON.stringify(error.providerMetadata).includes('redacted'), false);
+    return true;
+  });
+  const result = await inspectDataForSeoPreflight(fetchImpl, 'Basic redacted');
+  assert.equal(result.locations.target_found, false);
+  assert.equal(result.languages.target_found, true);
+  assert.equal(JSON.stringify(result).includes('redacted'), false);
 });
 
 test('DataForSEO Live task errors are fatal and do not become measurements', async () => {
