@@ -5,6 +5,16 @@ export const DATAFORSEO_LOCATIONS_URL = 'https://api.dataforseo.com/v3/serp/goog
 export const DATAFORSEO_LANGUAGES_URL = 'https://api.dataforseo.com/v3/serp/google/ai_mode/languages';
 export const DATAFORSEO_JAPAN_LOCATION = Object.freeze({ locationName: 'Japan', locationCode: 2392 });
 const fatal = (message, code, providerMetadata = {}) => Object.assign(new Error(message), { code, fatal: true, retryable: false, providerMetadata });
+const isTransientDataForSeoStatus = statusCode => {
+  const code = Number(statusCode);
+  return Number.isInteger(code) && code >= 50000 && code < 60000;
+};
+const retryAfterMs = response => {
+  const value = response?.headers?.get?.('retry-after');
+  if (value === null || value === undefined || String(value).trim() === '') return undefined;
+  const seconds = Number(value);
+  return Number.isFinite(seconds) && seconds >= 0 ? Math.min(seconds * 1000, 30_000) : undefined;
+};
 const rows = payload => Array.isArray(payload?.tasks?.[0]?.result) ? payload.tasks[0].result : [];
 const responseJson = response => response.json().catch(() => ({}));
 const catalogStatus = (response, payload) => ({
@@ -102,11 +112,28 @@ export class GoogleAiModePaidAdapter extends PaidAdapter {
       }])
     }); } catch { const error = new Error('DataForSEO network request failed.'); error.code = 'network'; error.retryable = true; throw error; }
     const payload = await response.json();
-    if (!response.ok || Number(payload.status_code) >= 40000) { const code = response.status === 429 ? 'rate_limit' : response.status === 401 ? 'authentication' : 'provider_error'; const error = new Error(`DataForSEO request failed: ${payload.status_message || response.status}`); error.code = code; error.retryable = response.status === 429 || response.status >= 500; error.fatal = !error.retryable; throw error; }
+    if (!response.ok || Number(payload.status_code) >= 40000) {
+      const apiStatusCode = Number(payload.status_code) || null;
+      const retryable = response.status === 408 || response.status === 429 || response.status >= 500 || isTransientDataForSeoStatus(apiStatusCode);
+      const code = response.status === 429 ? 'rate_limit' : response.status === 401 || response.status === 403 ? 'authentication' : 'provider_error';
+      const error = new Error(`DataForSEO request failed: ${payload.status_message || response.status}`);
+      error.code = code; error.retryable = retryable; error.fatal = !retryable; error.retryAfterMs = retryAfterMs(response);
+      error.providerMetadata = { retrieval_mode: this.retrievalMode, http_status: Number(response.status) || null,
+        api_status_code: apiStatusCode, api_status_message: payload.status_message || null };
+      throw error;
+    }
     const task = payload.tasks?.[0];
-    if (Number(task?.status_code) >= 40000) throw fatal(`DataForSEO task failed: ${task.status_message || task.status_code}`, Number(task.status_code) === 40401 ? 'task_not_found' : 'provider_task_error', {
-      retrieval_mode: this.retrievalMode, task_status_code: task.status_code, task_status_message: task.status_message || null, task_time: task.time || null, task_cost: task.cost || 0, result_count: task.result_count || 0
-    });
+    if (Number(task?.status_code) >= 40000) {
+      const taskStatusCode = Number(task.status_code);
+      const providerMetadata = { retrieval_mode: this.retrievalMode, task_status_code: taskStatusCode,
+        task_status_message: task.status_message || null, task_time: task.time || null, task_cost: task.cost || 0, result_count: task.result_count || 0 };
+      if (isTransientDataForSeoStatus(taskStatusCode)) {
+        const error = new Error(`DataForSEO task failed: ${task.status_message || taskStatusCode}`);
+        error.code = 'provider_task_error'; error.retryable = true; error.fatal = false; error.providerMetadata = providerMetadata;
+        throw error;
+      }
+      throw fatal(`DataForSEO task failed: ${task.status_message || taskStatusCode}`, taskStatusCode === 40401 ? 'task_not_found' : 'provider_task_error', providerMetadata);
+    }
     if (this.retrievalMode !== 'live' && !pendingId) return this.normalize(input, { raw_answer: '', sources: [], usage: { queued: true }, estimated_cost: this.estimateCost(input), raw_response_ref: task?.id || null, measured_at: this.now(), provider_metadata: { retrieval_mode: 'standard', pending: true, display_region: target.displayRegion, api_location_name: target.locationName, api_location_code: target.locationCode } });
     if (pendingId && !task?.result?.length) return this.normalize(input, { raw_answer: '', sources: [], usage: { queued: true }, estimated_cost: input.existing_measurement.estimated_cost, raw_response_ref: pendingId, measured_at: this.now(), provider_metadata: { ...input.existing_measurement.provider_metadata, retrieval_mode: 'standard', pending: true } });
     target ||= { displayRegion: input.existing_measurement?.provider_metadata?.display_region || input.location || '', locationName: input.existing_measurement?.provider_metadata?.api_location_name || '', locationCode: input.existing_measurement?.provider_metadata?.api_location_code || 0, languageCode: input.existing_measurement?.provider_metadata?.language_code || 'ja' };

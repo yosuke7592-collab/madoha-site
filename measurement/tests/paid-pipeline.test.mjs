@@ -293,6 +293,37 @@ test('DataForSEO Live task errors are fatal and do not become measurements', asy
   await assert.rejects(() => adapter.execute({ diagnosis_id: 'd', entity, question_id: 'q', question_text: '質問', channel: 'google_ai_mode', run_id: 'r', max_cost: 1 }, { MADOHA_ENABLE_LIVE_MEASUREMENT: 'true', DATAFORSEO_LOGIN: 'mock', DATAFORSEO_PASSWORD: 'mock' }), error => error.code === 'provider_task_error');
 });
 
+test('DataForSEO retries an API-level Internal Server Error at most three attempts', async () => {
+  let liveCalls = 0; const delays = [];
+  const adapter = new GoogleAiModePaidAdapter({ registry, randomImpl: () => 0, sleepImpl: async delay => delays.push(delay), fetchImpl: async url => {
+    if (url.includes('/locations/')) return { ok: true, status: 200, json: async () => ({ status_code: 20000, tasks: [{ result: [{ location_code: 1009274, location_name: 'Urayasu,Chiba,Japan' }] }] }) };
+    if (url.endsWith('/languages')) return { ok: true, status: 200, json: async () => ({ status_code: 20000, tasks: [{ result: [{ language_code: 'ja' }] }] }) };
+    liveCalls += 1;
+    if (liveCalls < 3) return { ok: true, status: 200, headers: new Headers(), json: async () => ({ status_code: 50000, status_message: 'Internal Server Error.' }) };
+    return { ok: true, status: 200, headers: new Headers(), json: async () => ({ status_code: 20000, tasks: [{ id: 'live-retry', status_code: 20000, cost: .004, result: [{ items: [{ type: 'ai_overview', text: '株式会社協同住宅を確認できます。', references: [] }] }] }] }) };
+  } });
+  const input = { diagnosis_id: 'd', entity, question_id: 'q', question_text: '質問', channel: 'google_ai_mode', run_id: 'r', max_cost: 1 };
+  const row = await executeWithRetry(adapter, input, { MADOHA_ENABLE_LIVE_MEASUREMENT: 'true', DATAFORSEO_LOGIN: 'mock', DATAFORSEO_PASSWORD: 'mock' });
+  assert.equal(liveCalls, 3); assert.deepEqual(delays, [5000, 15000]); assert.equal(row.usage.attempts, 3); assert.equal(row.raw_answer, '株式会社協同住宅を確認できます。');
+});
+
+test('DataForSEO does not retry authentication or invalid task errors', async () => {
+  for (const scenario of [
+    { response: { ok: false, status: 401, headers: new Headers(), json: async () => ({ status_code: 40201, status_message: 'Authentication failed.' }) }, code: 'authentication' },
+    { response: { ok: true, status: 200, headers: new Headers(), json: async () => ({ status_code: 20000, tasks: [{ status_code: 40501, status_message: 'Invalid Field' }] }) }, code: 'provider_task_error' }
+  ]) {
+    let liveCalls = 0;
+    const adapter = new GoogleAiModePaidAdapter({ registry, sleepImpl: async () => assert.fail('Permanent errors must not back off.'), fetchImpl: async url => {
+      if (url.includes('/locations/')) return { ok: true, status: 200, json: async () => ({ status_code: 20000, tasks: [{ result: [{ location_code: 1009274, location_name: 'Urayasu,Chiba,Japan' }] }] }) };
+      if (url.endsWith('/languages')) return { ok: true, status: 200, json: async () => ({ status_code: 20000, tasks: [{ result: [{ language_code: 'ja' }] }] }) };
+      liveCalls += 1; return scenario.response;
+    } });
+    const input = { diagnosis_id: 'd', entity, question_id: 'q', question_text: '質問', channel: 'google_ai_mode', run_id: 'r', max_cost: 1 };
+    await assert.rejects(() => executeWithRetry(adapter, input, { MADOHA_ENABLE_LIVE_MEASUREMENT: 'true', DATAFORSEO_LOGIN: 'mock', DATAFORSEO_PASSWORD: 'mock' }), error => error.code === scenario.code && error.retryable === false);
+    assert.equal(liveCalls, 1);
+  }
+});
+
 test('DataForSEO task-level 40401 is fatal instead of remaining pending', async () => {
   const adapter = new GoogleAiModePaidAdapter({ registry, retrievalMode: 'standard', fetchImpl: async () => ({ ok: true, status: 200, json: async () => ({
     status_code: 20000, status_message: 'Ok.', tasks: [{ id: 'missing-task', status_code: 40401, status_message: 'Task Not Found.', time: '0 sec.', cost: 0, result_count: 0, result: null }]
