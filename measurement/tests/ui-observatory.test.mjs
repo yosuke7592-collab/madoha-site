@@ -102,6 +102,8 @@ test('ten-question review keeps the metadata internal and presents direct editin
   assert.match(script, /window\.scrollTo\(\{top:0,left:0,behavior:'auto'\}\)/);
   assert.match(script, /history\.pushState\(flowState\(step\)/);
   assert.match(script, /window\.addEventListener\('popstate'/);
+  assert.doesNotMatch(script, /stage==='checkout_ready'&&requestedStep==='questions'/);
+  assert.match(script, /if\(stage==='checkout_ready'\|\|stage==='checkout_pending'\)\{replaceFlowStep\('checkout'\)/);
   assert.match(script, /state\.step==='identity'/);
   assert.match(script, /state\.step==='questions'/);
   assert.match(script, /state\.step==='checkout'/);

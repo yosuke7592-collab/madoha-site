@@ -32,13 +32,13 @@ async function queueStage(env,id,stage){await env.DB.prepare("INSERT INTO diagno
 export async function dispatchSalesOutbox(env){if(!env.DB||!env.DIAGNOSIS_QUEUE)return;const rows=await env.DB.prepare('SELECT * FROM diagnosis_outbox WHERE sent_at IS NULL LIMIT 20').all();for(const row of rows.results||[]){await env.DIAGNOSIS_QUEUE.send({orderId:row.diagnosis_id});await env.DB.prepare("UPDATE diagnosis_outbox SET sent_at=datetime('now') WHERE diagnosis_id=? AND stage=?").bind(row.diagnosis_id,row.stage).run()}}
 
 export async function confirmQuestions(db,order,submitted,acks=[]){
- if(!['questions_ready','checkout_ready'].includes(order.sales_stage))fail('現在は質問を変更できません。',409);
+ if(order.sales_stage!=='questions_ready')fail('確定済みの質問は変更できません。',409);
  const stored=(await db.prepare('SELECT * FROM diagnosis_questions WHERE diagnosis_id=? ORDER BY question_order').bind(order.id).all()).results;
  if(!Array.isArray(submitted)||submitted.length!==10||new Set(submitted.map(q=>q.id)).size!==10)fail('10問の識別情報を確認してください。');
  const questions=stored.map(row=>{const q=submitted.find(x=>x.id===row.question_id);if(!q)fail('質問が不足しています。');return{id:q.id,question_text:String(q.question_text||'').trim(),kind:q.kind}});
  const qa=validateQuestionSet(questions,parse(order.entity_json,{}));if(questions.some(q=>q.question_text.length>2000))fail('質問が長すぎます。');if(qa.errors.length||qa.warnings.some(w=>!acks.includes(w.code)))return{saved:false,...qa};
  const sql=stored.map(row=>{const q=questions.find(x=>x.id===row.question_id);return db.prepare(`UPDATE diagnosis_questions SET question_text=?,question_kind=?,user_modified=?,confirmed=1,confirmed_at=datetime('now'),warning_acknowledgements_json=? WHERE diagnosis_id=? AND question_id=? AND NOT EXISTS(SELECT 1 FROM paid_measurements WHERE diagnosis_id=? AND question_id=?)`).bind(q.question_text,q.kind,+(q.question_text!==row.proposed_question_text||q.kind!==row.proposed_question_kind),JSON.stringify(acks),order.id,row.question_id,order.id,row.question_id)});
- sql.push(db.prepare("UPDATE diagnosis_orders SET sales_stage='checkout_ready',questions_confirmed_at=datetime('now'),updated_at=datetime('now') WHERE id=? AND sales_stage IN ('questions_ready','checkout_ready')").bind(order.id));await db.batch(sql);await salesEvent(db,order.id,'questions_confirmed');return{saved:true,...qa};
+ sql.push(db.prepare("UPDATE diagnosis_orders SET sales_stage='checkout_ready',questions_confirmed_at=datetime('now'),updated_at=datetime('now') WHERE id=? AND sales_stage='questions_ready'").bind(order.id));await db.batch(sql);await salesEvent(db,order.id,'questions_confirmed');return{saved:true,...qa};
 }
 export const editRemainingQuestions=confirmQuestions;
 
