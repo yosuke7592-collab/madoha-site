@@ -88,6 +88,21 @@ test('resume skips completed measurements without duplicate calls', async () => 
   assert.equal(Object.values(secondAdapters).reduce((sum, adapter) => sum + adapter.calls, 0), 0);
 });
 
+test('resume after a fatal third-channel failure keeps two completed rows and runs only the remaining 28', async () => {
+  class FatalGoogleAdapter extends PaidAdapter {
+    estimateCost() { return 0; }
+    async execute() { const error = new Error('missing location'); error.code = 'invalid_location'; error.fatal = true; error.retryable = false; throw error; }
+  }
+  const store = new MemoryMeasurementStore();
+  const firstAdapters = adapters(); firstAdapters.google_ai_mode = new FatalGoogleAdapter({ channel: 'google_ai_mode', registry });
+  const stopped = await runPaidMeasurements({ diagnosis, questions, adapters: firstAdapters, store, maxCost: 1 });
+  assert.equal(stopped.status, 'stopped'); assert.equal(stopped.measurements.filter(row => !row.error).length, 2);
+  const resumeAdapters = adapters();
+  const resumed = await runPaidMeasurements({ diagnosis, questions, adapters: resumeAdapters, store, maxCost: 1 });
+  assert.equal(resumed.status, 'complete'); assert.equal(resumed.measurements.length, 30);
+  assert.equal(Object.values(resumeAdapters).reduce((sum, adapter) => sum + adapter.calls, 0), 28);
+});
+
 test('temporary failure retries twice and then saves a localized failure', async () => {
   let calls = 0;
   class RetryAdapter extends FixturePaidAdapter { async execute(input) { calls += 1; if (calls < 3) { const error = new Error('temporary'); error.retryable = true; throw error; } return super.execute(input); } }
@@ -228,6 +243,21 @@ test('DataForSEO separates display region from validated API location and posts 
   const body = JSON.parse(paidCalls[0].init.body)[0]; assert.equal(body.location_code, 1009274); assert.equal(body.location_name, undefined);
   assert.equal(row.provider_metadata.display_region, '千葉県浦安市・市川市'); assert.equal(row.provider_metadata.api_location_name, 'Urayasu,Chiba,Japan');
   assert.match(row.raw_answer, /^## 回答/u); assert.doesNotMatch(row.raw_answer, /重複させない本文/u); assert.equal(row.sources.length, 1);
+});
+
+test('DataForSEO uses the validated Japan target for a Japanese diagnosis without an explicit API location', async () => {
+  const entityWithoutApiLocation = { ...entity, api_location_name: '', api_location_code: null, display_region: '千葉県全域' };
+  const input = { diagnosis_id: 'd', entity: entityWithoutApiLocation, question_id: 'q', question_text: '千葉県全域の配送会社は？', channel: 'google_ai_mode', run_id: 'r', max_cost: 1, locale: 'ja-JP', location: '千葉県全域' };
+  assert.deepEqual(resolveDataForSeoTarget(input), { displayRegion: '千葉県全域', locationName: 'Japan', locationCode: 2392, languageCode: 'ja' });
+  let paidBody;
+  const adapter = new GoogleAiModePaidAdapter({ registry, fetchImpl: async (url, init) => {
+    if (url.includes('/locations/')) return { ok: true, json: async () => ({ tasks: [{ result: [{ location_code: 2392, location_name: 'Japan' }] }] }) };
+    if (url.endsWith('/languages')) return { ok: true, json: async () => ({ tasks: [{ result: [{ language_code: 'ja' }] }] }) };
+    paidBody = JSON.parse(init.body)[0];
+    return { ok: true, json: async () => ({ status_code: 20000, tasks: [{ id: 'live-japan', status_code: 20000, cost: .004, result: [{ items: [{ type: 'ai_overview', text: '候補を確認できます。', references: [] }] }] }] }) };
+  } });
+  const row = await adapter.execute(input, { MADOHA_ENABLE_LIVE_MEASUREMENT: 'true', DATAFORSEO_LOGIN: 'mock', DATAFORSEO_PASSWORD: 'mock' });
+  assert.equal(paidBody.location_code, 2392); assert.equal(row.provider_metadata.api_location_name, 'Japan'); assert.equal(row.provider_metadata.display_region, '千葉県全域');
 });
 
 test('DataForSEO rejects an invalid API location before a paid Live call', async () => {

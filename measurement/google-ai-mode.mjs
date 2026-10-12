@@ -3,13 +3,18 @@ import { PaidAdapter } from './paid-pipeline.mjs';
 export const DATAFORSEO_BASE = 'https://api.dataforseo.com/v3/serp/google/ai_mode';
 export const DATAFORSEO_LOCATIONS_URL = 'https://api.dataforseo.com/v3/serp/google/locations/jp';
 export const DATAFORSEO_LANGUAGES_URL = 'https://api.dataforseo.com/v3/serp/google/ai_mode/languages';
+export const DATAFORSEO_JAPAN_LOCATION = Object.freeze({ locationName: 'Japan', locationCode: 2392 });
 const fatal = (message, code, providerMetadata = {}) => Object.assign(new Error(message), { code, fatal: true, retryable: false, providerMetadata });
 const rows = payload => Array.isArray(payload?.tasks?.[0]?.result) ? payload.tasks[0].result : [];
 
 export function resolveDataForSeoTarget(input) {
-  const entity = input?.entity || {}; const locationName = String(entity.api_location_name || '').trim();
-  const locationCode = Number(entity.api_location_code); const displayRegion = String(entity.display_region || input?.location || '').trim();
+  const entity = input?.entity || {}; let locationName = String(entity.api_location_name || '').trim();
+  let locationCode = Number(entity.api_location_code); const displayRegion = String(entity.display_region || input?.location || '').trim();
   const languageCode = String(entity.api_language_code || (String(input?.locale).toLowerCase().startsWith('ja') ? 'ja' : 'en')).trim();
+  const missingName = !locationName; const missingCode = !Number.isInteger(locationCode) || locationCode <= 0;
+  if (missingName && missingCode && languageCode === 'ja') {
+    ({ locationName, locationCode } = DATAFORSEO_JAPAN_LOCATION);
+  }
   if (!locationName || !Number.isInteger(locationCode) || locationCode <= 0) throw fatal('DataForSEOの正式なAPI locationが設定されていません。', 'invalid_location');
   return { displayRegion, locationName, locationCode, languageCode };
 }
