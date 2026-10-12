@@ -52,6 +52,10 @@ test('identity resolution uses a clear modal and releases the anchored page scro
   assert.match(script, /cfg\.sales_enabled===true/);
   assert.match(script, /#checkout-controls/);
   assert.match(script, /region_conditions=selectedRegionConditions\(\)/);
+  assert.match(script, /regionInputTouched=true/);
+  assert.match(script, /if\(!regionInputTouched\)\{regionConditions=proposedRegions\(value\)/);
+  assert.match(script, /entity\.company_location=identity\.company_location\|\|identity\.region\|\|''/);
+  assert.match(script, /entity\.diagnosis_region=\[\.\.\.entity\.region_conditions\]/);
   assert.match(script, /openIdentityModal/);
   assert.match(script, /closeIdentityModal/);
   assert.match(script, /history\.replaceState/);
@@ -65,6 +69,14 @@ test('identity resolution uses a clear modal and releases the anchored page scro
   assert.match(html, /class="identity-official-url">公式サイト/);
   assert.match(css, /\.identity-official-url input\{margin-top:27\.5px\}/);
   assert.match(css, /@media\(max-width:700px\)[\s\S]*\.identity-official-url input\{margin-top:7px\}/);
+});
+
+test('report separates diagnosis region, API location, and company location',async()=>{
+  const script=await load('sample-kyoudo.js');
+  assert.match(script,/\['診断対象地域',diagnosisRegion\]/);
+  assert.match(script,/\['API location',provenance\.apiLocationName\|\|'指定なし'\]/);
+  assert.match(script,/\['会社所在地',companyLocation\]/);
+  assert.doesNotMatch(script,/\['地域',provenance\.apiLocationName\|\|data\.subject\.api_location_name\|\|data\.subject\.display_region/);
 });
 
 test('ten-question review keeps the metadata internal and presents direct editing only', async () => {

@@ -197,6 +197,7 @@ export function measurementsToPaidReport(baseReport, measurements) {
           provenance: {
             model: row.provider_metadata?.model || null,
             retrievalMode: row.provider_metadata?.retrieval_mode || null,
+            diagnosisRegion: row.location || null,
             apiLocationName: row.provider_metadata?.api_location_name || null,
             apiLocationCode: row.provider_metadata?.api_location_code || null,
             languageCode: row.provider_metadata?.language_code || null,

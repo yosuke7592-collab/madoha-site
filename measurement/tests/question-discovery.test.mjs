@@ -29,6 +29,7 @@ test('keeps up to three user-entered region conditions independent without split
   const separate=structuredClone(kyoudo);separate.entity.region_enabled=true;separate.entity.region_conditions=['市川','浦安'];
   const separateResult=generateQuestionDiscovery(separate);const separateText=separateResult.questions.map(item=>item.question_text);
   assert.deepEqual(separateResult.entity.region_conditions,['市川','浦安']);
+  assert.deepEqual(separateResult.entity.diagnosis_region,['市川','浦安']);
   assert.ok(separateText.some(text=>text.startsWith('市川で、')));assert.ok(separateText.some(text=>text.startsWith('浦安で、')));
   assert.ok(separateText.every(text=>!text.includes('市川・浦安')));assert.equal(separateText.filter(text=>/^(市川|浦安)で、/.test(text)).length,3);
   assert.deepEqual(separateResult.questions.filter(item=>item.kind==='nonbrand').map(item=>item.question_text.match(/^(市川|浦安)で、/)?.[1]||''),['市川','','浦安','','市川','']);
@@ -48,8 +49,15 @@ test('cycles region conditions across nonbrand positions one three and five whil
 
 test('does not turn company location into a search region when region targeting is off',()=>{
   const input=structuredClone(kyoudo);input.entity.region='千葉県市川市';input.entity.region_enabled=false;input.entity.region_conditions=[];
-  const result=generateQuestionDiscovery(input);assert.equal(result.entity.region,'千葉県市川市');assert.deepEqual(result.entity.region_conditions,[]);
+  const result=generateQuestionDiscovery(input);assert.equal(result.entity.company_location,'千葉県市川市');assert.equal(result.entity.region,'千葉県市川市');assert.deepEqual(result.entity.region_conditions,[]);assert.deepEqual(result.entity.diagnosis_region,[]);
   assert.ok(result.questions.every(item=>!item.question_text.includes('千葉県市川市')));assert.equal(result.mix.inputs.local,false);
+});
+
+test('uses the confirmed diagnosis region instead of the company location or proposed service region',()=>{
+  const input=structuredClone(kyoudo);input.entity.company_location='千葉県船橋市';input.entity.region='千葉県船橋市';input.entity.service_regions=['千葉県全域'];input.entity.region_enabled=true;input.entity.region_conditions=['千葉県全域'];input.entity.diagnosis_region=['千葉・船橋'];
+  const result=generateQuestionDiscovery(input),regional=result.questions.filter(item=>item.question_text.startsWith('千葉・船橋で、'));
+  assert.equal(result.entity.company_location,'千葉県船橋市');assert.deepEqual(result.entity.diagnosis_region,['千葉・船橋']);assert.deepEqual(result.entity.region_conditions,['千葉・船橋']);
+  assert.equal(regional.length,3);assert.ok(result.questions.every(item=>!item.question_text.includes('千葉県全域')&&!item.question_text.includes('千葉県船橋市')));
 });
 
 test('rejects more than three region conditions before question generation',()=>{

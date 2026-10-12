@@ -199,6 +199,7 @@ test('common measurements adapt to the unchanged Web/PDF report shape', async ()
   assert.equal(typeof report.queries[0].channels[0].answer, 'string'); assert.ok(Array.isArray(report.queries[0].channels[0].sources));
   assert.ok(report.queries[0].channels[0].measuredAt);
   assert.equal(report.queries[0].channels[0].provenance.locale, 'ja-JP');
+  assert.equal(report.queries[0].channels[0].provenance.diagnosisRegion, diagnosis.location);
 });
 
 test('empty provider answers never count as completed measurements', async () => {
@@ -258,6 +259,11 @@ test('DataForSEO uses the validated Japan target for a Japanese diagnosis withou
   } });
   const row = await adapter.execute(input, { MADOHA_ENABLE_LIVE_MEASUREMENT: 'true', DATAFORSEO_LOGIN: 'mock', DATAFORSEO_PASSWORD: 'mock' });
   assert.equal(paidBody.location_code, 2392); assert.equal(row.provider_metadata.api_location_name, 'Japan'); assert.equal(row.provider_metadata.display_region, '千葉県全域');
+});
+
+test('DataForSEO keeps the confirmed diagnosis region separate from company location when falling back to Japan',()=>{
+  const target=resolveDataForSeoTarget({location:'千葉・船橋',entity:{company_location:'千葉県船橋市',display_region:'千葉県船橋市',diagnosis_region:['千葉・船橋'],api_location_name:'',api_location_code:null,api_language_code:'ja'}});
+  assert.deepEqual(target,{displayRegion:'千葉・船橋',locationName:'Japan',locationCode:2392,languageCode:'ja'});
 });
 
 test('DataForSEO rejects an invalid API location before a paid Live call', async () => {

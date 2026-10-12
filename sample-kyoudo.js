@@ -43,13 +43,16 @@ const discoveryMetric=dashboard=>dashboard.discoveryVisibility.total
 const validResultCount=queries=>(queries||[]).flatMap(query=>query.channels||[]).filter(row=>!row.error&&String(row.answer||'').trim()).length;
 function measurementProvenance(data,row){
   const provenance=row.provenance||{};
+  const diagnosisRegions=Array.isArray(data.subject.diagnosis_region)?data.subject.diagnosis_region:(Array.isArray(data.subject.region_conditions)?data.subject.region_conditions:[]);
+  const diagnosisRegion=provenance.diagnosisRegion||diagnosisRegions.join(' / ')||data.subject.area||'指定なし';
   const values=[
     ['測定日時',row.measuredAt||data.measurement?.snapshotDate],
     ['AI',channelNames[row.channel]],
     ['モデル',provenance.model],
     ['取得方式',provenance.retrievalMode],
     ['言語',provenance.languageCode||data.subject.api_language_code],
-    ['地域',provenance.apiLocationName||data.subject.api_location_name||data.subject.display_region||data.subject.area||data.subject.region]
+    ['診断対象地域',diagnosisRegion],
+    ['API location',provenance.apiLocationName||'指定なし']
   ].filter(([,value])=>value!==undefined&&value!==null&&String(value).trim());
   return values.length?`<dl class="measurement-provenance">${values.map(([label,value])=>`<div><dt>${e(label)}</dt><dd>${e(value)}</dd></div>`).join('')}</dl>`:'';
 }
@@ -135,8 +138,11 @@ export function render(data){
   const actionCandidates=dashboard.priorities||[];
   const market=data.subject.market||data.subject.country||data.subject.country_name||data.subject.api_location_name||'';
   const language=data.subject.language||data.subject.api_language_code||data.measurement?.language||'';
-  const regions=Array.isArray(data.subject.regions)?data.subject.regions.join(' / '):(data.subject.display_region||data.subject.area||data.subject.region||'指定なし');
-  const conditions=[['測定日',data.measurement?.snapshotDate],['質問',`${totalQuestions}問`],['AI',Object.values(channelNames).join(' / ')],['市場・国',market],['言語',language],['地域条件',regions]].filter(([,value])=>value!==undefined&&value!==null&&String(value).trim());
+  const diagnosisRegions=Array.isArray(data.subject.diagnosis_region)?data.subject.diagnosis_region:(Array.isArray(data.subject.region_conditions)?data.subject.region_conditions:[]);
+  const regions=diagnosisRegions.length?diagnosisRegions.join(' / '):(data.subject.area||'指定なし');
+  const apiLocations=Object.entries(channelNames).map(([channel,label])=>{const location=data.queries.flatMap(query=>query.channels).find(row=>row.channel===channel&&row.provenance?.apiLocationName)?.provenance.apiLocationName;return`${label}: ${location||'指定なし'}`});
+  const companyLocation=data.subject.company_location||data.subject.region||'';
+  const conditions=[['測定日',data.measurement?.snapshotDate],['質問',`${totalQuestions}問`],['AI',Object.values(channelNames).join(' / ')],['市場・国',market],['言語',language],['診断対象地域',regions],['API location',apiLocations.join(' / ')],...(companyLocation&&!diagnosisRegions.includes(companyLocation)?[['会社所在地',companyLocation]]:[])].filter(([,value])=>value!==undefined&&value!==null&&String(value).trim());
   const dashboardHtml=totalQuestions===1?freeOverview(data,dashboard):observatoryDashboard(data,dashboard);
   document.querySelector('#report').innerHTML=`
   <section class="hero compact-hero"><p>MADOHA AI SEARCH DIAGNOSIS / AI検索調査レポート</p><h1>${e(data.subject.name)}</h1><span>${e([subjectArea,subjectCategory].filter(Boolean).join(' · '))}</span><dl><dt>検索質問</dt><dd>${e(totalQuestions)}問</dd><dt>AI検索</dt><dd>${e(channelCount)}チャネル</dd><dt>正常取得</dt><dd>${e(totalResults)} / ${e(expectedResults)}件</dd><dt>測定日</dt><dd>${e(data.measurement?.snapshotDate||'記録なし')}</dd></dl></section>
