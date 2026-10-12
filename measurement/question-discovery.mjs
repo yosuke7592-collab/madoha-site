@@ -2,15 +2,16 @@ const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
 const list=v=>Array.isArray(v)?v.map(clean).filter(Boolean):[];
 const uniq=v=>[...new Set(v.map(clean).filter(Boolean))];
 const key=v=>clean(v).normalize('NFKC').toLowerCase().replace(/[？！?！。、,.「」『』\s]/g,'');
-const isLocal=e=>e.region_enabled&&e.region_conditions.length>0;
+const isLocal=e=>e.region_enabled&&Boolean(e.diagnosis_region);
+function singleDiagnosisRegion(e={}){if(typeof e.diagnosis_region==='string')return e.diagnosis_region.trim();const source=Array.isArray(e.diagnosis_region)?e.diagnosis_region:Array.isArray(e.region_conditions)?e.region_conditions:[];const legacy=source.map(value=>String(value||'').trim()).filter(Boolean);if(legacy.length>1)throw new TypeError('地域条件は1つの入力欄にまとめて入力してください。');return legacy[0]||''}
 
 export function normalizeDiscoveryInput(raw={}){
   const e=raw.entity||raw;
-  const regionEnabled=e.region_enabled===true||e.region_enabled==='true';const diagnosisRegion=Array.isArray(e.diagnosis_region)?e.diagnosis_region:e.region_conditions;const regionConditions=regionEnabled?uniq(Array.isArray(diagnosisRegion)?diagnosisRegion:[]):[];if(regionConditions.length>3)throw new TypeError('地域条件は最大3件までです。');
+  const regionEnabled=e.region_enabled===true||e.region_enabled==='true';const diagnosisRegion=regionEnabled?singleDiagnosisRegion(e):'';if(regionEnabled&&!diagnosisRegion)throw new TypeError('地域を指定する場合は、地域等を入力してください。');if(diagnosisRegion.length>100)throw new TypeError('地域条件は100文字以内で入力してください。');
   const savedFaqEntries=Array.isArray(e.faq_entries)?e.faq_entries.map(entry=>({value:clean(entry?.value||entry),source_type:(entry?.source_type||entry?.source)==='user_input'?'user_input':'official_site'})).filter(entry=>entry.value):[];
   const faqValues=list(e.faq).length?list(e.faq):savedFaqEntries.map(entry=>entry.value);const faqEntries=faqValues.map(value=>savedFaqEntries.find(entry=>entry.value===value)||{value,source_type:'official_site'});
   const companyLocation=clean(e.company_location||e.region||e.area);
-  return {entity:{id:clean(e.id||e.identity_id),identity_id:clean(e.identity_id||e.id),name:clean(e.name),entity_type:clean(e.entity_type||'company'),identity_type:clean(e.identity_type||e.entity_type||'company'),official_url:clean(e.official_url||e.url),canonical_domain:clean(e.canonical_domain),operator_name:clean(e.operator_name),identification_status:clean(e.identification_status||'confirmed'),company_location:companyLocation,region:clean(e.region||companyLocation),region_enabled:regionEnabled,region_conditions:regionConditions,diagnosis_region:[...regionConditions],display_region:clean(e.display_region||companyLocation),industry:clean(e.industry||e.category),main_services:uniq(e.main_services||e.services||[]),main_products:uniq(e.main_products||e.products||[]),faq:faqValues,faq_entries:faqEntries,headings:list(e.headings),target_customers:list(e.target_customers),aliases:uniq(e.aliases||[]),api_location_name:clean(e.api_location_name),api_location_code:Number.isInteger(Number(e.api_location_code))?Number(e.api_location_code):null,api_language_code:clean(e.api_language_code||'ja')},source_signals:(raw.source_signals||[]).map(s=>typeof s==='string'?{type:'existing',value:clean(s),source:'取得済み情報'}:{type:clean(s.type||'existing'),value:clean(s.value||s.label),source:clean(s.source)||'取得済み情報',url:clean(s.url)}).filter(s=>s.value),intents:uniq(raw.intents||[]),related_search_signals:uniq(raw.related_search_signals||raw.search_demand_signals||[])};
+  return {entity:{id:clean(e.id||e.identity_id),identity_id:clean(e.identity_id||e.id),name:clean(e.name),entity_type:clean(e.entity_type||'company'),identity_type:clean(e.identity_type||e.entity_type||'company'),official_url:clean(e.official_url||e.url),canonical_domain:clean(e.canonical_domain),operator_name:clean(e.operator_name),identification_status:clean(e.identification_status||'confirmed'),company_location:companyLocation,region:clean(e.region||companyLocation),region_enabled:regionEnabled,diagnosis_region:diagnosisRegion,display_region:clean(e.display_region||companyLocation),industry:clean(e.industry||e.category),main_services:uniq(e.main_services||e.services||[]),main_products:uniq(e.main_products||e.products||[]),faq:faqValues,faq_entries:faqEntries,headings:list(e.headings),target_customers:list(e.target_customers),aliases:uniq(e.aliases||[]),api_location_name:clean(e.api_location_name),api_location_code:Number.isInteger(Number(e.api_location_code))?Number(e.api_location_code):null,api_language_code:clean(e.api_language_code||'ja')},source_signals:(raw.source_signals||[]).map(s=>typeof s==='string'?{type:'existing',value:clean(s),source:'取得済み情報'}:{type:clean(s.type||'existing'),value:clean(s.value||s.label),source:clean(s.source)||'取得済み情報',url:clean(s.url)}).filter(s=>s.value),intents:uniq(raw.intents||[]),related_search_signals:uniq(raw.related_search_signals||raw.search_demand_signals||[])};
 }
 
 export function recommendQuestionMix(raw){
@@ -118,7 +119,7 @@ function alternatives(e,s,region=''){
   if(e.entity_type==='product') return [`${s.situation}。少人数でも導入しやすいツールは？`,`${s.situation}。専門知識なしで使いやすいサービスは？`,`${s.situation}。既存業務から移行しやすい製品は？`];
   const p=region?`${region}で、`:''; return [`${p}${s.situation}場合、実績を確認できる相談先は？`,`${p}${s.situation}場合、専門性で選ぶならどこ？`,`${p}${s.situation}場合、相談前に何を比較すべき？`];
 }
-function regionForQuestion(e,index){if(!isLocal(e))return'';return e.region_conditions[index%e.region_conditions.length]||''}
+function regionForQuestion(e){return isLocal(e)?e.diagnosis_region:''}
 function brandedText(e,question,region=''){if(!region)return question;return e.entity_type==='company'?`${region}の${question}`:`${region}で、${question}`}
 function brandAlternatives(e,intent,offering){
   const n=e.name;

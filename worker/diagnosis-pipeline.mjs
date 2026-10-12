@@ -59,11 +59,12 @@ export async function loadConfirmedQuestions(db, diagnosisId) {
 
 export function baseReport(order, questions) {
   const entity = parseJson(order.entity_json, { name: order.target_url, official_url: order.target_url });
-  const diagnosisRegion = (Array.isArray(entity.diagnosis_region) ? entity.diagnosis_region : Array.isArray(entity.region_conditions) ? entity.region_conditions : [order.location])
-    .map(value => String(value || '').trim()).filter(Boolean);
+  const legacyRegions = Array.isArray(entity.diagnosis_region) ? entity.diagnosis_region : Array.isArray(entity.region_conditions) ? entity.region_conditions : [];
+  const diagnosisRegion = typeof entity.diagnosis_region === 'string' ? entity.diagnosis_region.trim() : legacyRegions.map(value => String(value || '').trim()).filter(Boolean);
+  const primaryRegion = typeof diagnosisRegion === 'string' ? diagnosisRegion : diagnosisRegion[0] || order.location || '';
   return {
     schemaVersion: 'paid-report-v1', sample: false,
-    subject: { ...entity, company_location: entity.company_location || entity.region || '', diagnosis_region: diagnosisRegion, area: diagnosisRegion[0] || order.location || '', category: entity.category || '' },
+    subject: { ...entity, company_location: entity.company_location || entity.region || '', diagnosis_region: diagnosisRegion, area: primaryRegion, category: entity.category || '' },
     measurement: { snapshotDate: new Date().toISOString().slice(0, 10), queryCount: 10, repetitions: 1 },
     queryDiscovery: { method: '対象企業のサービス、地域、検索需要、関連情報から確定した10問を使用' },
     queries: questions.map(question => ({ id: question.id, query: question.query, intent: question.intent, kind: question.kind, selectionReason: question.selection_reason, measurementPurpose: question.measurement_purpose, channels: [] })),

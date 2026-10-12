@@ -38,8 +38,10 @@ test('identity resolution uses a clear modal and releases the anchored page scro
   assert.doesNotMatch(html, /地域（地域に依存しない場合は空欄）/);
   assert.match(html, /地域を指定して診断する/);
   assert.match(html, /id="region-enabled"[^>]*role="switch"/);
-  assert.match(html, /id="region-condition-list"/);
-  assert.match(html, /最大3件/);
+  assert.match(html, /id="diagnosis-region"/);
+  assert.match(html, /ここに入力した地域等は、診断する質問文に自動で入ります/);
+  assert.match(html, /オンライン[\s\S]*東京都[\s\S]*港区・世田谷区・千代田区/);
+  assert.doesNotMatch(html, /＋ 地域を追加|最大3件|id="region-condition-list"/);
   assert.match(html, /診断する業種や質問の方向性を決めるために使用します/);
   assert.match(html, /診断するテーマの候補として使用します/);
   assert.match(html, /入力した内容はAIへの質問候補を作るために使用します/);
@@ -51,11 +53,12 @@ test('identity resolution uses a clear modal and releases the anchored page scro
   assert.match(script, /renderInputWarnings/);
   assert.match(script, /cfg\.sales_enabled===true/);
   assert.match(script, /#checkout-controls/);
-  assert.match(script, /region_conditions=selectedRegionConditions\(\)/);
+  assert.match(script, /entity\.diagnosis_region=selectedDiagnosisRegion\(\)/);
   assert.match(script, /regionInputTouched=true/);
-  assert.match(script, /if\(!regionInputTouched\)\{regionConditions=proposedRegions\(value\)/);
+  assert.match(script, /if\(!regionInputTouched\)\{diagnosisRegion=proposedRegion\(value\)/);
   assert.match(script, /entity\.company_location=identity\.company_location\|\|identity\.region\|\|''/);
-  assert.match(script, /entity\.diagnosis_region=\[\.\.\.entity\.region_conditions\]/);
+  assert.match(script, /delete entity\.region_conditions/);
+  assert.doesNotMatch(script, /add-region-condition|selectedRegionConditions|regionConditions\.push/);
   assert.match(script, /openIdentityModal/);
   assert.match(script, /closeIdentityModal/);
   assert.match(script, /history\.replaceState/);

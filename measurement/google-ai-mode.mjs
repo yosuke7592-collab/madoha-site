@@ -27,7 +27,7 @@ const catalogStatus = (response, payload) => ({
 
 export function resolveDataForSeoTarget(input) {
   const entity = input?.entity || {}; let locationName = String(entity.api_location_name || '').trim();
-  let locationCode = Number(entity.api_location_code); const displayRegion = String(input?.location || (Array.isArray(entity.diagnosis_region) ? entity.diagnosis_region[0] : '') || entity.display_region || '').trim();
+  let locationCode = Number(entity.api_location_code); const diagnosisRegion = typeof entity.diagnosis_region === 'string' ? entity.diagnosis_region : (Array.isArray(entity.diagnosis_region) ? entity.diagnosis_region[0] : ''); const displayRegion = String(input?.location || diagnosisRegion || entity.display_region || '').trim();
   const languageCode = String(entity.api_language_code || (String(input?.locale).toLowerCase().startsWith('ja') ? 'ja' : 'en')).trim();
   const missingName = !locationName; const missingCode = !Number.isInteger(locationCode) || locationCode <= 0;
   if (missingName && missingCode && languageCode === 'ja') {

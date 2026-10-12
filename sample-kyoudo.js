@@ -41,9 +41,10 @@ const discoveryMetric=dashboard=>dashboard.discoveryVisibility.total
   ?metric(`${dashboard.discoveryVisibility.appeared} / ${dashboard.discoveryVisibility.total}`,'会社名なしでの掲載',`会社名を指定しない${dashboard.discoveryVisibility.total}回中${dashboard.discoveryVisibility.appeared}回`)
   :metric('—','会社名なしでの掲載','今回の測定対象なし');
 const validResultCount=queries=>(queries||[]).flatMap(query=>query.channels||[]).filter(row=>!row.error&&String(row.answer||'').trim()).length;
+const diagnosisRegionValues=subject=>typeof subject?.diagnosis_region==='string'?[subject.diagnosis_region].filter(Boolean):Array.isArray(subject?.diagnosis_region)?subject.diagnosis_region:(Array.isArray(subject?.region_conditions)?subject.region_conditions:[]);
 function measurementProvenance(data,row){
   const provenance=row.provenance||{};
-  const diagnosisRegions=Array.isArray(data.subject.diagnosis_region)?data.subject.diagnosis_region:(Array.isArray(data.subject.region_conditions)?data.subject.region_conditions:[]);
+  const diagnosisRegions=diagnosisRegionValues(data.subject);
   const diagnosisRegion=provenance.diagnosisRegion||diagnosisRegions.join(' / ')||data.subject.area||'指定なし';
   const values=[
     ['測定日時',row.measuredAt||data.measurement?.snapshotDate],
@@ -138,7 +139,7 @@ export function render(data){
   const actionCandidates=dashboard.priorities||[];
   const market=data.subject.market||data.subject.country||data.subject.country_name||data.subject.api_location_name||'';
   const language=data.subject.language||data.subject.api_language_code||data.measurement?.language||'';
-  const diagnosisRegions=Array.isArray(data.subject.diagnosis_region)?data.subject.diagnosis_region:(Array.isArray(data.subject.region_conditions)?data.subject.region_conditions:[]);
+  const diagnosisRegions=diagnosisRegionValues(data.subject);
   const regions=diagnosisRegions.length?diagnosisRegions.join(' / '):(data.subject.area||'指定なし');
   const apiLocations=Object.entries(channelNames).map(([channel,label])=>{const location=data.queries.flatMap(query=>query.channels).find(row=>row.channel===channel&&row.provenance?.apiLocationName)?.provenance.apiLocationName;return`${label}: ${location||'指定なし'}`});
   const companyLocation=data.subject.company_location||data.subject.region||'';
