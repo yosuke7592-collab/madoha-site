@@ -28,8 +28,10 @@ test('authorized completed diagnosis downloads PDF while id-only and unpaid acce
 });
 
 test('web report is visually isolated and direct PDF download replaces browser printing',async()=>{
-  const [sales,renderer,css]=await Promise.all([readFile(new URL('../../sales.js',import.meta.url),'utf8'),readFile(new URL('../../sample-kyoudo.js',import.meta.url),'utf8'),readFile(new URL('../../report-document.css',import.meta.url),'utf8')]);
+  const [sales,renderer,css,pdfSource]=await Promise.all([readFile(new URL('../../sales.js',import.meta.url),'utf8'),readFile(new URL('../../sample-kyoudo.js',import.meta.url),'utf8'),readFile(new URL('../../report-document.css',import.meta.url),'utf8'),readFile(new URL('../../worker/report-pdf.mjs',import.meta.url),'utf8')]);
   assert.match(sales,/PDFをダウンロード/);assert.match(sales,/\/pdf/);assert.doesNotMatch(sales,/window\.print/);assert.match(sales,/report-view-active/);
   assert.match(renderer,/ここから購入した診断結果です/);assert.match(renderer,/ここから完成版サンプルです/);assert.match(renderer,/class="diagnosis-report"/);
   assert.match(css,/@page\{size:A4 portrait/);assert.match(css,/body\.report-view-active>main\{display:none\}/);assert.match(css,/body>\*\{display:none!important\}/);
+  assert.match(pdfSource,/AI SEARCH DIAGNOSTIC REPORT/);assert.match(pdfSource,/検索対象・測定条件/);assert.match(pdfSource,/会社名ありの質問ではAI回答を確認しました。ただし、対象企業以外の同名企業情報が混在した可能性があります/);
+  assert.match(pdfSource,/この質問の詳細参照URL（重複除外）/);assert.match(pdfSource,/uniqueSources\(\(query\.channels\|\|\[\]\)\.flatMap/);assert.doesNotMatch(pdfSource,/sources:\(row\.sources\|\|\[\]\)\.slice\(0,3\)/);
 });

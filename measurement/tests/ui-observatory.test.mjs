@@ -213,6 +213,12 @@ test('paid dashboard exposes executive summary, provider comparison, matrix and 
   assert.match(script, /href="#evidence-/);
   assert.match(script, /今回の回答で確認された企業/);
   assert.match(script, /今回のAI回答で確認された参照情報/);
+  assert.match(script, /重要な観測事実/);
+  assert.match(script, /回答あり・同名企業情報の混在に注意/);
+  assert.match(script, /回答されたことと、対象企業を正しく認識したことは分けて確認する必要があります/);
+  assert.match(script, /この質問の詳細参照URL（重複除外）/);
+  assert.match(script, /majorSourceUrls/);
+  assert.match(script, /isSystemOnlySource/);
   assert.match(script, /今回の測定対象なし/);
   assert.match(script, /確認候補/);
   assert.doesNotMatch(script, /よく参照されたドメイン/);
@@ -224,6 +230,8 @@ test('paid dashboard exposes executive summary, provider comparison, matrix and 
   assert.match(script, /channelIcon\(row\.channel\)/);
   assert.match(css, /@media\(max-width:430px\)/);
   assert.match(resilienceCss, /measurement-provenance/);
+  assert.match(resilienceCss, /report-observations/);
+  assert.match(resilienceCss, /question-source-detail/);
   assert.match(resilienceCss, /overflow-wrap: anywhere/);
   assert.match(brandCss, /\.provider-badge\.provider-logo/);
   assert.match(brandCss, /\.source-ranking li>span/);

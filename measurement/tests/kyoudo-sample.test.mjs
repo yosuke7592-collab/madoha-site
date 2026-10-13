@@ -44,7 +44,7 @@ test('report starts with ten search results and keeps evaluation labels out of c
   assert.match(reportSource, /AIの順位付け/);
   assert.match(reportSource, /AI RESPONSE/);
   assert.match(reportSource, /掲載された企業/);
-  assert.match(reportSource, /参照された情報/);
+  assert.match(reportSource, /主要参照情報/);
   assert.match(reportSource, /MADOHAの見解/);
   assert.match(reportSource, /ChatGPT/);
   assert.match(reportSource, /Gemini/);
@@ -54,7 +54,7 @@ test('report starts with ten search results and keeps evaluation labels out of c
   assert.match(reportSource, /validResultCount\(nonbrand\)/);
   assert.match(reportSource, /validResultCount\(branded\)/);
   assert.match(reportSource, /index\+nonbrand\.length/);
-  assert.match(reportSource, /hasWarning\?'注意あり':row\.answer\?'回答あり':'回答なし'/);
+  assert.match(reportSource, /回答あり・同名企業情報の混在に注意/);
   assert.match(reportSource, /catalogSources=preferredSources/);
   assert.match(reportSource, /data\.subject\.category\|\|data\.subject\.industry/);
   assert.doesNotMatch(reportSource, /6 QUESTIONS \/ 18 RESULTS/);
