@@ -126,8 +126,12 @@ test('a verified single service expands into distinct customer decision axes wit
   assert.equal(new Set(nonbrand.map(item=>item.decision_axis)).size,6);
   assert.ok(nonbrand.every(item=>item.source_signals.includes('個人宅向け軽貨物宅配サービス')));
   assert.ok(nonbrand.every(item=>!/(料金|価格|即日|法人向け|冷蔵|大型)/.test(item.question_text)));
+  assert.ok(nonbrand.every(item=>!/(依頼内容に合う|対応内容を事前に確認|何を確認すべき)/.test(item.question_text)));
+  assert.ok(nonbrand.some(item=>item.question_text.includes('おすすめ')));
+  assert.ok(nonbrand.some(item=>item.question_text.includes('実績がある')));
+  assert.ok(nonbrand.some(item=>item.question_text.includes('に強い会社')));
   assert.deepEqual(nonbrand.map(item=>item.discovery_evidence.find(evidence=>evidence.type==='user_region_condition')?.value),Array(6).fill('千葉県全域'));
-  assert.ok(nonbrand.some(item=>item.intent==='発見'));assert.ok(nonbrand.some(item=>item.intent==='比較'));assert.ok(nonbrand.some(item=>item.intent==='信頼確認'));
+  assert.ok(nonbrand.some(item=>item.intent==='発見'));assert.ok(nonbrand.some(item=>item.intent==='比較'));assert.ok(nonbrand.some(item=>item.intent==='推薦'));assert.ok(nonbrand.some(item=>item.intent==='信頼確認'));assert.ok(nonbrand.some(item=>item.intent==='専門性'));
 });
 
 test('industry and service mismatch warns only with high confidence and allows compound businesses',()=>{

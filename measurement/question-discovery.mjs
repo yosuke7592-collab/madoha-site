@@ -76,10 +76,10 @@ function genericUserScenarios(input,detected=[]){const used=new Set(detected.map
 
 const DECISION_AXES=[
   ['compare','比較','比較候補',offering=>`${offering}の依頼先を比較したい。どの会社が候補？`,offering=>`${offering}を探す利用者に、AIが比較候補として対象を挙げるか確認します。`],
-  ['fit','利用判断','依頼内容との適合',offering=>`${offering}を検討するとき、依頼内容に合う会社は？`,offering=>`${offering}の依頼内容に合う選択肢として、AIが対象を示すか確認します。`],
-  ['scope','価格 / 条件','対応内容の確認',(offering,action)=>`${offering}を${action}するとき、対応内容を事前に確認できる会社は？`,offering=>`${offering}の対応内容を確認する場面で、AIが対象を候補に挙げるか確認します。`],
+  ['recommend','推薦','推薦候補',offering=>`${offering}を依頼するなら、どの会社がおすすめ？`,offering=>`${offering}の依頼先を探す利用者に、AIが対象を推薦候補として挙げるか確認します。`],
+  ['track-record','比較','実績',offering=>`${offering}の実績がある会社は？`,offering=>`${offering}の実績を重視する利用者に、AIが対象を候補として挙げるか確認します。`],
   ['trust','信頼確認','信頼性',offering=>`${offering}を安心して任せられる会社は？`,offering=>`${offering}の依頼先として、AIが対象の信頼性を説明できるか確認します。`],
-  ['prepare','導入 / 契約判断','依頼前確認',(offering,action)=>`${offering}を${action}する前に、依頼先へ何を確認すべき？`,offering=>`${offering}の相談前に、AIが対象を含む依頼先の確認点を示せるか確認します。`]
+  ['expertise','専門性','専門性',offering=>`${offering}に強い会社は？`,offering=>`${offering}の専門性を重視する利用者に、AIが対象を候補として挙げるか確認します。`]
 ];
 
 function decisionAxisFallbacks(input,offerings){
