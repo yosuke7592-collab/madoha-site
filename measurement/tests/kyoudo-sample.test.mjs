@@ -44,7 +44,8 @@ test('report starts with ten search results and keeps evaluation labels out of c
   assert.match(reportSource, /AIの順位付け/);
   assert.match(reportSource, /AI RESPONSE/);
   assert.match(reportSource, /掲載された企業/);
-  assert.match(reportSource, /主要参照情報/);
+  assert.match(reportSource, /sourceCountLabel/);
+  assert.match(reportSource, /DETAIL REFERENCES/);
   assert.match(reportSource, /MADOHAの見解/);
   assert.match(reportSource, /ChatGPT/);
   assert.match(reportSource, /Gemini/);

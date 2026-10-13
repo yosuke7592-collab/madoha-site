@@ -113,12 +113,14 @@ function looksLikeDomain(value) {
 }
 
 export function sourcePresentation(source = {}, fallbackUrl = '') {
-  const rawUrl = source.url || fallbackUrl;
+  const originalUrl = source.url || fallbackUrl;
+  const rawUrl = source.final_url || source.finalUrl || source.resolved_url || source.resolvedUrl || source.destination_url || source.destinationUrl || source.canonical_url || source.canonicalUrl || originalUrl;
   const href = safeHttpUrl(rawUrl);
   const linkDomain = sourceHost(rawUrl);
+  const originalDomain = sourceHost(originalUrl);
   const recordedName = String(source.name || source.title || '').trim();
   const recordedDomain = looksLikeDomain(recordedName) ? recordedName.replace(/^www\./i, '') : '';
-  const isGoogleRedirect = linkDomain === 'vertexaisearch.cloud.google.com';
+  const isGoogleRedirect = originalDomain === 'vertexaisearch.cloud.google.com';
   const domain = recordedDomain || linkDomain || '参照先不明';
   const name = recordedName || domain;
 
@@ -126,7 +128,7 @@ export function sourcePresentation(source = {}, fallbackUrl = '') {
     href,
     name,
     domain,
-    via: isGoogleRedirect && recordedName
+    via: isGoogleRedirect && rawUrl === originalUrl && recordedName
       ? 'Google経由の参照リンク'
       : ''
   };

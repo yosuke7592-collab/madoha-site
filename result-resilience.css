@@ -59,6 +59,13 @@
   word-break: break-word;
 }
 
+.source-remainder {
+  margin: 10px 0 0;
+  color: var(--obs-muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
 .measurement-provenance,
 .measurement-conditions {
   display: flex;

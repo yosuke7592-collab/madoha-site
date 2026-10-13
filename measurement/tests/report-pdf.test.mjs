@@ -32,6 +32,6 @@ test('web report is visually isolated and direct PDF download replaces browser p
   assert.match(sales,/PDFをダウンロード/);assert.match(sales,/\/pdf/);assert.doesNotMatch(sales,/window\.print/);assert.match(sales,/report-view-active/);
   assert.match(renderer,/ここから購入した診断結果です/);assert.match(renderer,/ここから完成版サンプルです/);assert.match(renderer,/class="diagnosis-report"/);
   assert.match(css,/@page\{size:A4 portrait/);assert.match(css,/body\.report-view-active>main\{display:none\}/);assert.match(css,/body>\*\{display:none!important\}/);
-  assert.match(pdfSource,/AI SEARCH DIAGNOSTIC REPORT/);assert.match(pdfSource,/検索対象・測定条件/);assert.match(pdfSource,/会社名ありの質問ではAI回答を確認しました。ただし、対象企業以外の同名企業情報が混在した可能性があります/);
-  assert.match(pdfSource,/この質問の詳細参照URL（重複除外）/);assert.match(pdfSource,/uniqueSources\(\(query\.channels\|\|\[\]\)\.flatMap/);assert.doesNotMatch(pdfSource,/sources:\(row\.sources\|\|\[\]\)\.slice\(0,3\)/);
+  assert.match(pdfSource,/AI SEARCH DIAGNOSTIC REPORT/);assert.match(pdfSource,/01 \/ TARGET & CONDITIONS/);assert.match(pdfSource,/回答の有無と、対象企業を正しく認識したかは分けて確認する必要があります/);
+  assert.match(pdfSource,/DETAIL REFERENCES \/ 取得した参照情報 全/);assert.match(pdfSource,/groupedSources/);assert.match(pdfSource,/matrixHeader/);assert.doesNotMatch(pdfSource,/07 \/ CHECK POINTS/);assert.doesNotMatch(pdfSource,/sources:\(row\.sources\|\|\[\]\)\.slice\(0,3\)/);
 });
