@@ -1,6 +1,15 @@
 import { authorizeSales } from './sales-flow.mjs';
 import { generateReportPdf } from './report-pdf.mjs';
 
+let embeddedFontPromise;
+function loadEmbeddedFont(env,requestUrl){
+  if(!embeddedFontPromise)embeddedFontPromise=env.ASSETS.fetch(new Request(new URL('/assets/fonts/NotoSansJP-Regular.ttf',requestUrl))).then(async response=>{
+    if(!response.ok)throw new Error('PDF用日本語フォントを読み込めませんでした。');
+    return new Uint8Array(await response.arrayBuffer());
+  }).catch(error=>{embeddedFontPromise=undefined;throw error});
+  return embeddedFontPromise;
+}
+
 export async function handleReportPdfRequest(request,env){
   const match=new URL(request.url).pathname.match(/^\/api\/sales\/([0-9a-f-]{36})\/pdf$/i);
   if(!match)return null;
@@ -8,7 +17,7 @@ export async function handleReportPdfRequest(request,env){
   const order=await authorizeSales(env.DB,match[1],request.headers.get('x-diagnosis-token'));
   if(!order)return Response.json({error:'閲覧権限を確認できません。'},{status:403});
   if(order.payment_status!=='paid'||order.sales_stage!=='completed'||!order.report_json)return Response.json({error:'診断完了後に閲覧できます。'},{status:403});
-  const pdf=generateReportPdf(JSON.parse(order.report_json));
+  const pdf=await generateReportPdf(JSON.parse(order.report_json),await loadEmbeddedFont(env,request.url));
   return new Response(pdf.bytes,{headers:{
     'content-type':'application/pdf',
     'content-disposition':`attachment; filename*=UTF-8''${encodeURIComponent(pdf.filename)}`,
