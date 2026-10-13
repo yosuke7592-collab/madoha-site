@@ -33,7 +33,7 @@ test('web report is visually isolated and direct PDF download replaces browser p
   assert.match(renderer,/ここから購入した診断結果です/);assert.match(renderer,/ここから完成版サンプルです/);assert.match(renderer,/class="diagnosis-report"/);
   assert.match(css,/@page\{size:A4 portrait/);assert.match(css,/body\.report-view-active>main\{display:none\}/);assert.match(css,/body>\*\{display:none!important\}/);
   assert.match(pdfSource,/AI SEARCH DIAGNOSTIC REPORT/);assert.match(pdfSource,/01 \/ TARGET & CONDITIONS/);assert.match(pdfSource,/回答の有無と、対象企業を正しく認識したかは分けて確認する必要があります/);
-  assert.doesNotMatch(pdfSource,/DETAIL REFERENCES/);assert.match(pdfSource,/全参照情報はWeb版のEvidenceで確認できます/);assert.match(pdfSource,/groups\.slice\(0,3\)/);assert.match(pdfSource,/groupedSources/);assert.match(pdfSource,/matrixHeader/);assert.doesNotMatch(pdfSource,/07 \/ CHECK POINTS/);assert.doesNotMatch(pdfSource,/sources:\(row\.sources\|\|\[\]\)\.slice\(0,3\)/);
+  assert.doesNotMatch(pdfSource,/DETAIL REFERENCES/);assert.match(pdfSource,/全参照情報はWeb版のEvidenceで確認できます/);assert.match(pdfSource,/groups\.slice\(0,3\)/);assert.match(pdfSource,/competitors\.slice\(0,15\)/);assert.match(pdfSource,/上位15社を表示。全件はWeb版Evidenceで確認できます/);assert.match(pdfSource,/groupedSources/);assert.match(pdfSource,/matrixHeader/);assert.doesNotMatch(pdfSource,/07 \/ CHECK POINTS/);assert.doesNotMatch(pdfSource,/Number\(row\.aiRank\)===1\|\|Number\(row\.listedPosition\)===1/);assert.doesNotMatch(pdfSource,/sources:\(row\.sources\|\|\[\]\)\.slice\(0,3\)/);
 });
 
 test('variable report content paginates without expanding PDF evidence references beyond three',async()=>{

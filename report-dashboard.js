@@ -47,7 +47,7 @@ export function buildReportDashboard(report) {
   const discoveryAppeared = discovery.filter(row => row.appeared).length;
   const brandedAppeared = branded.filter(row => row.appeared).length;
   const recommendationCount = valid.filter(row => row.recommended).length;
-  const explicitRankCount = valid.filter(row => Number.isInteger(row.aiRank)).length;
+  const explicitRankCount = valid.filter(row => Number(row.aiRank) === 1).length;
   const topCandidateCount = valid.filter(row => Number.isInteger(row.listedPosition) && row.listedPosition <= 3).length;
   const priorities = [];
   const missingDiscovery = queries.filter(query => query.kind === 'nonbrand' && (query.channels || []).filter(row => row.appeared).length === 0);

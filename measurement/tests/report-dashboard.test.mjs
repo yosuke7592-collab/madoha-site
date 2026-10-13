@@ -25,6 +25,14 @@ test('dashboard uses measurement facts for visibility and discovery visibility',
   assert.equal(result.explicitRankCount, 1);
 });
 
+test('first mention position is not counted as an explicit first-place result', () => {
+  const copy=structuredClone(report);
+  copy.queries[1].channels[0]={...copy.queries[1].channels[0],aiRank:null,listedPosition:1};
+  const result=buildReportDashboard(copy);
+  assert.equal(result.explicitRankCount,0);
+  assert.equal(result.topCandidateCount,5);
+});
+
 test('dashboard creates accessible heatmap, normalized competitor and source facts', () => {
   const result = buildReportDashboard(report);
   assert.equal(result.heatmap[0].channels.gemini, 'not_appeared');

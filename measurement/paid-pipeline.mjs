@@ -48,7 +48,7 @@ export function sourceObjects(items = [], registry = []) {
 const STRONG_RECOMMENDATION = /(おすすめ|お勧め|推奨|第一候補|第1候補|有力候補|最も適して|特におすすめ)/u;
 const NEGATIVE_RECOMMENDATION = /(おすすめしない|推奨しない|第一候補ではない|有力候補ではない)/u;
 const GENERIC_COMPANY_LABEL = /(?:【|】|候補|地域|地元|おすすめ|相談|タイプ|まとめ|結論|選び方|コツ|比較|確認|強み|特徴|評判|口コミ|事業内容|パターン|資金計画|予算|エリア|ステップ|判断|質問|書類|メモ|ネットワーク|自由設計|今回|主な|大手|総合|代表的|会社概要|基本情報|条件|方法|選択肢|安全性|災害リスク|周辺環境|将来費用|ライフプラン|金融機関|お金のプロ|専門店|部門|購入スタイル|希望する場合|提案してくれるか|借りられる額|向いている|理由|料金プラン|専門性|申告実績|ワンストップ|税務調査率|料金体系|クレジット|注意点|デメリット|メリット|仕様|制限|把握|など|第[一二三四五六七八九十0-9]+候補|^不動産$|^不動産会社$|^社名$|^注文住宅$)/u;
-const SENTENCE_COMPANY_LABEL = /(?:前提|回答|指す|したい場合|を(?:語る|選ぶ|利用|検討|紹介)|➔|➡)/u;
+const SENTENCE_COMPANY_LABEL = /(?:前提|回答|指す|したい場合|を(?:語る|選ぶ|利用|検討|紹介)|→|⇒|➔|➡)/u;
 
 function plausibleCompanyName(value) {
   const name = String(value || '').replace(/[*_`]/g, '').trim();
@@ -77,8 +77,10 @@ export function derivePaidEntities(answer, entity, registry = []) {
       .filter(Boolean).some(name => normalizeCompanyName(name) === normalized));
   };
   const addMention = (name, index) => {
+    const raw=String(name||''),alternatives=raw.split(/\s*または\s*/u).filter(Boolean);
+    if(alternatives.length>1){for(const alternative of alternatives)addMention(alternative,index+raw.indexOf(alternative));return}
     if (/^\s*[-+]\s/u.test(String(name || ''))) return;
-    const cleaned = String(name || '').replace(/[*_`]/g, '').replace(/^[\[（(]|[\]）)]$/g, '').replace(/^\d+[.)、．]\s*/u, '').replace(/^■\s*/u, '').split(/[｜|：:（(]/u)[0].trim()
+    const cleaned = String(name || '').replace(/[*_`]/g, '').replace(/^[\[（(]|[\]）)]$/g, '').replace(/^\d+[.)、．]\s*/u, '').replace(/^■\s*/u, '').replace(/^[→⇒➔➡]+\s*/u,'').split(/[｜|：:（(]/u)[0].trim()
       .replace(/^((?:株式会社|有限会社|合同会社|一般社団法人|一般財団法人)[^、。\n]{1,30}?)(?:は|が)(?=[^\s]).*$/u, '$1')
       .replace(/^スーモカウンター/u, 'SUUMOカウンター');
     if (!plausibleCompanyName(cleaned) || cleaned.length < 2 || cleaned.length > 40) return;

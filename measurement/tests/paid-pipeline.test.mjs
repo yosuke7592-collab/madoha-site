@@ -55,6 +55,19 @@ test('company extraction handles numbered headings, comparison tables and local 
   assert.deepEqual(result.mentioned_entities.map(item => item.name), ['明和地所', 'SHUKEN Re', '富士屋商事', '株式会社清田屋不動産']);
 });
 
+test('company extraction removes directional markers and separates explicit alternatives', () => {
+  const answer = `### 結論
+- **通販商品を継続配送**
+  → **株式会社千葉通商**
+- **急ぎ・時間指定**
+  → **S-LINE合同会社**または**合同会社Tsuruoka Trans Port**
+- **冷蔵・冷凍品**
+  → **S-LINE合同会社**`;
+  const result = derivePaidEntities(answer, entity, registry);
+  assert.deepEqual(result.mentioned_entities.map(item => item.name), ['株式会社千葉通商', 'S-LINE合同会社', '合同会社Tsuruoka Trans Port']);
+  assert.ok(result.mentioned_entities.every(item => !item.name.startsWith('→') && !item.name.includes('または')));
+});
+
 test('company extraction ignores generic product and professional-service headings', () => {
   const product = { id: 'kintone', name: 'kintone', aliases: ['キントーン', 'Kintone'] };
   const productResult = derivePaidEntities('kintoneは業務改善ツールです。\n### 1. kintoneが向いている代表的な業務\n### 2. kintoneの「仕様上の制限」の把握\n| **kintone AIクレジット** | 500 |', product, [product]);
