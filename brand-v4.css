@@ -193,6 +193,7 @@ body.identity-modal-open{overflow:hidden}
 .visibility-heatmap th,.visibility-heatmap td{font-size:14px!important}.visibility-heatmap tbody th{font-size:14px!important}
 .bar-row b,.source-ranking b,.source-ranking span,.priorities b,.priorities p{font-size:14px!important}
 .answer-markdown{font-size:16px!important;line-height:1.85!important}.answer-markdown p,.answer-markdown li{font-size:16px!important}
+.answer-table-wrap{max-width:100%;overflow-x:auto;margin:14px 0;border:1px solid #dbe5ef;border-radius:8px}.answer-table{width:100%;min-width:420px;border-collapse:collapse;background:#fff;font-size:14px;line-height:1.55}.answer-table th,.answer-table td{padding:10px 12px;border-bottom:1px solid #dbe5ef;border-right:1px solid #dbe5ef;text-align:left;vertical-align:top}.answer-table th:last-child,.answer-table td:last-child{border-right:0}.answer-table th{background:#f3f7fc;color:#071526;font-weight:700}.answer-table tr:last-child td{border-bottom:0}
 .query-block summary h3{font-size:21px!important}.result-summary>span{font-size:14px!important}
 .compact-hero{width:min(1160px,calc(100% - 40px))!important;margin:28px auto 0!important;border-radius:14px!important;min-height:220px!important;padding:35px 48px!important}
 .report-tools,.reliability-common-note,.search-report,.end,.sample-next-step{width:min(1160px,calc(100% - 40px))!important}

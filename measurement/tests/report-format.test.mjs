@@ -35,6 +35,14 @@ test('safe Markdown keeps long free and full report answers readable through the
   assert.ok(full.length>3000);
 });
 
+test('safe Markdown renders Markdown tables as accessible tables without altering cell text',()=>{
+  const html=renderSafeMarkdown('| 会社名 | 対応内容 |\n| --- | --- |\n| 株式会社協同住宅 | 相談可 |',{subject:'株式会社協同住宅'});
+  assert.match(html,/<table class="answer-table">/);
+  assert.match(html,/<th>会社名<\/th>/);
+  assert.match(html,/<td><strong class="subject-highlight">株式会社協同住宅<\/strong><\/td>/);
+  assert.doesNotMatch(html,/>\|\s*---/);
+});
+
 test('Gemini redirect sources use saved final-domain evidence without inventing a final URL',()=>{
   const redirect='https://vertexaisearch.cloud.google.com/grounding-api-redirect/saved-token';
   const display=sourcePresentation({name:'kyoudo.jp',url:redirect});

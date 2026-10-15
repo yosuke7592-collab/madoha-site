@@ -60,12 +60,31 @@ function renderInline(value, subject = '') {
   return rendered;
 }
 
+function markdownTableCells(line) {
+  const trimmed = String(line ?? '').trim().replace(/^\||\|$/g, '');
+  return trimmed.split('|').map(cell => cell.trim());
+}
+
+function markdownTableSeparator(line) {
+  const cells = markdownTableCells(line);
+  return cells.length > 0 && cells.every(cell => /^:?-{3,}:?$/.test(cell));
+}
+
+function renderMarkdownTable(lines, subject) {
+  const rows = lines.map(markdownTableCells).filter(row => row.length);
+  const header = rows.shift() || [];
+  const width = Math.max(header.length, ...rows.map(row => row.length));
+  const cell = (value, tag) => `<${tag}>${renderInline(value || '', subject)}</${tag}>`;
+  return `<div class="answer-table-wrap"><table class="answer-table"><thead><tr>${Array.from({ length: width }, (_, index) => cell(header[index], 'th')).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${Array.from({ length: width }, (_, index) => cell(row[index], 'td')).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+
 export function renderSafeMarkdown(value, { subject = '' } = {}) {
   const lines = String(value ?? '').replace(/\r\n?/g, '\n').split('\n');
   const output = [];
   let paragraph = [];
   let listType = null;
   let listItems = [];
+  let tableLines = [];
 
   const flushParagraph = () => {
     if (!paragraph.length) return;
@@ -78,13 +97,36 @@ export function renderSafeMarkdown(value, { subject = '' } = {}) {
     listType = null;
     listItems = [];
   };
+  const flushTable = () => {
+    if (tableLines.length >= 2 && markdownTableSeparator(tableLines[1])) {
+      output.push(renderMarkdownTable([tableLines[0], ...tableLines.slice(2)], subject));
+    } else if (tableLines.length) {
+      paragraph.push(...tableLines);
+    }
+    tableLines = [];
+  };
 
   for (const line of lines) {
     const heading = line.match(/^\s{0,3}(#{1,6})\s+(.+)$/);
     const numbered = line.match(/^\s*\d+[.)]\s+(.+)$/);
     const bullet = line.match(/^\s*[-+*]\s+(.+)$/);
 
-    if (heading) {
+    const tableCandidate = /^\s*\|.*\|\s*$/.test(line);
+    if (tableCandidate) {
+      flushParagraph();
+      flushList();
+      tableLines.push(line);
+    } else if (tableLines.length) {
+      flushTable();
+      if (!line.trim()) continue;
+      // Continue through normal block handling for the first non-table line.
+      const nextHeading = line.match(/^\s{0,3}(#{1,6})\s+(.+)$/);
+      const nextNumbered = line.match(/^\s*\d+[.)]\s+(.+)$/);
+      const nextBullet = line.match(/^\s*[-+*]\s+(.+)$/);
+      if (nextHeading) output.push(`<h6 class="answer-heading answer-heading-${nextHeading[1].length}">${renderInline(nextHeading[2], subject)}</h6>`);
+      else if (nextNumbered || nextBullet) { listType = nextNumbered ? 'ol' : 'ul'; listItems.push((nextNumbered || nextBullet)[1]); }
+      else paragraph.push(line);
+    } else if (heading) {
       flushParagraph();
       flushList();
       output.push(`<h6 class="answer-heading answer-heading-${heading[1].length}">${renderInline(heading[2], subject)}</h6>`);
@@ -103,6 +145,7 @@ export function renderSafeMarkdown(value, { subject = '' } = {}) {
     }
   }
 
+  flushTable();
   flushParagraph();
   flushList();
   return output.join('') || '<p>回答本文を取得できませんでした。</p>';

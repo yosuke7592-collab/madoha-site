@@ -29,6 +29,14 @@ test('first appearance is position, explicit numbered list alone is rank, and we
   assert.equal(ranked.explicit_rank, 2); assert.equal(ranked.recommendation, true);
 });
 
+test('general next-step advice is not a recommendation of the target company', () => {
+  const advice = derivePaidEntities('株式会社協同住宅へ依頼する前に、公式サイトで確認し、問い合わせを行うことをおすすめします。', entity, registry);
+  assert.equal(advice.target_present, true);
+  assert.equal(advice.recommendation, false);
+  const explicit = derivePaidEntities('千葉で依頼先を選ぶなら、株式会社協同住宅をおすすめします。', entity, registry);
+  assert.equal(explicit.recommendation, true);
+});
+
 test('company extraction recognizes candidate headings without treating prose as a company', () => {
   const answer = `## 第一候補：協同住宅（浦安市）\n有力です。\n## 第二候補：アービックグループ（市川市）\n比較候補です。\n## 第三候補：アイ・シー・ジー（浦安市）\n素材重視です。\n## 性能・自然素材重視なら：DAISHU（市川市）\n別の候補です。`;
   const result = derivePaidEntities(answer, entity, registry);
@@ -79,6 +87,8 @@ test('company extraction ignores generic product and professional-service headin
   assert.deepEqual(linked.mentioned_entities.map(item => item.name), ['税理士法人チェスター']);
   const descriptive = derivePaidEntities('## 土地・不動産の評価に強い代表的な専門税理士法人\n- **税理士法人チェスター]**：相続税を扱います。', professional, [professional]);
   assert.deepEqual(descriptive.mentioned_entities.map(item => item.name), ['税理士法人チェスター']);
+  const placeholder = derivePaidEntities('| 会社名 | 対応内容 |\n| --- | --- |\n| 株式会社協同住宅 | 相談可 |', entity, registry);
+  assert.deepEqual(placeholder.mentioned_entities.map(item => item.name), ['株式会社協同住宅']);
 });
 
 test('company extraction keeps similarly prefixed legal entities separate', () => {

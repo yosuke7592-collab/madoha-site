@@ -45,9 +45,7 @@ export function sourceObjects(items = [], registry = []) {
   return [...unique.values()];
 }
 
-const STRONG_RECOMMENDATION = /(おすすめ|お勧め|推奨|第一候補|第1候補|有力候補|最も適して|特におすすめ)/u;
-const NEGATIVE_RECOMMENDATION = /(おすすめしない|推奨しない|第一候補ではない|有力候補ではない)/u;
-const GENERIC_COMPANY_LABEL = /(?:【|】|候補|地域|地元|おすすめ|相談|タイプ|まとめ|結論|選び方|コツ|比較|確認|強み|特徴|評判|口コミ|事業内容|パターン|資金計画|予算|エリア|ステップ|判断|質問|書類|メモ|ネットワーク|自由設計|今回|主な|大手|総合|代表的|会社概要|基本情報|条件|方法|選択肢|安全性|災害リスク|周辺環境|将来費用|ライフプラン|金融機関|お金のプロ|専門店|部門|購入スタイル|希望する場合|提案してくれるか|借りられる額|向いている|理由|料金プラン|専門性|申告実績|ワンストップ|税務調査率|料金体系|クレジット|注意点|デメリット|メリット|仕様|制限|把握|など|第[一二三四五六七八九十0-9]+候補|^不動産$|^不動産会社$|^社名$|^注文住宅$)/u;
+const GENERIC_COMPANY_LABEL = /(?:【|】|候補|地域|地元|おすすめ|相談|タイプ|まとめ|結論|選び方|コツ|比較|確認|強み|特徴|評判|口コミ|事業内容|パターン|資金計画|予算|エリア|ステップ|判断|質問|書類|メモ|ネットワーク|自由設計|今回|主な|大手|総合|代表的|会社概要|基本情報|条件|方法|選択肢|安全性|災害リスク|周辺環境|将来費用|ライフプラン|金融機関|お金のプロ|専門店|部門|購入スタイル|希望する場合|提案してくれるか|借りられる額|向いている|理由|料金プラン|専門性|申告実績|ワンストップ|税務調査率|料金体系|クレジット|注意点|デメリット|メリット|仕様|制限|把握|など|第[一二三四五六七八九十0-9]+候補|^不動産$|^不動産会社$|^社名$|^会社(?:名|情報|概要|一覧|リスト)?$|^注文住宅$)/u;
 const SENTENCE_COMPANY_LABEL = /(?:前提|回答|指す|したい場合|を(?:語る|選ぶ|利用|検討|紹介)|→|⇒|➔|➡)/u;
 
 function plausibleCompanyName(value) {
@@ -62,6 +60,21 @@ function companyLikeStructuredName(value) {
   if (/(?:株式会社|有限会社|合同会社|税理士法人|弁護士法人|司法書士法人|行政書士法人|社会保険労務士法人|医療法人|学校法人|一般社団法人|一般財団法人|特定非営利活動法人|㈱|（株）|\(株\))/u.test(name)) return true;
   if (/^[A-Za-z][A-Za-z0-9 .’'&-]{1,30}$/u.test(name)) return true;
   return /(?:不動産|住宅|地所|商事|工務店|ハウジング|販売|ハウス|ホーム|リビング|リフォーム|リノベ|建設|グループ|SHOP|Life|Re|デザイン|スマイル|パートナー|ミニミニ|エイブル|アパマンショップ|タウンハウジング|レイエス)(?:\s+[^\s]{1,12}店)?$/iu.test(name);
+}
+
+function isExplicitTargetRecommendation(answer, targetName) {
+  const escaped = String(targetName || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (!escaped) return false;
+  const text = String(answer || '').replace(/\r?\n/g, ' ');
+  const positive = '(?:おすすめ(?:です|します)?|お勧め(?:です|します)?|推奨(?:です|します)?|第一候補|第1候補|有力候補|最も適(?:して|した))';
+  const negative = '(?:おすすめしない|推奨しない|第一候補ではない|有力候補ではない)';
+  // A recommendation must explicitly select the target as a company/service.  General
+  // next-step advice such as "問い合わせをおすすめします" must not count.
+  const targetThenPositive = new RegExp(`(?:${escaped})(?:は|が|を|なら|の)?[^。！？]{0,48}${positive}`, 'u');
+  const positiveThenTarget = new RegExp(`${positive}[^。！？]{0,24}(?:は|が|として|に)?[^。！？]{0,12}${escaped}`, 'u');
+  const targetMatch = text.match(targetThenPositive);
+  const genericAction = /(?:問い合わせ|公式サイト|確認(?:する|を)?|見積(?:もり)?|契約条件)/u;
+  return (Boolean(targetMatch) && !genericAction.test(targetMatch[0]) || positiveThenTarget.test(text)) && !new RegExp(negative, 'u').test(text);
 }
 
 export function derivePaidEntities(answer, entity, registry = []) {
@@ -149,8 +162,7 @@ export function derivePaidEntities(answer, entity, registry = []) {
   mentions.sort((a, b) => a.first_index - b.first_index);
   const targetIndex = mentions.findIndex(item => item.target);
   const targetName = mentions[targetIndex]?.raw_name || entity.name;
-  const targetContext = text.split(/\r?\n|。/u).filter(line => line.includes(targetName)).join(' ');
-  const recommendation = targetIndex >= 0 && STRONG_RECOMMENDATION.test(targetContext) && !NEGATIVE_RECOMMENDATION.test(targetContext);
+  const recommendation = targetIndex >= 0 && isExplicitTargetRecommendation(text, targetName);
   const explicitMatches = [...text.matchAll(/(?:^|\n)\s*(\d+)[.)、．]\s*([^\n]+)/gu)];
   const explicit = explicitMatches.find(match => match[2].includes(targetName));
   const normalizedMentions = normalizePaidEntityMentions(mentions.map(({ first_index, ...item }) => item), candidates);
