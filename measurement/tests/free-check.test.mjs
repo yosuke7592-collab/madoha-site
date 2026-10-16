@@ -24,6 +24,11 @@ test('follows a safe redirect and returns a result', async () => {
   assert.equal(calls, 2);
 });
 
+test('rejects an oversized streamed HTML response before parsing it', async () => {
+  const stream = new ReadableStream({ start(controller) { controller.enqueue(new Uint8Array(1_000_001)); controller.close(); } });
+  await assert.rejects(() => runFreeCheck('example.com', async () => new Response(stream, { headers: { 'content-type': 'text/html' } })), /ページサイズが大きすぎます/);
+});
+
 test('identity inspection prefers same-domain business pages and separates explicit service regions from company location',async()=>{
   const pages=new Map([
     ['https://example.jp/',`<html><head><title>配送のことなら株式会社Example Logistics</title></head><body><header><img alt="株式会社Example Logistics"><a href="/business/">事業案内</a><a href="/recruit/">採用情報</a></header><h2>MESSAGE</h2><h2>社員紹介</h2><p>所在地 東京都港区</p></body></html>`],

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { sqliteD1 } from './helpers/sqlite-d1.mjs';
 import { authorizeSales, handleSalesRequest } from '../../worker/sales-flow.mjs';
-import { decryptBuyerEmail, emailLookupHash, encryptBuyerEmail, ensureCompletionEmail, hashResultToken, normalizeBuyerEmail, resultTokenFromNonce, storeBuyerEmail } from '../../worker/result-delivery.mjs';
+import { cleanupExpiredDeliverySecurityRows, decryptBuyerEmail, emailLookupHash, encryptBuyerEmail, ensureCompletionEmail, hashResultToken, normalizeBuyerEmail, processQueuedResultResends, resultTokenFromNonce, storeBuyerEmail } from '../../worker/result-delivery.mjs';
 
 const secrets={
   MADOHA_EMAIL_ENCRYPTION_KEY:'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
@@ -41,7 +41,8 @@ test('result tokens are deterministic from secret nonce while only hashes are pe
 test('resend rotates a completed result token only after successful delivery',async t=>{
   const {db,env,id,token:oldToken,sent}=await completed(t);
   const response=await handleSalesRequest(new Request('https://madoha.jp/api/sales/result/resend',{method:'POST',headers:{origin:'https://madoha.jp','content-type':'application/json','cf-connecting-ip':'203.0.113.1'},body:JSON.stringify({email:'buyer@example.com'})}),env);
-  assert.equal(response.status,200);assert.deepEqual(await response.json(),{message:'該当する診断結果がある場合はメールを送信しました'});assert.equal(sent.length,1);
+  assert.equal(response.status,200);assert.deepEqual(await response.json(),{message:'該当する診断結果がある場合はメールを送信しました'});assert.equal(sent.length,0);
+  await processQueuedResultResends(env);assert.equal(sent.length,1);
   const url=sent[0].body.text.match(/https:\/\/[^\s]+/)[0],newToken=decodeURIComponent(url.split('#result_token=')[1]);
   assert.notEqual(newToken,oldToken);assert.equal(await authorizeSales(db,id,oldToken),null);assert.equal((await authorizeSales(db,id,newToken)).authorization_type,'result');
   assert.equal(sent[0].body.from,'MADOHA <results@madoha.jp>');assert.equal(sent[0].body.reply_to,'info@madoha.jp');
@@ -71,6 +72,25 @@ test('resend endpoint rate limits before lookup without exposing diagnosis exist
   const {env}=await completed(t);env.RESULT_RESEND_LIMITER={async limit(){return{success:false}}};
   const response=await handleSalesRequest(new Request('https://madoha.jp/api/sales/result/resend',{method:'POST',headers:{origin:'https://madoha.jp','content-type':'application/json'},body:JSON.stringify({email:'buyer@example.com'})}),env);
   assert.equal(response.status,429);assert.deepEqual(await response.json(),{message:'該当する診断結果がある場合はメールを送信しました'});
+});
+
+test('resend acknowledgement is queued and recipient cooldown prevents token churn',async t=>{
+  const {db,env,id,token:oldToken,sent}=await completed(t);
+  const request=email=>handleSalesRequest(new Request('https://madoha.jp/api/sales/result/resend',{method:'POST',headers:{origin:'https://madoha.jp','content-type':'application/json'},body:JSON.stringify({email})}),env);
+  const known=await request('buyer@example.com'),unknown=await request('unknown@example.com');
+  assert.deepEqual(await known.json(),await unknown.json());assert.equal(sent.length,0);
+  await processQueuedResultResends(env);assert.equal(sent.length,1);
+  await db.prepare("UPDATE result_resend_requests SET available_at=datetime('now','-1 second'),processed_at=NULL WHERE email_lookup_hash=(SELECT buyer_email_lookup_hash FROM diagnosis_delivery WHERE diagnosis_id=?)").bind(id).run();
+  await processQueuedResultResends(env);assert.equal(sent.length,1);assert.equal((await authorizeSales(db,id,oldToken)),null);
+});
+
+test('expired unpaid drafts and resend request records are removed by scheduled cleanup',async t=>{
+  const {db,env}=await completed(t);const draft='99999999-9999-4999-8999-999999999999';
+  await db.prepare("INSERT INTO diagnosis_orders (id,target_url,amount_jpy,payment_status,diagnosis_status,created_at,updated_at,draft_expires_at) VALUES (?,'https://expired.example',9800,'pending','locked',datetime('now'),datetime('now'),datetime('now','-1 day'))").bind(draft).run();
+  await db.prepare("INSERT INTO result_resend_requests (email_lookup_hash,requested_at,available_at,expires_at) VALUES ('expired',datetime('now'),datetime('now'),datetime('now','-1 day'))").run();
+  await cleanupExpiredDeliverySecurityRows(env);
+  assert.equal(await db.prepare('SELECT * FROM diagnosis_orders WHERE id=?').bind(draft).first(),null);
+  assert.equal(await db.prepare("SELECT * FROM result_resend_requests WHERE email_lookup_hash='expired'").first(),null);
 });
 
 test('migration 0008 preserves existing orders and adds isolated delivery storage',async t=>{

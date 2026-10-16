@@ -97,15 +97,41 @@ function extractServiceRegions(html) {
 
 function inferIndustry(text) { return INDUSTRY_RULES.find(([pattern]) => pattern.test(text))?.[1] || ''; }
 
+async function readLimitedHtml(response, signal) {
+  if (!response.body) return (await response.text()).slice(0, MAX_HTML_BYTES);
+  const reader = response.body.getReader();
+  const chunks = []; let size = 0;
+  try {
+    while (true) {
+      if (signal?.aborted) throw new Error('サイトの取得に時間がかかっています。');
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_HTML_BYTES) throw new Error('ページサイズが大きすぎます。');
+      chunks.push(value);
+    }
+    const bytes = new Uint8Array(size); let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+    return new TextDecoder().decode(bytes);
+  } finally { reader.cancel().catch(() => {}); }
+}
+
 async function fetchPublicHtml(input, fetchImpl) {
   let url = normalizePublicUrl(input);
   for (let redirects = 0; redirects < 4; redirects += 1) {
-    const response = await fetchImpl(url, { redirect: 'manual', headers: { 'User-Agent': 'MADOHA-Free-Check/1.0', Accept: 'text/html,application/xhtml+xml' }, cf: { cacheTtl: 3600, cacheEverything: true } });
-    if (response.status >= 300 && response.status < 400 && response.headers.get('location')) { url = normalizePublicUrl(new URL(response.headers.get('location'), url).href); continue; }
-    if (!response.ok) throw new Error(`サイトを取得できませんでした（${response.status}）。`);
-    if (!(response.headers.get('content-type') || '').includes('text/html')) throw new Error('HTMLページのURLを入力してください。');
-    const declared = Number(response.headers.get('content-length') || 0); if (declared > MAX_HTML_BYTES) throw new Error('ページサイズが大きすぎます。');
-    return { url, response, html: (await response.text()).slice(0, MAX_HTML_BYTES) };
+    const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 10_000);
+    let response;
+    try {
+      response = await fetchImpl(url, { redirect: 'manual', signal: controller.signal, headers: { 'User-Agent': 'MADOHA-Free-Check/1.0', Accept: 'text/html,application/xhtml+xml' }, cf: { cacheTtl: 3600, cacheEverything: true } });
+      if (response.status >= 300 && response.status < 400 && response.headers.get('location')) { url = normalizePublicUrl(new URL(response.headers.get('location'), url).href); continue; }
+      if (!response.ok) throw new Error(`サイトを取得できませんでした（${response.status}）。`);
+      if (!(response.headers.get('content-type') || '').includes('text/html')) throw new Error('HTMLページのURLを入力してください。');
+      const declared = Number(response.headers.get('content-length') || 0); if (declared > MAX_HTML_BYTES) throw new Error('ページサイズが大きすぎます。');
+      return { url, response, html: await readLimitedHtml(response, controller.signal) };
+    } catch (error) {
+      if (controller.signal.aborted) throw new Error('サイトの取得に時間がかかっています。');
+      throw error;
+    } finally { clearTimeout(timer); }
   }
   throw new Error('リダイレクトが多すぎるため取得できませんでした。');
 }

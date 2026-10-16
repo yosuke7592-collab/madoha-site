@@ -20,7 +20,7 @@ export class GeminiPaidAdapter extends PaidAdapter {
     this.assertLive(env);
     if (!env.GEMINI_API_KEY) { const error = new Error('GEMINI_API_KEY is not configured.'); error.code = 'authentication'; error.fatal = true; throw error; }
     let response;
-    try { response = await this.fetchImpl(GEMINI_ENDPOINT, { method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY }, body: JSON.stringify({ contents: [{ parts: [{ text: input.question_text }] }], tools: [{ google_search: {} }] }) }); }
+    try { response = await this.fetchImpl(GEMINI_ENDPOINT, { method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY }, body: JSON.stringify({ contents: [{ parts: [{ text: input.question_text }] }], tools: [{ google_search: {} }], generationConfig: { maxOutputTokens: 2000 } }) }); }
     catch { const error = new Error('Gemini network request failed.'); error.code = 'network'; error.retryable = true; throw error; }
     const payload = await response.json();
     if (!response.ok) {

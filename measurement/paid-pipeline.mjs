@@ -250,14 +250,18 @@ export class FixturePaidAdapter extends PaidAdapter {
   }
 }
 
-export async function executeWithRetry(adapter, input, env, { retries = 2, baseDelayMs = 5_000, maxDelayMs = 30_000 } = {}) {
+export async function executeWithRetry(adapter, input, env, { retries = 2, baseDelayMs = 5_000, maxDelayMs = 30_000, onAttemptStart = null, onAttemptSuccess = null, onAttemptFailure = null } = {}) {
   let attempt = 0;
   while (true) {
+    let reservation = null;
     try {
+      reservation = onAttemptStart ? await onAttemptStart(attempt + 1) : null;
       const result = await adapter.execute(input, env);
+      if (onAttemptSuccess) await onAttemptSuccess(reservation, result);
       result.usage = { ...result.usage, attempts: attempt + 1 };
       return result;
     } catch (error) {
+      if (reservation && onAttemptFailure) await onAttemptFailure(reservation, error);
       attempt += 1;
       if (!error.retryable || attempt > retries) {
         if (error.retryable && attempt > retries) { error.retry_exhausted = true; error.fatal = true; }
@@ -294,12 +298,42 @@ export class D1MeasurementStore {
     const result = await this.db.prepare('SELECT measurement_json FROM paid_measurements WHERE diagnosis_id=? ORDER BY question_order, channel_order').bind(diagnosisId).all();
     return (result.results || []).map(row => JSON.parse(row.measurement_json));
   }
+  async budgetUsed(diagnosisId) {
+    const row = await this.db.prepare(`SELECT
+      COALESCE((SELECT SUM(reserved_cost_usd) FROM diagnosis_measurement_attempts WHERE diagnosis_id=?),0)+
+      COALESCE((SELECT SUM(m.estimated_cost_usd) FROM paid_measurements m WHERE m.diagnosis_id=?
+        AND NOT EXISTS (SELECT 1 FROM diagnosis_measurement_attempts a WHERE a.diagnosis_id=m.diagnosis_id AND a.question_id=m.question_id AND a.channel=m.channel)),0) AS total`)
+      .bind(diagnosisId, diagnosisId).first();
+    return round(Number(row?.total || 0));
+  }
+  async reserveAttempt({ diagnosisId, questionId, channel, estimate, cap }) {
+    const prior = await this.db.prepare(`SELECT COUNT(*) AS n FROM diagnosis_measurement_attempts
+      WHERE diagnosis_id=? AND question_id=? AND channel=?`).bind(diagnosisId, questionId, channel).first();
+    const attemptNumber = Number(prior?.n || 0) + 1;
+    if (attemptNumber > 3) return null;
+    const used = await this.budgetUsed(diagnosisId);
+    if (used + estimate > cap) return null;
+    const id = crypto.randomUUID();
+    const insert = await this.db.prepare(`INSERT INTO diagnosis_measurement_attempts
+      (id,diagnosis_id,question_id,channel,attempt_number,reserved_cost_usd,status)
+      VALUES (?,?,?,?,?,?,'reserved')`).bind(id, diagnosisId, questionId, channel, attemptNumber, estimate).run();
+    if (Number(insert.meta?.changes || 0) !== 1) return null;
+    return { id, estimate };
+  }
+  async finalizeAttempt(reservation, result = null, error = null) {
+    if (!reservation?.id) return;
+    const actual = result ? Number(result.estimated_cost || 0) : null;
+    await this.db.prepare(`UPDATE diagnosis_measurement_attempts SET
+      status=?,actual_cost_usd=?,reserved_cost_usd=CASE WHEN ? IS NOT NULL AND ?>reserved_cost_usd THEN ? ELSE reserved_cost_usd END,
+      error_code=?,finalized_at=datetime('now') WHERE id=? AND status='reserved'`)
+      .bind(result ? 'completed' : 'failed', actual, actual, actual, actual, error?.code || null, reservation.id).run();
+  }
 }
 
 export async function runPaidMeasurements({ diagnosis, questions, adapters, store, env = {}, maxCost, maxMeasurements = Infinity, onSaved = null }) {
   const cap = Number(maxCost ?? env.MADOHA_PAID_DIAGNOSIS_MAX_COST_USD ?? 1);
   if (!Number.isFinite(cap) || cap < 0) throw new TypeError('Invalid diagnosis cost cap.');
-  let total = (await store.list(diagnosis.id)).reduce((sum, row) => sum + (row.estimated_cost || 0), 0);
+  let total = typeof store.budgetUsed === 'function' ? await store.budgetUsed(diagnosis.id) : (await store.list(diagnosis.id)).reduce((sum, row) => sum + (row.estimated_cost || 0), 0);
   const completed = []; let stopped = null; let processed = 0; let yielded = false;
   measurementLoop: for (const [questionIndex, question] of questions.entries()) for (const channel of PAID_CHANNELS) {
     const existing = await store.get(diagnosis.id, question.id, channel);
@@ -318,13 +352,30 @@ export async function runPaidMeasurements({ diagnosis, questions, adapters, stor
     const estimate = adapter.estimateCost(input);
     if (total + estimate > cap) { stopped = { code: COST_CAP_CODE, next: { question_id: question.id, channel }, total_estimated_cost: round(total), cap }; break measurementLoop; }
     try {
-      const measurement = await executeWithRetry(adapter, input, env);
-      const costDelta = measurement.estimated_cost - (existing?.estimated_cost || 0);
-      if (total + costDelta > cap) { stopped = { code: COST_CAP_CODE, next: { question_id: question.id, channel }, total_estimated_cost: round(total), cap }; break measurementLoop; }
-      await store.save(measurement); completed.push(measurement); total = round(total + costDelta);
+      const estimate = Number(adapter.estimateCost(input) || 0);
+      const localReservations = [];
+      const measurement = await executeWithRetry(adapter, input, env, {
+        onAttemptStart: async () => {
+          if (estimate === 0) return { noCharge: true };
+          if (typeof store.reserveAttempt === 'function') {
+            const reservation = await store.reserveAttempt({ diagnosisId: diagnosis.id, questionId: question.id, channel, estimate, cap });
+            if (!reservation) { const error = new Error('診断の費用上限に達したため処理を停止しました。'); error.code = COST_CAP_CODE; error.fatal = true; throw error; }
+            return reservation;
+          }
+          if (total + estimate > cap) { const error = new Error('診断の費用上限に達したため処理を停止しました。'); error.code = COST_CAP_CODE; error.fatal = true; throw error; }
+          const reservation = { estimate }; localReservations.push(reservation); total = round(total + estimate); return reservation;
+        },
+        onAttemptSuccess: async (reservation, value) => { if (!reservation?.noCharge && typeof store.finalizeAttempt === 'function') await store.finalizeAttempt(reservation, value); },
+        onAttemptFailure: async (reservation, error) => { if (!reservation?.noCharge && typeof store.finalizeAttempt === 'function') await store.finalizeAttempt(reservation, null, error); }
+      });
+      const actual = Number(measurement.estimated_cost || 0);
+      if (actual > estimate + Number(existing?.estimated_cost || 0)) { stopped = { code: COST_CAP_CODE, next: { question_id: question.id, channel }, total_estimated_cost: round(total), cap }; break measurementLoop; }
+      await store.save(measurement); completed.push(measurement);
+      total = typeof store.budgetUsed === 'function' ? await store.budgetUsed(diagnosis.id) : total;
       processed += 1;
       if (onSaved) await onSaved(measurement);
     } catch (error) {
+      if (error.code === COST_CAP_CODE) { stopped = { code: COST_CAP_CODE, next: { question_id: question.id, channel }, total_estimated_cost: typeof store.budgetUsed === 'function' ? await store.budgetUsed(diagnosis.id) : total, cap }; break measurementLoop; }
       const failed = commonMeasurement(input, { raw_answer: '', sources: [], estimated_cost: 0,
         error: { code: error.code || 'provider_error', message: error.message, retryable: Boolean(error.retryable) },
         provider_metadata: { ...(error.providerMetadata || {}), retry_after_ms: error.retryAfterMs ?? null, retry_exhausted: Boolean(error.retry_exhausted) }
@@ -338,6 +389,7 @@ export async function runPaidMeasurements({ diagnosis, questions, adapters, stor
   const stored = await store.list(diagnosis.id);
   const completeCount = stored.filter(row => !row.error && !row.provider_metadata?.pending && row.raw_answer?.trim()).length;
   const addCosts = (result, row, key) => ({ ...result, [row[key]]: round((result[row[key]] || 0) + row.estimated_cost) });
+  total = typeof store.budgetUsed === 'function' ? await store.budgetUsed(diagnosis.id) : total;
   const cost_by_channel = stored.reduce((result, row) => addCosts(result, row, 'channel'), {});
   const cost_by_question = stored.reduce((result, row) => addCosts(result, row, 'question_id'), {});
   return { diagnosis_id: diagnosis.id, status: stopped ? 'stopped' : completeCount === questions.length * 3 ? 'complete' : 'partial', measurements: stored, cost_by_channel, cost_by_question, total_estimated_cost: round(total), processed, yielded, stopped };

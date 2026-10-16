@@ -18,3 +18,10 @@ test('public rate limiter does not affect reads or unrelated endpoints', async (
   assert.equal(await limitPublicSalesEntry(new Request('https://madoha.jp/api/sales/inspect'), env), null);
   assert.equal(await limitPublicSalesEntry(new Request('https://madoha.jp/api/sales/config', { method: 'POST' }), env), null);
 });
+
+test('legacy free-check is covered by the same public entry limiter', async () => {
+  const keys = [];
+  const env = { DIAGNOSIS_ENTRY_LIMITER: { limit: async ({ key }) => { keys.push(key); return { success: true }; } } };
+  assert.equal(await limitPublicSalesEntry(new Request('https://madoha.jp/api/free-check', { method: 'POST', headers: { 'cf-connecting-ip': '203.0.113.20' } }), env), null);
+  assert.deepEqual(keys, ['/api/free-check:203.0.113.20']);
+});

@@ -162,16 +162,57 @@ export async function authorizeResultToken(db, diagnosisId, token) {
   return delivery?.result_token_hash && secureEqual(await digestHex(token), delivery.result_token_hash) ? row : null;
 }
 
-export async function resendCompletedResult(env, email) {
+const RESEND_REQUEST_TTL_DAYS = 2;
+const RESEND_COOLDOWN_MINUTES = 15;
+const RESEND_DAILY_LIMIT = 3;
+const RESEND_GLOBAL_DAILY_LIMIT = 200;
+
+const limit = (env, key, fallback) => {
+  const value = Number(env?.[key] ?? fallback);
+  return Number.isInteger(value) && value > 0 ? value : fallback;
+};
+
+export async function queueResultResend(env, email) {
   let lookupHash;
-  try { lookupHash = await emailLookupHash(env, email); } catch { return { accepted: true }; }
+  try { lookupHash = await emailLookupHash(env, email); } catch { return { accepted: true, queued: false }; }
+  await env.DB.prepare(`INSERT INTO result_resend_requests (email_lookup_hash,requested_at,available_at,processed_at,expires_at)
+    VALUES (?,datetime('now'),datetime('now'),NULL,datetime('now','+${RESEND_REQUEST_TTL_DAYS} days'))
+    ON CONFLICT(email_lookup_hash) DO UPDATE SET
+      requested_at=excluded.requested_at,available_at=excluded.available_at,processed_at=NULL,
+      expires_at=excluded.expires_at
+    WHERE result_resend_requests.available_at<=datetime('now')`)
+    .bind(lookupHash).run();
+  return { accepted: true, queued: true };
+}
+
+async function reserveGlobalResend(env) {
+  const max = limit(env, 'MADOHA_RESULT_RESEND_GLOBAL_DAILY_LIMIT', RESEND_GLOBAL_DAILY_LIMIT);
+  const result = await env.DB.prepare(`INSERT INTO diagnosis_daily_limits (scope,day,count) VALUES ('result_resend',date('now'),1)
+    ON CONFLICT(scope,day) DO UPDATE SET count=count+1 WHERE count<?`).bind(max).run();
+  return Number(result.meta?.changes || 0) === 1;
+}
+
+async function claimRecipientResend(env, diagnosisId) {
+  const max = limit(env, 'MADOHA_RESULT_RESEND_DAILY_LIMIT', RESEND_DAILY_LIMIT);
+  const result = await env.DB.prepare(`UPDATE diagnosis_delivery SET
+    resend_lock_until=datetime('now','+2 minutes'),
+    resend_cooldown_until=datetime('now','+${RESEND_COOLDOWN_MINUTES} minutes'),
+    resend_window_count=CASE WHEN resend_window_started_at IS NULL OR resend_window_started_at<datetime('now','-1 day') THEN 1 ELSE resend_window_count+1 END,
+    resend_window_started_at=CASE WHEN resend_window_started_at IS NULL OR resend_window_started_at<datetime('now','-1 day') THEN datetime('now') ELSE resend_window_started_at END,
+    updated_at=datetime('now')
+    WHERE diagnosis_id=?
+      AND (resend_lock_until IS NULL OR resend_lock_until<datetime('now'))
+      AND (resend_cooldown_until IS NULL OR resend_cooldown_until<datetime('now'))
+      AND (resend_window_started_at IS NULL OR resend_window_started_at<datetime('now','-1 day') OR resend_window_count<?)`)
+    .bind(diagnosisId, max).run();
+  return Number(result.meta?.changes || 0) === 1;
+}
+
+async function deliverQueuedResultResend(env, lookupHash) {
   const order = await env.DB.prepare(`SELECT o.id,o.entity_json,d.* FROM diagnosis_orders o JOIN diagnosis_delivery d ON d.diagnosis_id=o.id
     WHERE d.buyer_email_lookup_hash=? AND o.payment_status='paid' AND o.sales_stage='completed' AND o.diagnosis_status='complete'
     ORDER BY o.completed_at DESC LIMIT 1`).bind(lookupHash).first();
-  if (!order) return { accepted: true };
-  const claim = await env.DB.prepare(`UPDATE diagnosis_delivery SET resend_lock_until=datetime('now','+2 minutes'),updated_at=datetime('now')
-    WHERE diagnosis_id=? AND (resend_lock_until IS NULL OR resend_lock_until<datetime('now'))`).bind(order.id).run();
-  if (Number(claim.meta?.changes || 0) !== 1) return { accepted: true };
+  if (!order || !(await claimRecipientResend(env, order.id)) || !(await reserveGlobalResend(env))) return { accepted: true };
   const nonce = randomValue();
   const token = await resultTokenFromNonce(env, order.id, nonce);
   const tokenHash = await hashResultToken(token);
@@ -188,6 +229,33 @@ export async function resendCompletedResult(env, email) {
       resend_lock_until=NULL,last_email_error='send_failed',updated_at=datetime('now') WHERE diagnosis_id=? AND pending_result_token_hash=?`)
       .bind(order.id, tokenHash).run();
   }
+  return { accepted: true };
+}
+
+export async function processQueuedResultResends(env, maximum = 20) {
+  if (!env?.DB) return;
+  const rows = await env.DB.prepare(`SELECT email_lookup_hash FROM result_resend_requests
+    WHERE processed_at IS NULL AND available_at<=datetime('now') AND expires_at>datetime('now')
+    ORDER BY requested_at LIMIT ?`).bind(Math.max(1, Math.min(100, Number(maximum) || 20))).all();
+  for (const row of rows.results || []) {
+    await env.DB.prepare("UPDATE result_resend_requests SET processed_at=datetime('now'),available_at=datetime('now','+15 minutes') WHERE email_lookup_hash=? AND processed_at IS NULL")
+      .bind(row.email_lookup_hash).run();
+    try { await deliverQueuedResultResend(env, row.email_lookup_hash); } catch { /* keep a uniform public acknowledgement */ }
+  }
+}
+
+export async function cleanupExpiredDeliverySecurityRows(env) {
+  if (!env?.DB) return;
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM result_resend_requests WHERE expires_at<datetime('now')"),
+    env.DB.prepare("DELETE FROM diagnosis_orders WHERE payment_status='pending' AND draft_expires_at IS NOT NULL AND draft_expires_at<datetime('now')")
+  ]);
+}
+
+// Retained for internal callers. Public requests use queueResultResend and are
+// processed after the response so order existence does not affect timing.
+export async function resendCompletedResult(env, email) {
+  await queueResultResend(env, email);
   return { accepted: true };
 }
 

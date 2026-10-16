@@ -6,6 +6,7 @@ import { generateAndSaveQuestionDiscovery } from './question-discovery.mjs';
 import { handleSalesRequest, applyUpgradeEvent, dispatchSalesOutbox, processSalesQueue } from './sales-flow.mjs';
 import { handleReportPdfRequest } from './report-pdf-route.mjs';
 import { limitPublicSalesEntry } from './public-rate-limit.mjs';
+import { cleanupExpiredDeliverySecurityRows, processQueuedResultResends } from './result-delivery.mjs';
 
 const json = (body, status = 200, extra = {}) => new Response(JSON.stringify(body), {
   status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...extra }
@@ -198,7 +199,11 @@ export default {
     });
     return env.ASSETS.fetch(request);
   },
-  async scheduled(_event, env) { await dispatchSalesOutbox(env); },
+  async scheduled(_event, env) {
+    await dispatchSalesOutbox(env);
+    await processQueuedResultResends(env);
+    await cleanupExpiredDeliverySecurityRows(env);
+  },
   async queue(batch, env) {
     for (const message of batch.messages) {
       try { const result = await processQueueMessage(env, message.body); if (result.action === 'ack') message.ack(); else message.retry({ delaySeconds: 60 }); }

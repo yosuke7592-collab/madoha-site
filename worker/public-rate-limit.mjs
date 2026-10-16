@@ -1,4 +1,4 @@
-const PUBLIC_SALES_PATHS = new Set(['/api/sales/inspect', '/api/sales/draft']);
+const PUBLIC_SALES_PATHS = new Set(['/api/sales/inspect', '/api/sales/draft', '/api/free-check']);
 
 export async function limitPublicSalesEntry(request, env) {
   const url = new URL(request.url);
