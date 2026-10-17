@@ -178,23 +178,27 @@ const limit = (env, key, fallback) => {
 export async function queueResultResend(env, email) {
   let lookupHash;
   try { lookupHash = await emailLookupHash(env, email); } catch { return { accepted: true, queued: false }; }
-  const queueLimit = limit(env, 'MADOHA_RESULT_RESEND_QUEUE_LIMIT', RESEND_QUEUE_LIMIT);
-  // Keep the public queue bounded even for addresses with no completed order.
-  // This deliberately does not inspect orders, so public timing remains uniform.
+  const queueLimit = Math.min(RESEND_QUEUE_LIMIT, limit(env, 'MADOHA_RESULT_RESEND_QUEUE_LIMIT', RESEND_QUEUE_LIMIT));
+  // Keep both retained and pending public requests bounded without looking up
+  // orders. Processed entries may be recycled, but a pending entry is never
+  // evicted by another public request.
   await env.DB.batch([
     env.DB.prepare(`DELETE FROM result_resend_requests
       WHERE email_lookup_hash=(SELECT email_lookup_hash FROM result_resend_requests
-        WHERE processed_at IS NULL AND expires_at>datetime('now') ORDER BY requested_at LIMIT 1)
+        WHERE processed_at IS NOT NULL ORDER BY requested_at LIMIT 1)
         AND NOT EXISTS (SELECT 1 FROM result_resend_requests WHERE email_lookup_hash=?)
-        AND (SELECT COUNT(*) FROM result_resend_requests WHERE processed_at IS NULL AND expires_at>datetime('now'))>=?`)
+        AND (SELECT COUNT(*) FROM result_resend_requests)>=?`)
       .bind(lookupHash, queueLimit),
     env.DB.prepare(`INSERT INTO result_resend_requests (email_lookup_hash,requested_at,available_at,processed_at,expires_at)
-      VALUES (?,datetime('now'),datetime('now'),NULL,datetime('now','+${RESEND_REQUEST_TTL_DAYS} days'))
+      SELECT ?,datetime('now'),datetime('now'),NULL,datetime('now','+${RESEND_REQUEST_TTL_DAYS} days')
+      WHERE (SELECT COUNT(*) FROM result_resend_requests WHERE processed_at IS NULL AND expires_at>datetime('now'))<?
       ON CONFLICT(email_lookup_hash) DO UPDATE SET
         requested_at=excluded.requested_at,available_at=excluded.available_at,processed_at=NULL,
         expires_at=excluded.expires_at
-      WHERE result_resend_requests.available_at<=datetime('now')`)
-      .bind(lookupHash)
+      WHERE result_resend_requests.available_at<=datetime('now')
+        AND (result_resend_requests.processed_at IS NULL
+          OR (SELECT COUNT(*) FROM result_resend_requests WHERE processed_at IS NULL AND expires_at>datetime('now'))<?)`)
+      .bind(lookupHash, queueLimit, queueLimit)
   ]);
   return { accepted: true, queued: true };
 }
@@ -265,7 +269,7 @@ export async function processQueuedResultResends(env, maximum = 20) {
 
 export async function cleanupExpiredDeliverySecurityRows(env) {
   if (!env?.DB) return;
-  const batch = limit(env, 'MADOHA_DELIVERY_CLEANUP_BATCH', DELIVERY_CLEANUP_BATCH);
+  const batch = Math.min(DELIVERY_CLEANUP_BATCH, limit(env, 'MADOHA_DELIVERY_CLEANUP_BATCH', DELIVERY_CLEANUP_BATCH));
   // Keep unrelated cleanup independent: a draft with unexpected child data must
   // not roll back expired resend-request cleanup.
   await env.DB.prepare(`DELETE FROM result_resend_requests WHERE email_lookup_hash IN (
@@ -277,13 +281,17 @@ export async function cleanupExpiredDeliverySecurityRows(env) {
   const ids = (expired.results || []).map(row => row.id).filter(Boolean);
   if (!ids.length) return;
   const marks = ids.map(() => '?').join(',');
+  // Recheck pending/expiry inside every DELETE. Selection and deletion can be
+  // separated by a verified webhook, so the earlier SELECT is never authority.
+  const eligible = `SELECT id FROM diagnosis_orders WHERE id IN (${marks})
+    AND payment_status='pending' AND draft_expires_at IS NOT NULL AND draft_expires_at<datetime('now')`;
   await env.DB.batch([
-    env.DB.prepare(`DELETE FROM diagnosis_measurement_attempts WHERE diagnosis_id IN (${marks})`).bind(...ids),
-    env.DB.prepare(`DELETE FROM paid_measurements WHERE diagnosis_id IN (${marks})`).bind(...ids),
-    env.DB.prepare(`DELETE FROM diagnosis_questions WHERE diagnosis_id IN (${marks})`).bind(...ids),
-    env.DB.prepare(`DELETE FROM diagnosis_events WHERE diagnosis_id IN (${marks})`).bind(...ids),
-    env.DB.prepare(`DELETE FROM diagnosis_outbox WHERE diagnosis_id IN (${marks})`).bind(...ids),
-    env.DB.prepare(`DELETE FROM diagnosis_orders WHERE id IN (${marks}) AND payment_status='pending'`).bind(...ids)
+    env.DB.prepare(`DELETE FROM diagnosis_measurement_attempts WHERE diagnosis_id IN (${eligible})`).bind(...ids),
+    env.DB.prepare(`DELETE FROM paid_measurements WHERE diagnosis_id IN (${eligible})`).bind(...ids),
+    env.DB.prepare(`DELETE FROM diagnosis_questions WHERE diagnosis_id IN (${eligible})`).bind(...ids),
+    env.DB.prepare(`DELETE FROM diagnosis_events WHERE diagnosis_id IN (${eligible})`).bind(...ids),
+    env.DB.prepare(`DELETE FROM diagnosis_outbox WHERE diagnosis_id IN (${eligible})`).bind(...ids),
+    env.DB.prepare(`DELETE FROM diagnosis_orders WHERE id IN (${eligible})`).bind(...ids)
   ]);
 }
 

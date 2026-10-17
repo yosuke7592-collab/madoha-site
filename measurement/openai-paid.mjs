@@ -1,12 +1,18 @@
 import { PaidAdapter } from './paid-pipeline.mjs';
 import { OPENAI_ENDPOINT, OPENAI_MODEL } from './openai.mjs';
 
+const MAX_WEB_SEARCH_CALLS = 1;
+const MAX_OUTPUT_TOKENS = 2000;
+// This is deliberately above the configured maximum for a single call, so a
+// diagnosis never starts a request from the final cents of its total budget.
+const MAX_RESERVED_COST_USD = 0.024;
+
 export class OpenAiPaidAdapter extends PaidAdapter {
   constructor({ timeoutMs = 30_000, ...options } = {}) { super({ ...options, channel: 'chatgpt' }); this.timeoutMs = timeoutMs; }
   estimateCost() { return 0.0122; }
-  // One web search plus the configured 2,000 output-token ceiling, with headroom
-  // for the bounded prompt. Actual reported usage settles this reservation.
-  reserveCost() { return 0.016; }
+  // The provider is restricted to one web-search tool call and 2,000 output
+  // tokens. Reserve conservatively before the request; final usage settles it.
+  reserveCost() { return MAX_RESERVED_COST_USD; }
   async execute(input, env) {
     this.assertLive(env);
     if (!env.OPENAI_API_KEY) { const error = new Error('OPENAI_API_KEY is not configured.'); error.code = 'authentication'; error.fatal = true; throw error; }
@@ -15,8 +21,8 @@ export class OpenAiPaidAdapter extends PaidAdapter {
     try { response = await this.fetchImpl(OPENAI_ENDPOINT, { method: 'POST', signal: controller.signal, headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, 'content-type': 'application/json' }, body: JSON.stringify({
       model: OPENAI_MODEL, input: input.question_text,
       instructions: 'Web検索結果を踏まえ、質問へ日本語で簡潔かつ具体的に回答してください。候補企業名と判断理由を明記し、確認できないことは断定しないでください。',
-      tools: [{ type: 'web_search' }], tool_choice: 'required', include: ['web_search_call.action.sources'],
-      max_output_tokens: 2000, store: false
+      tools: [{ type: 'web_search' }], tool_choice: 'required', max_tool_calls: MAX_WEB_SEARCH_CALLS, include: ['web_search_call.action.sources'],
+      max_output_tokens: MAX_OUTPUT_TOKENS, store: false
     }) }); payload = await response.json(); }
     catch (cause) { const error = new Error(controller.signal.aborted ? 'OpenAI request timed out.' : 'OpenAI network request failed.'); error.code = controller.signal.aborted ? 'timeout' : 'network'; error.retryable = true; error.fatal = false; error.cause = cause; throw error; }
     finally { clearTimeout(timer); }
@@ -30,7 +36,8 @@ export class OpenAiPaidAdapter extends PaidAdapter {
     const estimated_cost = searchQueries * .01 + (usage.input_tokens || 0) * .2 / 1e6 + (usage.output_tokens || 0) * 1.2 / 1e6;
     const providerMetadata = { model: payload.model || OPENAI_MODEL, store: false, response_status: payload.status || null,
       incomplete_details: payload.incomplete_details || null, output_types: output.map(item => item.type),
-      message_count: output.filter(item => item.type === 'message').length, output_text_present: Boolean(raw_answer), max_output_tokens: payload.max_output_tokens ?? 2000 };
+      message_count: output.filter(item => item.type === 'message').length, output_text_present: Boolean(raw_answer), max_output_tokens: payload.max_output_tokens ?? MAX_OUTPUT_TOKENS,
+      max_tool_calls: MAX_WEB_SEARCH_CALLS };
     if (!raw_answer) {
       const error = new Error(`OpenAI returned no answer text (${payload.incomplete_details?.reason || payload.status || 'unknown'}).`);
       error.code = payload.status === 'incomplete' ? 'incomplete_response' : 'empty_response'; error.fatal = true;

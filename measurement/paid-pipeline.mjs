@@ -330,7 +330,9 @@ export class D1MeasurementStore {
   }
   async finalizeAttempt(reservation, result = null, error = null) {
     if (!reservation?.id) return;
-    const actual = result ? Number(result.estimated_cost || 0) : null;
+    // DataForSEO task polling does not submit another paid task. The task POST
+    // remains the sole billable reservation; a pending GET always settles at 0.
+    const actual = result ? (reservation.phase === 'poll' ? 0 : Number(result.estimated_cost || 0)) : null;
     await this.db.prepare(`UPDATE diagnosis_measurement_attempts SET
       status=?,actual_cost_usd=?,reserved_cost_usd=CASE WHEN ? IS NULL THEN reserved_cost_usd WHEN ?>reserved_cost_usd THEN ? ELSE ? END,
       error_code=?,finalized_at=datetime('now') WHERE id=? AND status='reserved'`)

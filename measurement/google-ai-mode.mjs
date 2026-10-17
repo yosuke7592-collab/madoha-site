@@ -16,13 +16,21 @@ const retryAfterMs = response => {
   return Number.isFinite(seconds) && seconds >= 0 ? Math.min(seconds * 1000, 30_000) : undefined;
 };
 const rows = payload => Array.isArray(payload?.tasks?.[0]?.result) ? payload.tasks[0].result : [];
-const responseJson = response => response.json().catch(() => ({}));
+const responseJson = async response => {
+  try { return await response.json(); }
+  catch (cause) {
+    const error = new Error('DataForSEO returned malformed JSON.');
+    error.code = 'malformed_response'; error.retryable = false; error.fatal = true; error.cause = cause;
+    throw error;
+  }
+};
 const fetchJsonWithTimeout = async (fetchImpl, url, init = {}, timeoutMs = 30_000) => {
   const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetchImpl(url, { ...init, signal: controller.signal });
     return { response, payload: await responseJson(response) };
   } catch (cause) {
+    if (typeof cause?.code === 'string') throw cause;
     const error = new Error(controller.signal.aborted ? 'DataForSEO request timed out.' : 'DataForSEO network request failed.');
     error.code = controller.signal.aborted ? 'timeout' : 'network'; error.retryable = true; error.fatal = false; error.cause = cause;
     throw error;
@@ -154,7 +162,7 @@ export class GoogleAiModePaidAdapter extends PaidAdapter {
       throw fatal(`DataForSEO task failed: ${task.status_message || taskStatusCode}`, taskStatusCode === 40401 ? 'task_not_found' : 'provider_task_error', providerMetadata);
     }
     if (this.retrievalMode !== 'live' && !pendingId) return this.normalize(input, { raw_answer: '', sources: [], usage: { queued: true }, estimated_cost: this.estimateCost(input), raw_response_ref: task?.id || null, measured_at: this.now(), provider_metadata: { retrieval_mode: 'standard', pending: true, display_region: target.displayRegion, api_location_name: target.locationName, api_location_code: target.locationCode } });
-    if (pendingId && !task?.result?.length) return this.normalize(input, { raw_answer: '', sources: [], usage: { queued: true }, estimated_cost: input.existing_measurement.estimated_cost, raw_response_ref: pendingId, measured_at: this.now(), provider_metadata: { ...input.existing_measurement.provider_metadata, retrieval_mode: 'standard', pending: true } });
+    if (pendingId && !task?.result?.length) return this.normalize(input, { raw_answer: '', sources: [], usage: { queued: true }, estimated_cost: 0, raw_response_ref: pendingId, measured_at: this.now(), provider_metadata: { ...input.existing_measurement.provider_metadata, retrieval_mode: 'standard', pending: true } });
     target ||= { displayRegion: input.existing_measurement?.provider_metadata?.display_region || input.location || '', locationName: input.existing_measurement?.provider_metadata?.api_location_name || '', locationCode: input.existing_measurement?.provider_metadata?.api_location_code || 0, languageCode: input.existing_measurement?.provider_metadata?.language_code || 'ja' };
     return normalizeResult(this, input, payload, target, this.estimateCost(input));
   }
