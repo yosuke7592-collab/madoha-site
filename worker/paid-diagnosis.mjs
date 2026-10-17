@@ -1,5 +1,5 @@
 const PRODUCT_NAME = 'MADOHA AI詳細診断';
-export const PRICE_JPY = 9800;
+export const PRICE_JPY = 6980;
 
 const encode = value => new TextEncoder().encode(value);
 const hex = bytes => [...new Uint8Array(bytes)].map(byte => byte.toString(16).padStart(2, '0')).join('');

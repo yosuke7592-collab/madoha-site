@@ -6,7 +6,7 @@ import { PAID_V1, auditQueries, confirmEntity, identifyEntity, validateFixtureRe
 const sample = JSON.parse(await readFile(new URL('../../data/samples/kyoudo-housing-paid-diagnosis.json', import.meta.url), 'utf8'));
 
 test('v1 fixes the paid product measurement contract', () => {
-  assert.equal(PAID_V1.priceJpy, 9800);
+  assert.equal(PAID_V1.priceJpy, 6980);
   assert.deepEqual(PAID_V1.queryCounts, { total: 10 });
   assert.deepEqual(PAID_V1.channels, ['chatgpt', 'gemini', 'google_ai_mode']);
   assert.equal(PAID_V1.repetitions, 1);

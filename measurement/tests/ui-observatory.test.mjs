@@ -22,7 +22,7 @@ test('TOP uses the lightweight AI observatory design and keeps the sales contrac
   assert.match(html, /<h2><span>実際の診断結果<\/span><span>イメージ<\/span><\/h2>/);
   assert.match(brandCss, /\.sample-proof \.section-kicker\{color:#1767e8\}/);
   assert.match(html, /10[\s\S]*3[\s\S]*30/);
-  assert.match(html, /9,800円/);
+  assert.match(html, /6,980円/);
   assert.match(html, /purchase-story[\s\S]*<a href="index\.html">今すぐ診断する/);
   assert.match(css, /prefers-reduced-motion/);
   assert.doesNotMatch(`${html}\n${css}`, /three\.js|webgl|<canvas|<video/i);
@@ -128,8 +128,8 @@ test('ten-question review keeps the metadata internal and presents direct editin
 test('purchase confirmation isolates the buying decision while sales remain guarded', async () => {
   const [html, script, css] = await Promise.all([load('index.html'), load('sales.js'), load('brand-v4.css')]);
   assert.match(html, /class="product-stage upgrade-value purchase-confirmation"/);
-  assert.match(html, /<p class="checkout-price">9,800円<span>（税込）<\/span><\/p>/);
-  assert.match(html, />9,800円で診断を開始<\/button>/);
+  assert.match(html, /<p class="checkout-price">6,980円<span>（税込）<\/span><\/p>/);
+  assert.match(html, />6,980円で診断を開始<\/button>/);
   assert.match(html, /診断結果は実施時点のAI検索結果/);
   assert.match(html, /診断開始後の10質問は測定条件として固定されます/);
   assert.match(html, /掲載・推薦・順位や、改善による効果を保証するものではありません/);
@@ -156,7 +156,7 @@ test('legal page covers service limits, privacy and commerce disclosures', async
   assert.match(legal, /id="terms"/);
   assert.match(legal, /id="privacy"/);
   assert.match(legal, /id="commerce"/);
-  assert.match(legal, /9,800円（税込）/);
+  assert.match(legal, /6,980円（税込）/);
   assert.match(legal, /掲載、推薦、順位および改善効果を保証しません/);
   assert.match(legal, /MADOHAでは保持しません/);
   assert.match(legal, /株式会社SOG/);

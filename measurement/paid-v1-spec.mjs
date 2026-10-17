@@ -1,5 +1,5 @@
 export const PAID_V1 = Object.freeze({
-  priceJpy: 9800,
+  priceJpy: 6980,
   entityTypes: ['company', 'service', 'product', 'brand'],
   channels: ['chatgpt', 'gemini', 'google_ai_mode'],
   queryCounts: { total: 10 },
