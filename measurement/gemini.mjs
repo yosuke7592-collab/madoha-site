@@ -14,15 +14,19 @@ const retryAfterMs = response => {
 const permanentQuota = payload => /(?:per day|daily|billing|quota[^\n]*(?:zero|0))/iu.test(JSON.stringify(payload?.error || payload || {}));
 
 export class GeminiPaidAdapter extends PaidAdapter {
-  constructor(options = {}) { super({ ...options, channel: 'gemini' }); }
+  constructor({ timeoutMs = 30_000, ...options } = {}) { super({ ...options, channel: 'gemini' }); this.timeoutMs = timeoutMs; }
   estimateCost() { return 0.016; }
+  // The reservation covers the explicit 2,000-token output limit and a bounded
+  // prompt allowance. Successful calls settle to provider-reported usage.
+  reserveCost() { return 0.022; }
   async execute(input, env) {
     this.assertLive(env);
     if (!env.GEMINI_API_KEY) { const error = new Error('GEMINI_API_KEY is not configured.'); error.code = 'authentication'; error.fatal = true; throw error; }
-    let response;
-    try { response = await this.fetchImpl(GEMINI_ENDPOINT, { method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY }, body: JSON.stringify({ contents: [{ parts: [{ text: input.question_text }] }], tools: [{ google_search: {} }], generationConfig: { maxOutputTokens: 2000 } }) }); }
-    catch { const error = new Error('Gemini network request failed.'); error.code = 'network'; error.retryable = true; throw error; }
-    const payload = await response.json();
+    let response, payload;
+    const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    try { response = await this.fetchImpl(GEMINI_ENDPOINT, { method: 'POST', signal: controller.signal, headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY }, body: JSON.stringify({ contents: [{ parts: [{ text: input.question_text }] }], tools: [{ google_search: {} }], generationConfig: { maxOutputTokens: 2000 } }) }); payload = await response.json(); }
+    catch (cause) { const error = new Error(controller.signal.aborted ? 'Gemini request timed out.' : 'Gemini network request failed.'); error.code = controller.signal.aborted ? 'timeout' : 'network'; error.retryable = true; error.fatal = false; error.cause = cause; throw error; }
+    finally { clearTimeout(timer); }
     if (!response.ok) {
       const providerError = payload?.error || {};
       const error = new Error(`Gemini request failed with HTTP ${response.status}: ${providerError.message || providerError.status || 'unknown error'}`);

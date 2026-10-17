@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS diagnosis_measurement_attempts (
   diagnosis_id TEXT NOT NULL REFERENCES diagnosis_orders(id) ON DELETE CASCADE,
   question_id TEXT NOT NULL,
   channel TEXT NOT NULL,
+  attempt_phase TEXT NOT NULL DEFAULT 'request' CHECK (attempt_phase IN ('request','poll')),
   attempt_number INTEGER NOT NULL,
   reserved_cost_usd REAL NOT NULL,
   actual_cost_usd REAL,
@@ -44,7 +45,9 @@ CREATE TABLE IF NOT EXISTS diagnosis_measurement_attempts (
   error_code TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   finalized_at TEXT,
-  UNIQUE (diagnosis_id, question_id, channel, attempt_number)
+  UNIQUE (diagnosis_id, question_id, channel, attempt_phase, attempt_number)
 );
 CREATE INDEX IF NOT EXISTS diagnosis_measurement_attempts_budget
   ON diagnosis_measurement_attempts(diagnosis_id, status);
+CREATE INDEX IF NOT EXISTS diagnosis_measurement_attempts_phase
+  ON diagnosis_measurement_attempts(diagnosis_id, question_id, channel, attempt_phase);

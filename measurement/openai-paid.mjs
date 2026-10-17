@@ -2,20 +2,24 @@ import { PaidAdapter } from './paid-pipeline.mjs';
 import { OPENAI_ENDPOINT, OPENAI_MODEL } from './openai.mjs';
 
 export class OpenAiPaidAdapter extends PaidAdapter {
-  constructor(options = {}) { super({ ...options, channel: 'chatgpt' }); }
+  constructor({ timeoutMs = 30_000, ...options } = {}) { super({ ...options, channel: 'chatgpt' }); this.timeoutMs = timeoutMs; }
   estimateCost() { return 0.0122; }
+  // One web search plus the configured 2,000 output-token ceiling, with headroom
+  // for the bounded prompt. Actual reported usage settles this reservation.
+  reserveCost() { return 0.016; }
   async execute(input, env) {
     this.assertLive(env);
     if (!env.OPENAI_API_KEY) { const error = new Error('OPENAI_API_KEY is not configured.'); error.code = 'authentication'; error.fatal = true; throw error; }
-    let response;
-    try { response = await this.fetchImpl(OPENAI_ENDPOINT, { method: 'POST', headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, 'content-type': 'application/json' }, body: JSON.stringify({
+    let response, payload;
+    const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    try { response = await this.fetchImpl(OPENAI_ENDPOINT, { method: 'POST', signal: controller.signal, headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, 'content-type': 'application/json' }, body: JSON.stringify({
       model: OPENAI_MODEL, input: input.question_text,
       instructions: 'Web検索結果を踏まえ、質問へ日本語で簡潔かつ具体的に回答してください。候補企業名と判断理由を明記し、確認できないことは断定しないでください。',
       tools: [{ type: 'web_search' }], tool_choice: 'required', include: ['web_search_call.action.sources'],
       max_output_tokens: 2000, store: false
-    }) }); }
-    catch { const error = new Error('OpenAI network request failed.'); error.code = 'network'; error.retryable = true; throw error; }
-    const payload = await response.json();
+    }) }); payload = await response.json(); }
+    catch (cause) { const error = new Error(controller.signal.aborted ? 'OpenAI request timed out.' : 'OpenAI network request failed.'); error.code = controller.signal.aborted ? 'timeout' : 'network'; error.retryable = true; error.fatal = false; error.cause = cause; throw error; }
+    finally { clearTimeout(timer); }
     if (!response.ok) { const error = new Error(`OpenAI request failed with HTTP ${response.status}.`); error.code = response.status === 429 ? 'rate_limit' : response.status === 401 ? 'authentication' : 'provider_error'; error.retryable = response.status === 429 || response.status >= 500; error.fatal = !error.retryable; throw error; }
     const output = payload.output || [];
     const parts = output.flatMap(item => item.type === 'message' ? item.content || [] : []).filter(item => item.type === 'output_text');

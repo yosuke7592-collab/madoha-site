@@ -235,6 +235,7 @@ export class PaidAdapter {
   }
   assertLive(env) { if (!liveEnabled(env)) throw new Error(LIVE_LOCK_MESSAGE); }
   estimateCost() { throw new Error('estimateCost must be implemented.'); }
+  reserveCost(input) { return this.estimateCost(input); }
   async execute() { throw new Error('execute must be implemented.'); }
   normalize(input, raw) { return commonMeasurement(input, raw, this.registry); }
 }
@@ -306,27 +307,34 @@ export class D1MeasurementStore {
       .bind(diagnosisId, diagnosisId).first();
     return round(Number(row?.total || 0));
   }
-  async reserveAttempt({ diagnosisId, questionId, channel, estimate, cap }) {
-    const prior = await this.db.prepare(`SELECT COUNT(*) AS n FROM diagnosis_measurement_attempts
-      WHERE diagnosis_id=? AND question_id=? AND channel=?`).bind(diagnosisId, questionId, channel).first();
-    const attemptNumber = Number(prior?.n || 0) + 1;
-    if (attemptNumber > 3) return null;
-    const used = await this.budgetUsed(diagnosisId);
-    if (used + estimate > cap) return null;
+  async reserveAttempt({ diagnosisId, questionId, channel, estimate, cap, phase: requestedPhase = 'request' }) {
+    const phase = requestedPhase === 'poll' ? 'poll' : 'request';
+    const maximum = phase === 'poll' ? 5 : 3;
     const id = crypto.randomUUID();
+    // One INSERT both checks the durable budget and creates the reservation.
+    // D1 serializes this write, so overlapping consumers cannot both spend the
+    // same remaining cap.
     const insert = await this.db.prepare(`INSERT INTO diagnosis_measurement_attempts
-      (id,diagnosis_id,question_id,channel,attempt_number,reserved_cost_usd,status)
-      VALUES (?,?,?,?,?,?,'reserved')`).bind(id, diagnosisId, questionId, channel, attemptNumber, estimate).run();
+      (id,diagnosis_id,question_id,channel,attempt_phase,attempt_number,reserved_cost_usd,status)
+      SELECT ?,?,?,?,?,COALESCE(MAX(a.attempt_number),0)+1,?,'reserved'
+      FROM diagnosis_measurement_attempts a
+      WHERE a.diagnosis_id=? AND a.question_id=? AND a.channel=? AND a.attempt_phase=?
+      HAVING COUNT(*)<? AND (
+        COALESCE((SELECT SUM(reserved_cost_usd) FROM diagnosis_measurement_attempts WHERE diagnosis_id=?),0)+
+        COALESCE((SELECT SUM(m.estimated_cost_usd) FROM paid_measurements m WHERE m.diagnosis_id=?
+          AND NOT EXISTS (SELECT 1 FROM diagnosis_measurement_attempts x WHERE x.diagnosis_id=m.diagnosis_id AND x.question_id=m.question_id AND x.channel=m.channel)),0)+?
+      )<=?`)
+      .bind(id, diagnosisId, questionId, channel, phase, estimate, diagnosisId, questionId, channel, phase, maximum, diagnosisId, diagnosisId, estimate, cap).run();
     if (Number(insert.meta?.changes || 0) !== 1) return null;
-    return { id, estimate };
+    return { id, estimate, phase };
   }
   async finalizeAttempt(reservation, result = null, error = null) {
     if (!reservation?.id) return;
     const actual = result ? Number(result.estimated_cost || 0) : null;
     await this.db.prepare(`UPDATE diagnosis_measurement_attempts SET
-      status=?,actual_cost_usd=?,reserved_cost_usd=CASE WHEN ? IS NOT NULL AND ?>reserved_cost_usd THEN ? ELSE reserved_cost_usd END,
+      status=?,actual_cost_usd=?,reserved_cost_usd=CASE WHEN ? IS NULL THEN reserved_cost_usd WHEN ?>reserved_cost_usd THEN ? ELSE ? END,
       error_code=?,finalized_at=datetime('now') WHERE id=? AND status='reserved'`)
-      .bind(result ? 'completed' : 'failed', actual, actual, actual, actual, error?.code || null, reservation.id).run();
+      .bind(result ? 'completed' : 'failed', actual, actual, actual, actual, actual, error?.code || null, reservation.id).run();
   }
 }
 
@@ -349,31 +357,30 @@ export async function runPaidMeasurements({ diagnosis, questions, adapters, stor
       locale: diagnosis.locale || 'ja-JP', location: diagnosis.location || '', max_cost: cap - total, run_id: diagnosis.run_id,
       existing_measurement: existing || null
     };
-    const estimate = adapter.estimateCost(input);
-    if (total + estimate > cap) { stopped = { code: COST_CAP_CODE, next: { question_id: question.id, channel }, total_estimated_cost: round(total), cap }; break measurementLoop; }
+    const pending = Boolean(existing?.provider_metadata?.pending);
+    const reserve = Number((typeof adapter.reserveCost === 'function' ? adapter.reserveCost(input) : adapter.estimateCost(input)) || 0);
+    if (total + reserve > cap) { stopped = { code: COST_CAP_CODE, next: { question_id: question.id, channel }, total_estimated_cost: round(total), cap }; break measurementLoop; }
     try {
-      const estimate = Number(adapter.estimateCost(input) || 0);
+      const estimate = reserve;
       const localReservations = [];
       const measurement = await executeWithRetry(adapter, input, env, {
         onAttemptStart: async () => {
-          if (estimate === 0) return { noCharge: true };
           if (typeof store.reserveAttempt === 'function') {
-            const reservation = await store.reserveAttempt({ diagnosisId: diagnosis.id, questionId: question.id, channel, estimate, cap });
-            if (!reservation) { const error = new Error('診断の費用上限に達したため処理を停止しました。'); error.code = COST_CAP_CODE; error.fatal = true; throw error; }
+            const reservation = await store.reserveAttempt({ diagnosisId: diagnosis.id, questionId: question.id, channel, estimate, cap, phase: pending ? 'poll' : 'request' });
+            if (!reservation) { const error = new Error(pending ? 'DataForSEOの応答待ち上限に達したため処理を停止しました。' : '診断の費用上限または試行上限に達したため処理を停止しました。'); error.code = pending ? 'pending_poll_limit_exceeded' : COST_CAP_CODE; error.fatal = true; throw error; }
             return reservation;
           }
           if (total + estimate > cap) { const error = new Error('診断の費用上限に達したため処理を停止しました。'); error.code = COST_CAP_CODE; error.fatal = true; throw error; }
           const reservation = { estimate }; localReservations.push(reservation); total = round(total + estimate); return reservation;
         },
-        onAttemptSuccess: async (reservation, value) => { if (!reservation?.noCharge && typeof store.finalizeAttempt === 'function') await store.finalizeAttempt(reservation, value); },
-        onAttemptFailure: async (reservation, error) => { if (!reservation?.noCharge && typeof store.finalizeAttempt === 'function') await store.finalizeAttempt(reservation, null, error); }
+        onAttemptSuccess: async (reservation, value) => { if (typeof store.finalizeAttempt === 'function') await store.finalizeAttempt(reservation, value); },
+        onAttemptFailure: async (reservation, error) => { if (typeof store.finalizeAttempt === 'function') await store.finalizeAttempt(reservation, null, error); }
       });
-      const actual = Number(measurement.estimated_cost || 0);
-      if (actual > estimate + Number(existing?.estimated_cost || 0)) { stopped = { code: COST_CAP_CODE, next: { question_id: question.id, channel }, total_estimated_cost: round(total), cap }; break measurementLoop; }
       await store.save(measurement); completed.push(measurement);
       total = typeof store.budgetUsed === 'function' ? await store.budgetUsed(diagnosis.id) : total;
       processed += 1;
       if (onSaved) await onSaved(measurement);
+      if (total > cap) { stopped = { code: COST_CAP_CODE, next: { question_id: question.id, channel }, total_estimated_cost: round(total), cap }; break measurementLoop; }
     } catch (error) {
       if (error.code === COST_CAP_CODE) { stopped = { code: COST_CAP_CODE, next: { question_id: question.id, channel }, total_estimated_cost: typeof store.budgetUsed === 'function' ? await store.budgetUsed(diagnosis.id) : total, cap }; break measurementLoop; }
       const failed = commonMeasurement(input, { raw_answer: '', sources: [], estimated_cost: 0,

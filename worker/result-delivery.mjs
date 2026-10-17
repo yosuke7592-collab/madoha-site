@@ -166,6 +166,9 @@ const RESEND_REQUEST_TTL_DAYS = 2;
 const RESEND_COOLDOWN_MINUTES = 15;
 const RESEND_DAILY_LIMIT = 3;
 const RESEND_GLOBAL_DAILY_LIMIT = 200;
+const RESEND_QUEUE_LIMIT = 100;
+const RESEND_PROCESS_BATCH = 20;
+const DELIVERY_CLEANUP_BATCH = 50;
 
 const limit = (env, key, fallback) => {
   const value = Number(env?.[key] ?? fallback);
@@ -175,13 +178,24 @@ const limit = (env, key, fallback) => {
 export async function queueResultResend(env, email) {
   let lookupHash;
   try { lookupHash = await emailLookupHash(env, email); } catch { return { accepted: true, queued: false }; }
-  await env.DB.prepare(`INSERT INTO result_resend_requests (email_lookup_hash,requested_at,available_at,processed_at,expires_at)
-    VALUES (?,datetime('now'),datetime('now'),NULL,datetime('now','+${RESEND_REQUEST_TTL_DAYS} days'))
-    ON CONFLICT(email_lookup_hash) DO UPDATE SET
-      requested_at=excluded.requested_at,available_at=excluded.available_at,processed_at=NULL,
-      expires_at=excluded.expires_at
-    WHERE result_resend_requests.available_at<=datetime('now')`)
-    .bind(lookupHash).run();
+  const queueLimit = limit(env, 'MADOHA_RESULT_RESEND_QUEUE_LIMIT', RESEND_QUEUE_LIMIT);
+  // Keep the public queue bounded even for addresses with no completed order.
+  // This deliberately does not inspect orders, so public timing remains uniform.
+  await env.DB.batch([
+    env.DB.prepare(`DELETE FROM result_resend_requests
+      WHERE email_lookup_hash=(SELECT email_lookup_hash FROM result_resend_requests
+        WHERE processed_at IS NULL AND expires_at>datetime('now') ORDER BY requested_at LIMIT 1)
+        AND NOT EXISTS (SELECT 1 FROM result_resend_requests WHERE email_lookup_hash=?)
+        AND (SELECT COUNT(*) FROM result_resend_requests WHERE processed_at IS NULL AND expires_at>datetime('now'))>=?`)
+      .bind(lookupHash, queueLimit),
+    env.DB.prepare(`INSERT INTO result_resend_requests (email_lookup_hash,requested_at,available_at,processed_at,expires_at)
+      VALUES (?,datetime('now'),datetime('now'),NULL,datetime('now','+${RESEND_REQUEST_TTL_DAYS} days'))
+      ON CONFLICT(email_lookup_hash) DO UPDATE SET
+        requested_at=excluded.requested_at,available_at=excluded.available_at,processed_at=NULL,
+        expires_at=excluded.expires_at
+      WHERE result_resend_requests.available_at<=datetime('now')`)
+      .bind(lookupHash)
+  ]);
   return { accepted: true, queued: true };
 }
 
@@ -236,7 +250,12 @@ export async function processQueuedResultResends(env, maximum = 20) {
   if (!env?.DB) return;
   const rows = await env.DB.prepare(`SELECT email_lookup_hash FROM result_resend_requests
     WHERE processed_at IS NULL AND available_at<=datetime('now') AND expires_at>datetime('now')
-    ORDER BY requested_at LIMIT ?`).bind(Math.max(1, Math.min(100, Number(maximum) || 20))).all();
+    ORDER BY CASE WHEN EXISTS (
+      SELECT 1 FROM diagnosis_delivery d JOIN diagnosis_orders o ON o.id=d.diagnosis_id
+      WHERE d.buyer_email_lookup_hash=result_resend_requests.email_lookup_hash
+        AND o.payment_status='paid' AND o.sales_stage='completed' AND o.diagnosis_status='complete'
+    ) THEN 0 ELSE 1 END, requested_at
+    LIMIT ?`).bind(Math.max(1, Math.min(100, Number(maximum) || RESEND_PROCESS_BATCH))).all();
   for (const row of rows.results || []) {
     await env.DB.prepare("UPDATE result_resend_requests SET processed_at=datetime('now'),available_at=datetime('now','+15 minutes') WHERE email_lookup_hash=? AND processed_at IS NULL")
       .bind(row.email_lookup_hash).run();
@@ -246,9 +265,25 @@ export async function processQueuedResultResends(env, maximum = 20) {
 
 export async function cleanupExpiredDeliverySecurityRows(env) {
   if (!env?.DB) return;
+  const batch = limit(env, 'MADOHA_DELIVERY_CLEANUP_BATCH', DELIVERY_CLEANUP_BATCH);
+  // Keep unrelated cleanup independent: a draft with unexpected child data must
+  // not roll back expired resend-request cleanup.
+  await env.DB.prepare(`DELETE FROM result_resend_requests WHERE email_lookup_hash IN (
+    SELECT email_lookup_hash FROM result_resend_requests WHERE expires_at<datetime('now') ORDER BY expires_at LIMIT ?
+  )`).bind(batch).run();
+  const expired = await env.DB.prepare(`SELECT id FROM diagnosis_orders
+    WHERE payment_status='pending' AND draft_expires_at IS NOT NULL AND draft_expires_at<datetime('now')
+    ORDER BY draft_expires_at LIMIT ?`).bind(batch).all();
+  const ids = (expired.results || []).map(row => row.id).filter(Boolean);
+  if (!ids.length) return;
+  const marks = ids.map(() => '?').join(',');
   await env.DB.batch([
-    env.DB.prepare("DELETE FROM result_resend_requests WHERE expires_at<datetime('now')"),
-    env.DB.prepare("DELETE FROM diagnosis_orders WHERE payment_status='pending' AND draft_expires_at IS NOT NULL AND draft_expires_at<datetime('now')")
+    env.DB.prepare(`DELETE FROM diagnosis_measurement_attempts WHERE diagnosis_id IN (${marks})`).bind(...ids),
+    env.DB.prepare(`DELETE FROM paid_measurements WHERE diagnosis_id IN (${marks})`).bind(...ids),
+    env.DB.prepare(`DELETE FROM diagnosis_questions WHERE diagnosis_id IN (${marks})`).bind(...ids),
+    env.DB.prepare(`DELETE FROM diagnosis_events WHERE diagnosis_id IN (${marks})`).bind(...ids),
+    env.DB.prepare(`DELETE FROM diagnosis_outbox WHERE diagnosis_id IN (${marks})`).bind(...ids),
+    env.DB.prepare(`DELETE FROM diagnosis_orders WHERE id IN (${marks}) AND payment_status='pending'`).bind(...ids)
   ]);
 }
 
