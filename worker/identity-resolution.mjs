@@ -135,6 +135,17 @@ const asCandidate = value => {
 const looksLikeUrl = value => /^https?:\/\//i.test(value) || /^[^\s/]+\.[a-z]{2,}(?:[\/?#]|$)/i.test(value);
 const matchesName = (record, query) => [record.name, ...(record.aliases || [])].some(value => nameKey(value) === nameKey(query));
 
+export function dedupeCandidates(list = []) {
+  const seen = new Set(), out = [];
+  for (const item of list) {
+    const domain = canonicalDomain(item.official_url);
+    const key = domain || `${nameKey(item.name)}:${nameKey(item.region)}`;
+    if (!nameKey(item.name) || seen.has(key) || seen.has(`${nameKey(item.name)}:${nameKey(item.region)}`)) continue;
+    seen.add(key); seen.add(`${nameKey(item.name)}:${nameKey(item.region)}`); out.push(item);
+  }
+  return out;
+}
+
 export async function resolveIdentityInput(input = {}, options = {}) {
   const query = clean(typeof input === 'string' ? input : input.query || input.url || input.name);
   if (!query) throw new TypeError('会社名・店舗名・サービス名・URLを入力してください。');
@@ -176,10 +187,20 @@ export async function resolveIdentityInput(input = {}, options = {}) {
   if (options.searchPlaces) {
     const places = await options.searchPlaces(region ? `${query} ${region}` : query);
     if (places?.length) {
-      const candidates = places.map(asCandidate);
+      const candidates = dedupeCandidates(places).map(asCandidate);
       return candidates.length === 1
         ? { status: 'confirmation_required', query, message: 'Googleマップで見つかった対象です。内容を確認してください。', candidates }
         : { status: 'ambiguous', query, message: 'Googleマップで候補が見つかりました。診断する対象を選んでください。', candidates };
+    }
+  }
+
+  if (options.searchFallback) {
+    const found = dedupeCandidates((await options.searchFallback(region ? `${query} ${region}` : query)) || []).slice(0, 5);
+    if (found.length) {
+      const candidates = found.map(asCandidate);
+      return candidates.length === 1
+        ? { status: 'confirmation_required', query, message: '見つかった対象です。内容を確認してください。', candidates }
+        : { status: 'ambiguous', query, message: '候補が見つかりました。診断する対象を選んでください。', candidates };
     }
   }
 
