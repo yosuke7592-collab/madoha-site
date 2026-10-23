@@ -39,5 +39,6 @@
     ]
   },
   "triggers": { "crons": ["* * * * *"] },
+  "ai": { "binding": "AI" },
   "observability": { "enabled": true }
 }

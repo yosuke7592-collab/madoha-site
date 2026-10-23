@@ -147,11 +147,15 @@ export async function resolveIdentityInput(input = {}, options = {}) {
     if (known.length === 1) return { status: 'confirmation_required', query, candidates: [asCandidate(known[0])] };
     if (known.length > 1) return { status: 'ambiguous', query, message: '同じ公式サイトに複数の診断対象があります。診断する対象を選んでください。', candidates: known.map(asCandidate) };
     if (!options.inspectUrl) return { status: 'needs_details', query, message: '公式サイトは確認できました。対象情報を確認してください。', candidates: [asCandidate({ name: domain, official_url: normalizedUrl })] };
-    const site = await options.inspectUrl(normalizedUrl);
+    const hints = { name: clean(input.name), region: clean(input.region), industry: clean(input.industry) };
+    const site = await options.inspectUrl(normalizedUrl, hints);
     const siteRole = classifyIdentitySite({ ...site, url: site.url || normalizedUrl });
     return { status: 'confirmation_required', query, candidates: [asCandidate({
-      name: site.identity_name || site.title || domain, official_url: site.url || normalizedUrl, identity_type: inferIdentityType(site.identity_name || site.title, site),
-      industry: site.industry || '', main_services: site.main_services || [], service_regions: site.service_regions || [], headings: site.headings || [], site_title: site.title || ''
+      name: hints.name || site.identity_name || site.title || domain, official_url: site.url || normalizedUrl,
+      identity_type: clean(input.identity_type) || inferIdentityType(site.identity_name || site.title, site),
+      region: hints.region || site.region || '', industry: site.industry || hints.industry || '',
+      main_services: site.main_services || [], service_regions: site.service_regions || [], headings: site.headings || [], site_title: site.title || '',
+      extraction: site.extraction || null
     })], message: siteRole.primaryEligible ? '' : `${siteRole.reason} 診断対象のPrimary公式サイトとしては確定せず、内容をご確認ください。` };
   }
 
@@ -168,6 +172,16 @@ export async function resolveIdentityInput(input = {}, options = {}) {
   }
   if (matches.length === 1) return { status: 'confirmation_required', query, candidates: [asCandidate(matches[0])] };
   if (matches.length > 1) return { status: 'ambiguous', query, message: '同じ名前の対象が複数見つかりました。診断する対象を選んでください。', candidates: matches.map(asCandidate) };
+
+  if (options.searchPlaces) {
+    const places = await options.searchPlaces(region ? `${query} ${region}` : query);
+    if (places?.length) {
+      const candidates = places.map(asCandidate);
+      return candidates.length === 1
+        ? { status: 'confirmation_required', query, message: 'Googleマップで見つかった対象です。内容を確認してください。', candidates }
+        : { status: 'ambiguous', query, message: 'Googleマップで候補が見つかりました。診断する対象を選んでください。', candidates };
+    }
+  }
 
   const identityType = inferIdentityType(query, input);
   const suppliedDetails = Boolean(region && industry);

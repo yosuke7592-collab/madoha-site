@@ -1,3 +1,5 @@
+import { pickBusinessLinks, summarizeSite } from './site-summary.mjs';
+
 const MAX_HTML_BYTES = 1_000_000;
 
 function isPrivateHost(hostname) {
@@ -32,7 +34,7 @@ const headingsOf = html => [...String(html || '').matchAll(/<h[1-4][^>]*>([\s\S]
 const BUSINESS_LINK = /事業案内|事業内容|サービス(?:案内)?|商品(?:案内)?|製品(?:案内)?|\b(?:service|services|business|product|products|solution|solutions)\b/i;
 const NON_BUSINESS_LINK = /採用|求人|社員|スタッフ|会社案内|会社概要|企業情報|代表|メッセージ|沿革|ニュース|お知らせ|問い合わせ|アクセス|福利厚生|キャリア|一日の流れ|\b(?:recruit|career|staff|company|about|news|contact|access|message)\b/i;
 const GENERIC_HEADING = /^(?:事業案内|事業内容|サービス(?:案内)?|商品(?:案内)?|製品(?:案内)?|当社の特徴|特徴|対応エリア|対応地域|サービス提供地域|配送エリア|ホーム|一覧|詳細|もっと見る|business|service|services|product|products|solution|solutions)$/i;
-const SERVICE_EXCLUSION = /採用|求人|社員|スタッフ|会社案内|会社概要|企業情報|代表挨拶|メッセージ|沿革|ニュース|新着|お知らせ|問い合わせ|アクセス|福利厚生|キャリア|一日の流れ|よくある質問|FAQ/i;
+const SERVICE_EXCLUSION = /[、,].{2,}[をにへ]$|コンセプト|理念|想い|こだわり|私たち|選ばれる理由|特徴|強み|ごあいさつ|挨拶|[。！？]|採用|求人|社員|スタッフ|会社案内|会社概要|企業情報|代表挨拶|メッセージ|沿革|ニュース|新着|お知らせ|問い合わせ|アクセス|福利厚生|キャリア|一日の流れ|よくある質問|FAQ/i;
 const INDUSTRY_RULES = [
   [/軽貨物|宅配|配送|運送|物流/, '軽貨物運送・物流'],
   [/不動産|住宅|物件|注文住宅|リフォーム/, '住宅・不動産'],
@@ -95,7 +97,14 @@ function extractServiceRegions(html) {
   return uniq(regions);
 }
 
-function inferIndustry(text) { return INDUSTRY_RULES.find(([pattern]) => pattern.test(text))?.[1] || ''; }
+// Fallback only (used when the AI summary is unavailable). Picks the rule with
+// the most keyword hits instead of the first match, so a single word such as
+// 「配送」 on a retail site no longer turns it into a logistics company.
+function inferIndustry(text) {
+  const scored = INDUSTRY_RULES.map(([pattern, label]) => [label, (String(text).match(new RegExp(pattern.source, `g${pattern.flags}`)) || []).length])
+    .filter(([, hits]) => hits >= 3).sort((a, b) => b[1] - a[1]);
+  return scored[0]?.[0] || '';
+}
 
 async function readLimitedHtml(response, signal) {
   if (!response.body) return (await response.text()).slice(0, MAX_HTML_BYTES);
@@ -116,13 +125,13 @@ async function readLimitedHtml(response, signal) {
   } finally { reader.cancel().catch(() => {}); }
 }
 
-async function fetchPublicHtml(input, fetchImpl) {
+export async function fetchPublicHtml(input, fetchImpl = fetch) {
   let url = normalizePublicUrl(input);
   for (let redirects = 0; redirects < 4; redirects += 1) {
     const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 10_000);
     let response;
     try {
-      response = await fetchImpl(url, { redirect: 'manual', signal: controller.signal, headers: { 'User-Agent': 'MADOHA-Free-Check/1.0', Accept: 'text/html,application/xhtml+xml' }, cf: { cacheTtl: 3600, cacheEverything: true } });
+      response = await fetchImpl(url, { redirect: 'manual', signal: controller.signal, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; MADOHA-SiteCheck/1.1; +https://madoha.jp/)', Accept: 'text/html,application/xhtml+xml', 'Accept-Language': 'ja,en;q=0.8' }, cf: { cacheTtl: 3600, cacheEverything: true } });
       if (response.status >= 300 && response.status < 400 && response.headers.get('location')) { url = normalizePublicUrl(new URL(response.headers.get('location'), url).href); continue; }
       if (!response.ok) throw new Error(`サイトを取得できませんでした（${response.status}）。`);
       if (!(response.headers.get('content-type') || '').includes('text/html')) throw new Error('HTMLページのURLを入力してください。');
@@ -173,22 +182,43 @@ export async function runFreeCheck(input, fetchImpl = fetch) {
   return analyzeHtml(page.html, page.url, page.response.headers);
 }
 
-export async function inspectIdentitySite(input, fetchImpl = fetch) {
+export async function inspectIdentitySite(input, fetchImpl = fetch, options = {}) {
   const root = await fetchPublicHtml(input, fetchImpl), rootAnalysis = analyzeHtml(root.html, root.url, root.response.headers);
   const pages = [{ ...root, priority: false }];
-  for (const link of extractInternalBusinessLinks(root.html, root.url)) {
-    try { const page = await fetchPublicHtml(link, fetchImpl); if (page.url.hostname === root.url.hostname) pages.push({ ...page, priority: true }); } catch {}
+  const links = [];
+  for (const url of [...pickBusinessLinks(root.html, root.url), ...extractInternalBusinessLinks(root.html, root.url)]) {
+    if (!links.some(item => item.href === url.href)) links.push(url);
   }
+  for (const link of links.slice(0, 3)) {
+    try { const page = await fetchPublicHtml(link, fetchImpl); if (page.url.hostname === root.url.hostname) pages.push({ ...page, priority: BUSINESS_LINK.test(page.url.pathname) }); } catch {}
+  }
+  const headings = uniq(pages.flatMap(page => headingsOf(page.html))).slice(0, 40);
+  const base = { ...rootAnalysis, headings };
+
+  const summary = await summarizeSite(options.env, pages, options.hints || {}).catch(() => null);
+  if (summary) {
+    return {
+      ...base,
+      identity_name: summary.name || extractIdentityName(root.html, rootAnalysis.title),
+      industry: summary.industry,
+      main_services: summary.main_services,
+      region: summary.region,
+      service_regions: summary.region ? [summary.region] : uniq(pages.flatMap(page => extractServiceRegions(page.html))).slice(0, 3),
+      extraction: { method: 'ai_summary', model: summary.model, confidence: summary.confidence }
+    };
+  }
+
+  // Fallback: rule-based extraction (AI binding unavailable or failed).
   const priorityServices = uniq(pages.filter(page => page.priority).flatMap(page => headingsOf(page.html).map(normalizeServiceHeading).filter(Boolean)));
   const rootServices = uniq(headingsOf(root.html).map(normalizeServiceHeading).filter(Boolean));
   const mainServices = priorityServices.length ? priorityServices : rootServices;
   const combinedText = pages.map(page => htmlText(page.html)).join(' ');
   return {
-    ...rootAnalysis,
+    ...base,
     identity_name: extractIdentityName(root.html, rootAnalysis.title),
     industry: inferIndustry(combinedText),
     main_services: mainServices.slice(0, 8),
     service_regions: uniq(pages.flatMap(page => extractServiceRegions(page.html))).slice(0, 3),
-    headings: uniq(pages.flatMap(page => headingsOf(page.html))).slice(0, 40)
+    extraction: { method: 'rules' }
   };
 }
