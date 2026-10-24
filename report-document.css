@@ -30,3 +30,8 @@ body.report-view-active .diagnosis-report{border-top:1px solid #d8e2e8}
   #report .answer-panel,#report .answer-markdown,#report .reference-list a,#report .source-lines a{overflow-wrap:anywhere!important;word-break:break-word!important}
   #report a{color:inherit;text-decoration:none}
 }
+
+/* purchased report: footer centering and readable measurement conditions */
+body.report-view-active #report .end{margin-left:auto!important;margin-right:auto!important}
+#report .measurement-note .measurement-conditions dt{color:#53657a!important}
+#report .measurement-note .measurement-conditions dd{color:#0b1b2b!important}
