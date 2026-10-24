@@ -2,9 +2,9 @@ export const PAID_V1 = Object.freeze({
   priceJpy: 6980,
   entityTypes: ['company', 'service', 'product', 'brand'],
   channels: ['chatgpt', 'gemini', 'google_ai_mode'],
-  queryCounts: { total: 10 },
+  queryCounts: { min: 1, max: 10 },
   repetitions: 1,
-  totalMeasurements: 30,
+  maxMeasurements: 30,
 });
 
 const normalized = value => String(value || '').normalize('NFKC').trim().replace(/\s+/g, ' ');
@@ -27,7 +27,7 @@ export function confirmEntity(result, candidateIndex = 0) {
 
 export function auditQueries(queries, subjectName) {
   const failures = [];
-  if (!Array.isArray(queries) || queries.length !== PAID_V1.queryCounts.total) failures.push('質問は合計10問必要です。');
+  if (!Array.isArray(queries) || queries.length < PAID_V1.queryCounts.min || queries.length > PAID_V1.queryCounts.max) failures.push(`質問は${PAID_V1.queryCounts.min}〜${PAID_V1.queryCounts.max}問必要です。`);
   const nonbrand = (queries || []).filter(query => query.kind === 'nonbrand');
   const branded = (queries || []).filter(query => query.kind === 'branded');
   if (nonbrand.some(query => normalized(query.query).includes(normalized(subjectName)))) failures.push('非指名質問に対象名を含められません。');

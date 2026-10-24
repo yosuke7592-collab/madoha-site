@@ -117,14 +117,14 @@ test('paid identity merges aliases and URL forms but separates stores, services 
   assert.notEqual(stableIdentityKey({ name: '〇〇サービス', entity_type: 'service', official_url: 'https://example.jp/' }), stableIdentityKey({ name: '〇〇商品', entity_type: 'product', official_url: 'https://example.jp/' }));
 });
 
-test('a URL-free confirmed identity can enter the frozen 10-question flow', async t => {
+test('a URL-free confirmed identity can enter the frozen question flow', async t => {
   const db = await sqliteD1(); t.after(() => db.close());
   const input = await fixture('kyoudo');
   input.entity.official_url = '';
   input.entity.identity_type = 'company';
   input.entity.identification_status = 'confirmed';
   const draft = await createSalesDraft({ DB: db, MADOHA_PAID_DIAGNOSIS_MAX_COST_USD: '.70' }, input);
-  assert.equal(draft.questions.length, 10);
+  assert.equal(draft.questions.length, 8);
   const order = await db.prepare('SELECT target_url,identity_key,entity_json FROM diagnosis_orders WHERE id=?').bind(draft.id).first();
   assert.equal(order.target_url, '');
   assert.match(order.identity_key, /^paid-v2:company:name:/);

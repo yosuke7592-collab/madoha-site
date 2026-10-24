@@ -52,8 +52,8 @@ export async function loadConfirmedQuestions(db, diagnosisId) {
     selection_reason: row.selection_reason, measurement_purpose: row.measurement_purpose || row.selection_reason, source_signals: parseJson(row.source_signals_json, []), kind: row.question_kind, confirmed: Number(row.confirmed) === 1
   }));
   const confirmed = questions.filter(question => question.confirmed).length;
-  const valid = questions.length === 10 && confirmed === 10 && questions.every((question, index) => question.order === index + 1 && question.query && question.selection_reason && Array.isArray(question.source_signals));
-  if (!valid) throw Object.assign(new Error(`確定済み質問が不足しています（質問${questions.length}/10、確定${confirmed}/10）。`), { code: QUESTION_ERROR, fatal: true });
+  const valid = questions.length >= 1 && questions.length <= 10 && confirmed === questions.length && questions.every((question, index) => question.order === index + 1 && question.query && question.selection_reason && Array.isArray(question.source_signals));
+  if (!valid) throw Object.assign(new Error(`確定済み質問が不足しています（質問${questions.length}問、確定${confirmed}問）。`), { code: QUESTION_ERROR, fatal: true });
   return questions;
 }
 
@@ -65,8 +65,8 @@ export function baseReport(order, questions) {
   return {
     schemaVersion: 'paid-report-v1', sample: false,
     subject: { ...entity, company_location: entity.company_location || entity.region || '', diagnosis_region: diagnosisRegion, area: primaryRegion, category: entity.category || '' },
-    measurement: { snapshotDate: new Date().toISOString().slice(0, 10), queryCount: 10, repetitions: 1 },
-    queryDiscovery: { method: '対象企業のサービス、地域、検索需要、関連情報から確定した10問を使用' },
+    measurement: { snapshotDate: new Date().toISOString().slice(0, 10), queryCount: questions.length, repetitions: 1 },
+    queryDiscovery: { method: '対象企業のサービス、地域、検索需要、関連情報から確定した質問を使用' },
     queries: questions.map(question => ({ id: question.id, query: question.query, intent: question.intent, kind: question.kind, selectionReason: question.selection_reason, measurementPurpose: question.measurement_purpose, channels: [] })),
     sources: [], actions: []
   };
@@ -191,7 +191,7 @@ export async function reprocessCompletedDiagnosis(env, diagnosisId) {
   const registry = [{ id: entity.id || diagnosisId, canonicalName: entity.name, displayName: entity.name, aliases: entity.aliases || [] }];
   const store = new D1MeasurementStore(env.DB);
   const measurements = await store.list(diagnosisId);
-  if (measurements.length !== 30 || measurements.some(row => row.error || !row.raw_answer?.trim())) throw Object.assign(new Error('30件の実回答が揃っていません。'), { status: 409 });
+  if (measurements.length !== questions.length * 3 || measurements.some(row => row.error || !row.raw_answer?.trim())) throw Object.assign(new Error(`${questions.length * 3}件の実回答が揃っていません。`), { status: 409 });
   const kinds = new Map(questions.map(question => [question.id, question.kind]));
   for (const row of measurements) {
     Object.assign(row, derivePaidEntities(row.raw_answer, entity, registry));
@@ -236,10 +236,10 @@ export async function processDiagnosisQueueMessage(env, body, options = {}) {
       await failDiagnosis(env.DB, diagnosisId, error); return { action: 'ack', state: 'failed', result };
     }
     const complete = result.measurements.filter(row => !row.error && !row.provider_metadata?.pending && row.raw_answer?.trim()).length;
-    if (complete === 30) {
+    if (complete === questions.length * 3) {
       const report = measurementsToPaidReport(baseReport(order, questions), result.measurements);
       report.sources = [...new Map(result.measurements.flatMap(row => row.sources).map(source => [source.url, { name: source.title || source.domain, role: source.citation_text || 'AI回答が参照したWeb情報', url: source.url }])).values()];
-      await env.DB.prepare(`UPDATE diagnosis_orders SET diagnosis_status='complete',pipeline_state='completed',completed_measurements=30,report_json=?,pipeline_error_code=NULL,error_message=NULL,completed_at=datetime('now'),runner_lock_token=NULL,runner_lock_until=NULL,updated_at=datetime('now') WHERE id=? AND runner_lock_token=?`).bind(JSON.stringify(report), diagnosisId, lock).run();
+      await env.DB.prepare(`UPDATE diagnosis_orders SET diagnosis_status='complete',pipeline_state='completed',completed_measurements=?,report_json=?,pipeline_error_code=NULL,error_message=NULL,completed_at=datetime('now'),runner_lock_until=NULL,runner_lock_token=NULL,updated_at=datetime('now') WHERE id=? AND runner_lock_token=?`).bind(complete, JSON.stringify(report), diagnosisId, lock).run();
       return { action: 'ack', state: 'completed', result, report };
     }
     const hasPending = result.measurements.some(row => row.provider_metadata?.pending);

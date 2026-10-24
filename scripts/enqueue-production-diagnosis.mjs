@@ -31,8 +31,8 @@ export function assertDiagnosisId(value) {
 
 export function eligibility(row) {
   if (!row) return { ok: false, reason: '診断が見つかりません。' };
-  if (!row.questions_confirmed_at || Number(row.question_count) !== 10 || Number(row.confirmed_question_count) !== 10) {
-    return { ok: false, reason: '確定済みの10質問を確認できません。' };
+  if (!row.questions_confirmed_at || Number(row.question_count) < 1 || Number(row.question_count) > 10 || Number(row.confirmed_question_count) !== Number(row.question_count)) {
+    return { ok: false, reason: '確定済みの質問（1〜10問）を確認できません。' };
   }
   if (Number(row.completed_measurements) !== 0) return { ok: false, reason: '測定済みの診断は管理投入できません。' };
   if (Number(row.outbox_count) !== 0) return { ok: false, reason: '既にQueue投入済みまたは投入準備中です。' };

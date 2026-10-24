@@ -7,10 +7,10 @@ const sample = JSON.parse(await readFile(new URL('../../data/samples/kyoudo-hous
 
 test('v1 fixes the paid product measurement contract', () => {
   assert.equal(PAID_V1.priceJpy, 6980);
-  assert.deepEqual(PAID_V1.queryCounts, { total: 10 });
+  assert.deepEqual(PAID_V1.queryCounts, { min: 1, max: 10 });
   assert.deepEqual(PAID_V1.channels, ['chatgpt', 'gemini', 'google_ai_mode']);
   assert.equal(PAID_V1.repetitions, 1);
-  assert.equal(PAID_V1.totalMeasurements, 30);
+  assert.equal(PAID_V1.maxMeasurements, 30);
 });
 
 test('target identification accepts a name without requiring a URL and requires confirmation', () => {

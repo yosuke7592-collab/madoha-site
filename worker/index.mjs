@@ -141,7 +141,7 @@ export default {
       }
     }
     if (url.pathname === '/api/checkout' && request.method === 'POST') {
-      return json({ ok: false, error: '診断対象と10質問を確定してから購入してください。' }, 410);
+      return json({ ok: false, error: '診断対象と質問を確定してから購入してください。' }, 410);
     }
     if (url.pathname === '/api/stripe/webhook' && request.method === 'POST') {
       const raw = await request.text();
@@ -184,8 +184,8 @@ export default {
       if (!env.DB || !env.DIAGNOSIS_QUEUE) return json({ ok: false, error: '診断機能は準備中です。' }, 503);
       const sessionId = request.headers.get('x-checkout-session');
       if (!await verifyCheckoutAccess(env, paidMatch[1], sessionId)) return json({ ok: false, error: '決済を確認できません。' }, 403);
-      const confirmation = await env.DB.prepare("SELECT questions_confirmed_at,(SELECT COUNT(*) FROM diagnosis_questions WHERE diagnosis_id=? AND confirmed=1) AS confirmed_count FROM diagnosis_orders WHERE id=?").bind(paidMatch[1], paidMatch[1]).first();
-      if (!confirmation?.questions_confirmed_at || Number(confirmation.confirmed_count) !== 10) return json({ ok: false, error: '診断する10質問を確認・確定してください。' }, 409);
+      const confirmation = await env.DB.prepare("SELECT questions_confirmed_at,(SELECT COUNT(*) FROM diagnosis_questions WHERE diagnosis_id=? AND confirmed=1) AS confirmed_count,(SELECT COUNT(*) FROM diagnosis_questions WHERE diagnosis_id=?) AS question_count FROM diagnosis_orders WHERE id=?").bind(paidMatch[1], paidMatch[1], paidMatch[1]).first();
+      if (!confirmation?.questions_confirmed_at || Number(confirmation.confirmed_count) < 1 || Number(confirmation.confirmed_count) !== Number(confirmation.question_count)) return json({ ok: false, error: '診断する質問を確認・確定してください。' }, 409);
       const queued = await env.DB.prepare("UPDATE diagnosis_orders SET diagnosis_status='queued',pipeline_state='queued',updated_at=datetime('now') WHERE id=? AND payment_status='paid' AND diagnosis_status='paid' AND questions_confirmed_at IS NOT NULL").bind(paidMatch[1]).run();
       if (Number(queued.meta?.changes || 0) === 1) await env.DIAGNOSIS_QUEUE.send({ orderId: paidMatch[1] });
       const order = await env.DB.prepare('SELECT id,diagnosis_status FROM diagnosis_orders WHERE id=?').bind(paidMatch[1]).first();

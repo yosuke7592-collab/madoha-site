@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="description" content="ChatGPT・Gemini・Google AI Modeで、会社・店舗・サービスがどう表示・推薦されるかを30件実測するMADOHA AI検索診断。">
+  <meta name="description" content="ChatGPT・Gemini・Google AI Modeで、会社・店舗・サービスがどう表示・推薦されるかを最大30件実測するMADOHA AI検索診断。">
   <meta name="theme-color" content="#061426">
   <title>MADOHA | AI検索での見え方を観測する</title>
   <link rel="icon" href="/favicon.svg?v=5" type="image/svg+xml">
@@ -15,10 +15,10 @@
   <link rel="stylesheet" href="top-v3.css?v=4">
   <link rel="stylesheet" href="reference-ui.css?v=1">
   <link rel="stylesheet" href="top-width.css?v=1">
-  <link rel="stylesheet" href="brand-v4.css?v=11">
+  <link rel="stylesheet" href="brand-v4.css?v=12">
   <link rel="stylesheet" href="result-access.css?v=2">
   <link rel="stylesheet" href="report-document.css?v=1">
-  <script type="module" src="sales.js?v=23"></script>
+  <script type="module" src="sales.js?v=24"></script>
 </head>
 <body>
 <a class="skip-link" href="#identity-search">診断対象の検索へ</a>
@@ -64,16 +64,17 @@
         </form>
       </div>
     </div>
-    <div class="measurement-strip" aria-label="診断の構成"><span><b>10</b> QUESTIONS</span><i>×</i><span><b>3</b> AI CHANNELS</span><i>=</i><span><b>30</b> RESULTS</span></div>
+    <div class="measurement-strip" aria-label="診断の構成"><span><b>最大10</b> QUESTIONS</span><i>×</i><span><b>3</b> AI CHANNELS</span><i>=</i><span><b>最大30</b> RESULTS</span></div>
   </section>
   <section id="questions-stage" class="product-stage question-review" hidden>
     <p class="eyebrow">YOUR RESEARCH PLAN</p>
-    <h1>MADOHAが設計した10質問を確認</h1>
-    <p class="question-stage-lead">実際にAIへ送る10の質問です<br>変更したい質問は「編集」から調整できます</p>
+    <h1 id="questions-title">MADOHAが設計した質問を確認</h1>
+    <p class="question-stage-lead" id="questions-lead">実際にAIへ送る質問です<br>変更したい質問は「編集」から調整できます</p>
     <div id="input-warnings" class="input-warnings" role="status" hidden></div>
     <ol id="question-list"></ol>
+    <div class="question-add" id="question-add" hidden><button id="add-question-open" type="button">＋ 質問を追加する</button><div id="add-question-form" hidden><label for="add-question-text">追加する質問</label><textarea id="add-question-text" rows="3" maxlength="2000" placeholder="例：○○市でおすすめの△△は？"></textarea><div class="question-add-actions"><button id="add-question-commit" type="button">追加する</button><button id="add-question-cancel" type="button" class="secondary-button">やめる</button></div><p id="add-question-status" role="status"></p></div><p id="add-question-note" class="question-add-note"></p></div>
     <div class="question-final-action">
-      <button id="save-questions" type="button">この10質問を確定する</button>
+      <button id="save-questions" type="button">この質問を確定する</button>
       <p id="question-warnings" role="alert"></p>
       <button id="accept-warnings" type="button" hidden>注意点を確認して、このまま使用</button>
     </div>
@@ -81,21 +82,21 @@
   <section id="checkout-stage" class="product-stage upgrade-value purchase-confirmation" hidden>
     <p class="eyebrow">INITIAL DIAGNOSIS</p>
     <h1 id="checkout-title" tabindex="-1">初回AI検索診断</h1>
-    <p class="checkout-summary">確定した10質問を<br class="checkout-mobile-break">ChatGPT・Gemini・Google AI Modeで実際に調査し、<br>合計30回答をWebとPDFにまとめます。</p>
+    <p class="checkout-summary">確定した<span id="checkout-question-count">質問</span>を<br class="checkout-mobile-break">ChatGPT・Gemini・Google AI Modeで実際に調査し、<br>合計<span id="checkout-result-count">質問数×3</span>回答をWebとPDFにまとめます。</p>
     <p class="checkout-price">6,980円<span>（税込）</span></p>
     <div id="checkout-controls">
       <div id="cf-turnstile"></div>
       <button id="checkout" type="button" disabled>6,980円で診断を開始</button>
       <p class="checkout-payment-note">カード情報はStripeの決済画面で入力します。会員登録・月額課金はありません。</p>
     </div>
-    <div id="sales-paused" class="sales-paused" role="status" hidden><strong>現在、診断の受付準備中です</strong><span>診断する10質問は保存されています。受付開始後にこの続きから進められます。</span></div>
+    <div id="sales-paused" class="sales-paused" role="status" hidden><strong>現在、診断の受付準備中です</strong><span>診断する質問は保存されています。受付開始後にこの続きから進められます。</span></div>
     <div class="diagnosis-notes">
       <h2>診断について</h2>
       <ul>
         <li>診断結果は実施時点のAI検索結果であり、回答内容や掲載状況は後から変化する場合があります</li>
         <li>ChatGPT・Gemini・Google AI Modeに対応する検索機能・API等で測定し、一般向け画面を完全に再現するものではありません</li>
         <li>掲載・推薦・順位や、改善による効果を保証するものではありません</li>
-        <li>診断開始後の10質問は測定条件として固定されます</li>
+        <li>診断開始後の質問は測定条件として固定されます</li>
       </ul>
       <p class="diagnosis-delivery-note">診断完了後、購入時のメールアドレスへ結果URLをお送りします。画面を閉じても診断は継続します。</p>
       <p class="diagnosis-support-note">メールが確認できない場合は「<button type="button" data-open-result-resend>診断結果URLを再送</button>」をご利用ください。それでも確認できない場合は <a href="mailto:info@madoha.jp">info@madoha.jp</a> へお問い合わせください。</p>
@@ -103,9 +104,9 @@
   </section>
   <section id="progress-stage" class="product-stage" hidden aria-live="polite"><p class="eyebrow">RESEARCH PROGRESS</p><h1 id="progress-label"></h1><p id="progress-count"></p><div id="diagnosis-running-note" class="diagnosis-running-note" hidden><strong>この画面を閉じても診断は継続します</strong><span>診断完了後、購入時のメールアドレスへ結果を見るためのURLをお送りします。</span></div></section><p id="sales-error" role="alert"></p>
   <section id="what-we-measure" class="story-section measure-story"><div class="measure-copy"><p class="section-kicker">PROBLEM</p><h2>候補に入るか<br>どう説明されるか</h2><p>顧客や取引先、求職者がAIへ質問する時代です。あなたの会社がどのように紹介され、どの競合と比較され、どんな情報が参照されているのかを可視化します。</p></div><div class="fact-list"><p><span class="fact-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><circle cx="14" cy="14" r="7"/><path d="m19 19 5 5"/><path d="M13 10.5v7M9.5 14h7"/><path d="M24 6v4M22 8h4"/></svg></span><b>自社はAIに正しく<br>紹介されているか</b></p><p><span class="fact-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><rect x="5" y="15" width="6" height="11" rx="2"/><rect x="13" y="9" width="6" height="17" rx="2"/><rect x="21" y="5" width="6" height="21" rx="2"/><path d="m6 10 6-4 5 2 8-5"/><path d="m22 3 3 .2-.6 3"/></svg></span><b>競合と比べて<br>どう評価されているか</b></p><p><span class="fact-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M9 5h11l4 4v17H9z"/><path d="M20 5v5h4M13 15h7M13 19h7"/><circle cx="7" cy="24" r="3"/><path d="m9.5 22.5 4-3"/></svg></span><b>どの情報が<br>参照されているか</b></p><p><span class="fact-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="m16 5 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2-4.5-4.4 6.2-.9z"/><path d="M6 27h20"/></svg></span><b>AIに推薦される<br>可能性があるか</b></p></div></section>
-  <section id="how-it-works" class="story-section workflow-story"><div class="workflow-copy"><p class="section-kicker">HOW IT WORKS</p><h2><span>3つのAIから</span><span>同じ条件で観測</span></h2><p>MADOHAは、同じ10の質問を3つのAIへ投げ、その回答を収集・分析。あなたの会社の見え方を客観的なデータとして可視化します。</p></div><ol class="workflow-steps"><li><i>01</i><span class="step-symbol">⌕</span><b>対象を入力</b><small>会社名・サービス名・URLから対象を特定</small></li><li><i>02</i><span class="step-symbol">▤</span><b>10の質問を自動生成</b><small>顧客の検討場面から質問を設計</small></li><li><i>03</i><span class="step-symbol">◉</span><b>3つのAIで同時検索</b><small>同じ条件で実際の回答を取得</small></li><li><i>04</i><span class="step-symbol">▥</span><b>30の回答を分析</b><small>競合・参照元・改善候補まで可視化</small></li></ol></section>
+  <section id="how-it-works" class="story-section workflow-story"><div class="workflow-copy"><p class="section-kicker">HOW IT WORKS</p><h2><span>3つのAIから</span><span>同じ条件で観測</span></h2><p>MADOHAは、同じ質問を3つのAIへ投げ、その回答を収集・分析。あなたの会社の見え方を客観的なデータとして可視化します。</p></div><ol class="workflow-steps"><li><i>01</i><span class="step-symbol">⌕</span><b>対象を入力</b><small>会社名・サービス名・URLから対象を特定</small></li><li><i>02</i><span class="step-symbol">▤</span><b>質問を自動生成</b><small>顧客の検討場面から質問を設計（最大10問、追加も可能）</small></li><li><i>03</i><span class="step-symbol">◉</span><b>3つのAIで同時検索</b><small>同じ条件で実際の回答を取得</small></li><li><i>04</i><span class="step-symbol">▥</span><b>最大30の回答を分析</b><small>競合・参照元・改善候補まで可視化</small></li></ol></section>
   <section class="story-section sample-story"><div class="sample-proof"><p class="section-kicker">SAMPLE REPORT</p><h2><span>実際の診断結果</span><span>イメージ</span></h2><p>AIにどう紹介されるか、競合と比べてどう見られているか。購入後に届くダッシュボードと同じ構造で確認できます。</p><a href="sample.html">サンプルの詳細を見る <span>→</span></a></div><div class="sample-dashboard-preview" aria-label="診断結果ダッシュボードのプレビュー"><aside><b>MADOHA</b><span>ダッシュボード</span><span>AI別比較</span><span>質問別結果</span><span>競合比較</span><span>参照元</span><span>改善候補</span></aside><div class="preview-main"><header><b>AI検索での見え方</b><small>30件の実測結果</small></header><div class="preview-analytics"><div class="preview-donut" style="--rate:67"><strong>67<small>%</small></strong><span>AIに掲載された割合</span></div><div class="preview-channel-card"><b>AI別の見え方</b><div class="preview-channels"><i class="chatgpt" style="--v:70%"><span>ChatGPT</span><b>70%</b></i><i class="gemini" style="--v:60%"><span>Gemini</span><b>60%</b></i><i class="google" style="--v:70%"><span>Google AI Mode</span><b>70%</b></i></div></div></div><div class="preview-bottom"><div class="preview-competitors"><b>競合との比較</b><div><i style="--h:35%">A社</i><i style="--h:55%">B社</i><i class="target" style="--h:82%">あなたの会社</i><i style="--h:45%">C社</i><i style="--h:32%">D社</i></div></div><div class="preview-answer"><b>実際のAI回答</b><p><span class="mini-ai">◎</span>この企業は、業務改善とDX支援を行う企業として紹介されています。</p><a href="sample.html">回答全文を見る →</a></div></div></div></div></section>
-  <section id="price" class="purchase-story"><p class="section-kicker">INITIAL AI SEARCH DIAGNOSIS</p><h2>初回AI検索診断</h2><p>10の質問 × 3つのAI。30の実測結果をWebとPDFで納品します。</p><div><span><small>税込</small><strong>6,980<em>円</em></strong></span><a href="index.html">今すぐ診断する →</a></div><ul><li>クレジットカードで1回払い</li><li>診断完了後すぐにレポート表示</li><li>PDFでダウンロード可能</li></ul></section>
+  <section id="price" class="purchase-story"><p class="section-kicker">INITIAL AI SEARCH DIAGNOSIS</p><h2>初回AI検索診断</h2><p>最大10の質問 × 3つのAI。最大30の実測結果をWebとPDFで納品します。</p><div><span><small>税込</small><strong>6,980<em>円</em></strong></span><a href="index.html">今すぐ診断する →</a></div><ul><li>クレジットカードで1回払い</li><li>診断完了後すぐにレポート表示</li><li>PDFでダウンロード可能</li></ul></section>
 </main>
 <div id="report"></div>
 <section id="result-access-note" class="result-access-note" hidden><strong>この診断結果は後から再閲覧できます</strong><span>購入時のメールに届いた専用URLから、いつでも結果を確認できます。PDFダウンロードもご利用いただけます。</span><small>本結果は記載された測定日時・条件で確認したAI検索結果です。回答や掲載状況は変化する場合があり、参照情報や他社の掲載状況は掲載順位やその要因を示すものではありません。</small></section>

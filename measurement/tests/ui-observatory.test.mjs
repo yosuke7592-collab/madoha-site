@@ -82,10 +82,12 @@ test('report separates diagnosis region, API location, and company location',asy
   assert.doesNotMatch(script,/\['地域',provenance\.apiLocationName\|\|data\.subject\.api_location_name\|\|data\.subject\.display_region/);
 });
 
-test('ten-question review keeps the metadata internal and presents direct editing only', async () => {
+test('question review keeps the metadata internal and presents direct editing only', async () => {
   const [html, script, css] = await Promise.all([load('index.html'), load('sales.js'), load('brand-v4.css')]);
-  assert.match(html, /MADOHAが設計した10質問を確認/);
-  assert.match(html, /実際にAIへ送る10の質問です<br>変更したい質問は「編集」から調整できます/);
+  assert.match(html, /MADOHAが設計した質問を確認/);
+  assert.match(html, /実際にAIへ送る質問です<br>変更したい質問は「編集」から調整できます/);
+  assert.match(html, /id="add-question-open"[^>]*>＋ 質問を追加する/);
+  assert.match(script, /あと\$\{left\}問まで追加できます/);
   assert.doesNotMatch(html, /id="mix-reason"/);
   assert.doesNotMatch(html, /質問文と検索種別を調整できます/);
   assert.match(script, /class="question-number">QUESTION/);
@@ -121,7 +123,7 @@ test('ten-question review keeps the metadata internal and presents direct editin
   assert.match(css, /\.question-readonly\{[^}]*font:500 18px/);
   assert.match(css, /\.question-review-active #what-we-measure/);
   assert.match(css, /\.question-review-active #what-we-measure,[\s\S]*\.question-review-active footer\{[\s\S]*display:none!important/);
-  assert.match(html, /brand-v4\.css\?v=11/);
+  assert.match(html, /brand-v4\.css\?v=12/);
   assert.match(css, /@media\(max-width:700px\)[\s\S]*\.question-review\{width:calc\(100% - 24px\)/);
 });
 
@@ -131,7 +133,7 @@ test('purchase confirmation isolates the buying decision while sales remain guar
   assert.match(html, /<p class="checkout-price">6,980円<span>（税込）<\/span><\/p>/);
   assert.match(html, />6,980円で診断を開始<\/button>/);
   assert.match(html, /診断結果は実施時点のAI検索結果/);
-  assert.match(html, /診断開始後の10質問は測定条件として固定されます/);
+  assert.match(html, /診断開始後の質問は測定条件として固定されます/);
   assert.match(html, /掲載・推薦・順位や、改善による効果を保証するものではありません/);
   assert.match(html, /購入時のメールアドレスへ結果URLをお送りします/);
   assert.match(html, /data-open-result-resend/);
@@ -185,7 +187,7 @@ test('about page shares the TOP brand system and explains MADOHA visually', asyn
   assert.match(html, /<h1><span>AIに<\/span><span>あなたの会社は<\/span><em>どう見えているか<\/em><\/h1>/);
   assert.match(html, /assets\/about\/about-ai-search-hero\.webp/);
   assert.match(html, /assets\/about\/about-three-ai-lenses\.webp/);
-  assert.match(html, /10<\/strong> QUESTIONS[\s\S]*3<\/strong> AI CHANNELS[\s\S]*30<\/strong> RESULTS/);
+  assert.match(html, /最大10<\/strong> QUESTIONS[\s\S]*3<\/strong> AI CHANNELS[\s\S]*最大30<\/strong> RESULTS/);
   assert.match(html, /会社名なしで質問/);
   assert.match(html, /注文住宅を建てるなら<br>どの会社がいい？/);
   assert.doesNotMatch(html, /浦安で注文住宅/);

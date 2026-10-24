@@ -68,7 +68,7 @@ test('warnings require acknowledgement, can be accepted, and confirmation freeze
   await assert.rejects(()=>saveQuestionDraft(db,'d1',clientQuestions(db.rows.map(row=>({id:row.question_id,question_text:row.question_text,kind:row.question_kind,intent:row.intent,selection_reason:row.selection_reason,measurement_purpose:row.measurement_purpose})))),/変更できません/);
 });
 
-test('question review UI presents the 10 × 3 confirmation experience and responsive layout', async () => {
+test('question review UI presents the N × 3 confirmation experience and responsive layout', async () => {
   const [html,js,css]=await Promise.all([readFile(new URL('../../questions.html',import.meta.url),'utf8'),readFile(new URL('../../questions.js',import.meta.url),'utf8'),readFile(new URL('../../questions.css',import.meta.url),'utf8')]);
-  assert.match(html,/この10問でAI検索診断を開始する/); assert.match(html,/30<small>RESULTS/); assert.match(html,/この質問で分かること/); assert.match(js,/acknowledged_warning_codes/); assert.match(js,/alternatives/); assert.match(css,/@media\(max-width:650px\)/);
+  assert.match(html,/この質問でAI検索診断を開始する/); assert.match(html,/id="formula-results"/); assert.match(html,/この質問で分かること/); assert.match(js,/acknowledged_warning_codes/); assert.match(js,/alternatives/); assert.match(css,/@media\(max-width:650px\)/);
 });

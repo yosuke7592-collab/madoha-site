@@ -60,12 +60,12 @@ test('inspect enforces IP limiter before fetching pages or invoking AI', async (
   assert.equal(limiterKey, 'inspect:192.0.2.1');
 });
 
-test('removed services cannot return through hidden headings or products in the ten saved questions', async t => {
+test('removed services cannot return through hidden headings or products in the saved questions', async t => {
   const db = await sqliteD1();
   t.after(() => db.close());
   const entity = { name: '検証ホームセンター', industry: '小売業', main_services: ['園芸用品'], headings: ['削除したキャッチコピー', '家具販売'], main_products: ['家具販売'], region_enabled: false };
   const draft = await createSalesDraft({ DB: db }, { entity });
-  assert.equal(draft.questions.length, 10);
+  assert.ok(draft.questions.length >= 4 && draft.questions.length <= 10);
   assert.doesNotMatch(JSON.stringify(draft.questions), /削除したキャッチコピー|家具販売/);
   const row = await db.prepare('SELECT entity_json FROM diagnosis_orders WHERE id=?').bind(draft.id).first();
   const saved = JSON.parse(row.entity_json);

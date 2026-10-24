@@ -54,7 +54,7 @@ test('F-04: a draft paid after selection keeps every child row during cleanup', 
   } } };
   await cleanupExpiredDeliverySecurityRows(env);
   assert.equal((await db.prepare('SELECT payment_status FROM diagnosis_orders WHERE id=?').bind(draft.id).first()).payment_status, 'paid');
-  assert.equal((await db.prepare('SELECT COUNT(*) n FROM diagnosis_questions WHERE diagnosis_id=?').bind(draft.id).first()).n, 10);
+  assert.equal((await db.prepare('SELECT COUNT(*) n FROM diagnosis_questions WHERE diagnosis_id=?').bind(draft.id).first()).n, draft.questions.length);
   assert.equal((await db.prepare('SELECT COUNT(*) n FROM diagnosis_outbox WHERE diagnosis_id=?').bind(draft.id).first()).n, 1);
 });
 

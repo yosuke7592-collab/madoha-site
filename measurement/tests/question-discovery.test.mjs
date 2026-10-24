@@ -20,9 +20,9 @@ test('preserves provider location and aliases through Question Discovery normali
   const result=generateQuestionDiscovery(input); assert.equal(result.entity.display_region,'日本'); assert.equal(result.entity.api_location_name,'Japan'); assert.equal(result.entity.api_location_code,2392); assert.equal(result.entity.api_language_code,'ja'); assert.deepEqual(result.entity.aliases,['キントーン','Kintone']);
 });
 
-test('recommends a dynamic 6:4 mix and a customer-readable reason for Kyoudo', () => {
+test('recommends a dynamic 6:2 base mix and a customer-readable reason for Kyoudo', () => {
   const mix = recommendQuestionMix(kyoudo);
-  assert.deepEqual([mix.discovery_count, mix.brand_count], [6, 4]); assert.match(mix.reason, /地域/); assert.doesNotMatch(mix.reason, /スコア|heuristic/i);
+  assert.deepEqual([mix.discovery_count, mix.brand_count, mix.total], [6, 2, 8]); assert.match(mix.reason, /地域/); assert.match(mix.reason, /最大10問まで追加/); assert.doesNotMatch(mix.reason, /スコア|heuristic/i);
 });
 
 test('uses one diagnosis region string unchanged in all ten questions',()=>{
@@ -58,9 +58,9 @@ test('uses an online condition unchanged in all ten questions',()=>{
   const result=generateQuestionDiscovery(input);assert.ok(result.questions.every(item=>item.question_text.includes('オンライン')));
 });
 
-test('generates ten traceable Kyoudo questions with purpose, reason and alternatives', () => {
+test('generates eight traceable Kyoudo questions with purpose, reason and alternatives', () => {
   const result = generateQuestionDiscovery(kyoudo);
-  assert.equal(result.questions.length, 10); assert.equal(new Set(result.questions.map(item => item.question_text)).size, 10);
+  assert.equal(result.questions.length, 8); assert.equal(new Set(result.questions.map(item => item.question_text)).size, 8);
   assert.equal(result.questions.filter(item => item.kind === 'nonbrand').length, 6);
   assert.ok(result.questions.every(item => item.measurement_purpose.length > 20 && item.selection_reason.length > 20));
   assert.ok(result.questions.every(item => item.alternatives.length >= 2 && item.discovery_evidence.length >= 1));
@@ -71,7 +71,7 @@ test('generates ten traceable Kyoudo questions with purpose, reason and alternat
 test('generated questions pass the existing review screen contract unchanged', () => {
   const result = generateQuestionDiscovery(kyoudo);
   const qa = validateQuestionSet(result.questions.map(item => ({ id:item.id, question_text:item.question_text, kind:item.kind })), { name: result.entity.name, category: result.entity.industry });
-  assert.equal(qa.errors.length, 0); assert.deepEqual(qa.mix, { nonbrand: 6, branded: 4 });
+  assert.equal(qa.errors.length, 0); assert.deepEqual(qa.mix, { nonbrand: 6, branded: 2 });
 });
 
 test('QA rejects duplicates, leading language and nonbrand entity leakage', () => {
@@ -87,13 +87,13 @@ test('QA rejects duplicates, leading language and nonbrand entity leakage', () =
 
 test('a specialist industry changes the mix, language, purpose and alternatives', () => {
   const result = generateQuestionDiscovery(tax);
-  assert.deepEqual([result.mix.discovery_count,result.mix.brand_count],[5,5]);
+  assert.deepEqual([result.mix.discovery_count,result.mix.brand_count],[6,2]);
   assert.ok(result.questions.some(item=>item.question_text.includes('申告期限'))); assert.ok(result.questions.some(item=>item.question_text.includes('税務調査')));
   assert.ok(result.questions.filter(item=>item.kind==='branded').every(item=>item.question_text.includes('税理士法人チェスター')));
 });
 
 test('product templates omit region and never describe a product as a company',()=>{
-  const result=generateQuestionDiscovery(product); assert.deepEqual([result.mix.discovery_count,result.mix.brand_count],[6,4]);
+  const result=generateQuestionDiscovery(product); assert.deepEqual([result.mix.discovery_count,result.mix.brand_count],[6,2]);
   assert.ok(result.questions.every(item=>!item.question_text.includes('対応地域'))); assert.ok(result.questions.every(item=>!item.question_text.includes('どんな会社')));
   assert.ok(result.questions.some(item=>item.question_text.includes('Excel'))); assert.ok(result.questions.some(item=>item.question_text.includes('ノーコード')));
 });
@@ -116,22 +116,20 @@ test('user-entered consultation context keeps its provenance and contributes at 
 
 test('empty consultation context falls back safely without inventing FAQ evidence',()=>{
   const input=structuredClone(kyoudo);input.entity.faq=[];input.entity.faq_entries=[];input.entity.headings=[];
-  const result=generateQuestionDiscovery(input);assert.equal(result.questions.length,10);assert.ok(result.questions.every(item=>item.discovery_evidence.every(evidence=>evidence.type!=='faq')));
+  const result=generateQuestionDiscovery(input);assert.equal(result.questions.length,8);assert.ok(result.questions.every(item=>item.discovery_evidence.every(evidence=>evidence.type!=='faq')));
 });
 
-test('a verified single service expands into distinct customer decision axes without inventing services or prices',()=>{
+test('a verified single service gets a small base set of distinct customer decision axes without inventing services or prices',()=>{
   const input={entity:{name:'株式会社Example Logistics',entity_type:'company',official_url:'https://example.jp/',region_enabled:true,diagnosis_region:'千葉県全域',industry:'軽貨物運送・物流',main_services:['個人宅向け軽貨物宅配サービス'],faq:[],headings:['事業内容']}};
   const result=generateQuestionDiscovery(input),nonbrand=result.questions.filter(item=>item.kind==='nonbrand'),branded=result.questions.filter(item=>item.kind==='branded');
-  assert.equal(nonbrand.length,6);assert.equal(branded.length,4);
-  assert.equal(new Set(nonbrand.map(item=>item.decision_axis)).size,6);
+  assert.equal(nonbrand.length,3);assert.equal(branded.length,2);assert.equal(result.questions.length,5);
+  assert.equal(new Set(nonbrand.map(item=>item.decision_axis)).size,3);
   assert.ok(nonbrand.every(item=>item.source_signals.includes('個人宅向け軽貨物宅配サービス')));
   assert.ok(nonbrand.every(item=>!/(料金|価格|即日|法人向け|冷蔵|大型)/.test(item.question_text)));
   assert.ok(nonbrand.every(item=>!/(依頼内容に合う|対応内容を事前に確認|何を確認すべき)/.test(item.question_text)));
   assert.ok(nonbrand.some(item=>item.question_text.includes('おすすめ')));
-  assert.ok(nonbrand.some(item=>item.question_text.includes('実績がある')));
-  assert.ok(nonbrand.some(item=>item.question_text.includes('に強い会社')));
-  assert.deepEqual(nonbrand.map(item=>item.discovery_evidence.find(evidence=>evidence.type==='user_region_condition')?.value),Array(6).fill('千葉県全域'));
-  assert.ok(nonbrand.some(item=>item.intent==='発見'));assert.ok(nonbrand.some(item=>item.intent==='比較'));assert.ok(nonbrand.some(item=>item.intent==='推薦'));assert.ok(nonbrand.some(item=>item.intent==='信頼確認'));assert.ok(nonbrand.some(item=>item.intent==='専門性'));
+  assert.deepEqual(nonbrand.map(item=>item.discovery_evidence.find(evidence=>evidence.type==='user_region_condition')?.value),Array(3).fill('千葉県全域'));
+  assert.ok(nonbrand.some(item=>item.intent==='発見'));assert.ok(nonbrand.some(item=>item.intent==='比較'));assert.ok(nonbrand.some(item=>item.intent==='推薦'));
 });
 
 test('industry and service mismatch warns only with high confidence and allows compound businesses',()=>{

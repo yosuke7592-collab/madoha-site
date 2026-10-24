@@ -1,12 +1,13 @@
 const parseJson = (value, fallback = []) => { try { return value ? JSON.parse(value) : fallback; } catch { return fallback; } };
 const clean = value => String(value || '').replace(/\s+/g, ' ').trim();
 const normalize = value => clean(value).toLocaleLowerCase('ja-JP').replace(/[？！?！。、,.\s]/g, '');
+export const MAX_QUESTIONS = 10;
 const validKind = value => value === 'nonbrand' || value === 'branded';
 
 export function validateQuestionSet(questions, entity = {}) {
   const errors = [];
   const warnings = [];
-  if (!Array.isArray(questions) || questions.length !== 10) errors.push({ code: 'question_count', message: '質問は10問必要です。' });
+  if (!Array.isArray(questions) || questions.length < 1 || questions.length > MAX_QUESTIONS) errors.push({ code: 'question_count', message: `質問は1〜${MAX_QUESTIONS}問で入力してください。` });
   const names = [entity.name, ...(entity.aliases || [])].map(clean).filter(Boolean);
   const seen = new Map();
   for (const [index, question] of (questions || []).entries()) {
@@ -69,7 +70,7 @@ export async function saveQuestionDraft(db, diagnosisId, inputQuestions) {
   }));
   const qa = validateQuestionSet(questions, data.entity);
   if (qa.errors.length) return { saved: false, ...qa, questions };
-  if (questions.some(question => !proposed.has(question.id)) || new Set(questions.map(question => question.id)).size !== 10) {
+  if (questions.some(question => !proposed.has(question.id)) || new Set(questions.map(question => question.id)).size !== questions.length) {
     return { saved: false, errors: [{ code: 'question_identity', message: '質問の識別情報が正しくありません。' }], warnings: qa.warnings, mix: qa.mix, questions };
   }
   await db.batch(questions.map(question => {
@@ -92,7 +93,7 @@ export async function confirmQuestionSet(db, diagnosisId, acknowledgedCodes = []
   const ackJson = JSON.stringify([...accepted]);
   await db.batch([
     db.prepare("UPDATE diagnosis_questions SET confirmed=1,confirmed_at=datetime('now'),warning_acknowledgements_json=? WHERE diagnosis_id=?").bind(ackJson, diagnosisId),
-    db.prepare("UPDATE diagnosis_orders SET questions_confirmed_at=datetime('now'),updated_at=datetime('now') WHERE id=? AND diagnosis_status='paid'").bind(diagnosisId)
+    db.prepare("UPDATE diagnosis_orders SET questions_confirmed_at=datetime('now'),total_measurements=?,updated_at=datetime('now') WHERE id=? AND diagnosis_status='paid'").bind(data.questions.length * 3, diagnosisId)
   ]);
   return { confirmed: true, warnings: qa.warnings, mix: qa.mix };
 }

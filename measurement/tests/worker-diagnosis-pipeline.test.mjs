@@ -30,7 +30,7 @@ class FakeDb {
         }
         if (sql.includes("pipeline_state='paused_cost_limit'")) { db.order.pipeline_state = 'paused_cost_limit'; db.order.pipeline_error_code = args[0]; db.order.runner_lock_token = null; return { meta: { changes: 1 } }; }
         if (sql.includes("pipeline_state='failed'")) { db.order.diagnosis_status = 'failed'; db.order.pipeline_state = 'failed'; db.order.pipeline_error_code = args[0]; db.order.error_message = args[1]; db.order.runner_lock_token = null; return { meta: { changes: 1 } }; }
-        if (sql.includes("pipeline_state='completed'")) { db.order.diagnosis_status = 'complete'; db.order.pipeline_state = 'completed'; db.order.completed_measurements = 30; db.order.report_json = args[0]; db.order.runner_lock_token = null; return { meta: { changes: 1 } }; }
+        if (sql.includes("pipeline_state='completed'")) { db.order.diagnosis_status = 'complete'; db.order.pipeline_state = 'completed'; db.order.completed_measurements = args[0]; db.order.report_json = args[1]; db.order.runner_lock_token = null; return { meta: { changes: 1 } }; }
         if (sql.includes("pipeline_state='measuring'")) { db.order.diagnosis_status = 'running'; db.order.pipeline_state = 'measuring'; db.order.runner_lock_token = null; return { meta: { changes: 1 } }; }
         return { meta: { changes: 1 } };
       }
@@ -61,7 +61,7 @@ test('worker interruption resumes remaining measurements and duplicate delivery 
 });
 
 test('missing confirmed questions fails before any provider call', async () => {
-  const db = new FakeDb(questionRows.slice(0, 9)); const env = createEnv(db); const calls = [];
+  const db = new FakeDb([]); const env = createEnv(db); const calls = [];
   const result = await processDiagnosisQueueMessage(env, { orderId: 'd1' }, { adapters: createAdapters(calls), store: db.measurements });
   assert.equal(result.state, 'failed'); assert.equal(db.order.pipeline_error_code, 'confirmed_questions_incomplete'); assert.equal(calls.length, 0);
 });

@@ -13,7 +13,10 @@ const escapeHtml = value => String(value || '').replace(/[&<>"']/g, char => ({ '
 function classify() {
   const nonbrand = questions.filter(question => question.kind === 'nonbrand').length;
   $('#nonbrand-count').textContent = `${nonbrand}問`;
-  $('#branded-count').textContent = `${10 - nonbrand}問`;
+  $('#branded-count').textContent = `${questions.length - nonbrand}問`;
+  const formulaQuestions = $('#formula-questions'), formulaResults = $('#formula-results');
+  if (formulaQuestions) formulaQuestions.firstChild.textContent = String(questions.length);
+  if (formulaResults) formulaResults.firstChild.textContent = String(questions.length * 3);
 }
 
 function collect() {
@@ -51,7 +54,7 @@ function render() {
   questions.forEach((question, index) => {
     const card = $('#question-template').content.firstElementChild.cloneNode(true);
     card.dataset.id = question.id;
-    card.querySelector('header span').textContent = `QUESTION ${String(index + 1).padStart(2, '0')} / 10`;
+    card.querySelector('header span').textContent = `QUESTION ${String(index + 1).padStart(2, '0')} / ${questions.length}`;
     card.querySelector('select').value = question.kind;
     card.querySelector('textarea').value = question.question_text;
     card.querySelector('[data-field=reason]').textContent = question.selection_reason;
@@ -71,7 +74,7 @@ function render() {
   });
   classify(); showWarnings(review.warnings); $('#confirm').disabled = review.locked;
   if (review.locked) {
-    $('#confirm').textContent = 'この10問は確定済みです';
+    $('#confirm').textContent = 'この質問は確定済みです';
     document.querySelectorAll('textarea,select,.replace').forEach(element => { element.disabled = true; });
   }
 }
@@ -108,7 +111,7 @@ $('#confirm').onclick = async () => {
     location.assign(`index.html?diagnosis=${encodeURIComponent(diagnosis)}&session_id=${encodeURIComponent(session)}`);
   } catch (error) {
     $('#page-notice').hidden = false; $('#page-notice').textContent = error.message; pendingAcknowledgements = [];
-    button.disabled = false; button.textContent = 'この10問でAI検索診断を開始する';
+    button.disabled = false; button.textContent = 'この質問でAI検索診断を開始する';
   }
 };
 
