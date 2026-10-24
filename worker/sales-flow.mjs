@@ -1,4 +1,5 @@
 import { inspectIdentitySite, normalizePublicUrl } from './free-check.mjs';
+import { refineDiscoveryWithAI } from './question-ai.mjs';
 import { generateQuestionDiscovery } from '../measurement/question-discovery.mjs';
 import { validateQuestionSet, MAX_QUESTIONS } from './question-review.mjs';
 import { secureTextEqual, PRICE_JPY } from './paid-diagnosis.mjs';
@@ -24,7 +25,7 @@ export async function authorizeSales(db,id,token){if(!token||token.length>128)re
 
 export async function createSalesDraft(env,input){
  const rawEntity={...(input.entity||input),headings:[],main_products:[]};
- const entityInput=finalizeIdentityForDraft(rawEntity),discovery=generateQuestionDiscovery({...input,entity:entityInput});
+ const entityInput=finalizeIdentityForDraft(rawEntity),discovery=await refineDiscoveryWithAI(env,generateQuestionDiscovery({...input,entity:entityInput}));
  const entity={...discovery.entity,official_url:discovery.entity.official_url?normalizePublicUrl(discovery.entity.official_url).href:''};
  if(!discovery.questions.length||discovery.questions.length>MAX_QUESTIONS)fail('調査質問を準備できませんでした。');
  const id=crypto.randomUUID(),token=crypto.randomUUID()+crypto.randomUUID();
