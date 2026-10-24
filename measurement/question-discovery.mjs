@@ -76,29 +76,33 @@ function scenarios(input){
 }
 
 function offeringForContext(entity,value){const offerings=uniq([...entity.main_services,...entity.main_products]);return offerings.find(offering=>key(value).includes(key(offering))||key(offering).includes(key(value)))||offerings[0]}
+// Consumer-facing venues (restaurants, salons, hotels, shops): people look for "an お店 to go to", not a "company to commission".
+const VENUE_RULES=[[/焼肉|焼き肉|ラーメン|寿司|鮨|居酒屋|カフェ|喫茶|レストラン|飲食|食堂|ダイニング|バー|ビストロ|イタリアン|フレンチ|中華|焼鳥|焼き鳥|うどん|そば|蕎麦|パン屋|ベーカリー|スイーツ|ケーキ|洋食|和食|とんかつ|定食|ホルモン|もつ鍋|鍋|グルメ/,{kind:'dining',noun:'お店',doing:'食べる'}],[/美容室|美容院|ヘアサロン|サロン|エステ|ネイル|まつ毛|整体|マッサージ|リラクゼーション|理容|床屋|バーバー/,{kind:'beauty',noun:'お店',doing:'通う'}],[/ホテル|旅館|宿泊|民宿|ゲストハウス|温泉/,{kind:'stay',noun:'宿',doing:'泊まる'}],[/雑貨|ショップ|専門店|小売|販売店|書店|花屋|ブティック|古着|リサイクルショップ/,{kind:'retail',noun:'お店',doing:'買う'}]];
+export function venueFor(entity={}){const text=[entity.industry,entity.name,...(entity.main_services||[]),...(entity.main_products||[])].join(' ');if(entity.entity_type==='product'||entity.entity_type==='service')return null;for(const [pattern,venue] of VENUE_RULES)if(pattern.test(text))return venue;return null}
 function providerFor(entity){if(entity.entity_type==='product')return'ツール・製品';if(entity.entity_type==='service')return'サービス';if(/税理士|税務|相続|会計/.test(entity.industry))return'税理士';if(/不動産|住宅|建築|工務店/.test(entity.industry))return'不動産会社';if(/医療|病院|歯科|クリニック/.test(entity.industry))return'医療機関';if(/弁護士|法律|司法書士/.test(entity.industry))return'専門家';return'会社'}
 function actionForOffering(offering=''){if(/配送|宅配|運送|工事|施工|修理|制作|清掃|代行|委託/.test(offering))return'依頼';if(/相談|支援|サポート|住宅|不動産|相続|税務|申告|売却|購入/.test(offering))return'相談';return'利用'}
 function genericUserScenarios(input,detected=[]){const used=new Set(detected.map(item=>item.id)),items=[];for(const entry of input.entity.faq_entries.filter(item=>item.source_type==='user_input')){const matched=RULES.some(([pattern,id])=>(!PRODUCT_RULES.has(id)||input.entity.entity_type==='product')&&pattern.test(entry.value));if(matched)continue;const context=USER_CONTEXTS.find(([pattern])=>pattern.test(entry.value));if(!context)continue;const [,contextId,intent,phrase,axis]=context,offering=offeringForContext(input.entity,entry.value);if(!offering)continue;const id=`user-${contextId}-${key(offering)}`;if(used.has(id))continue;used.add(id);const need=phrase(offering),provider=providerFor(input.entity);items.push({id,intent,situation:need,axis,question:`${need}${provider}は？`,purpose:`${need}選択肢として、AIが対象を候補に挙げるか確認します。`,evidence:[{type:'faq',value:entry.value,source:'ユーザー入力',source_type:'user_input'}]});if(items.length===2)break}return items}
 
 const DECISION_AXES=[
-  ['compare','比較','比較候補',offering=>`${offering}の依頼先を比較したい。どの会社が候補？`,offering=>`${offering}を探す利用者に、AIが比較候補として対象を挙げるか確認します。`],
-  ['recommend','推薦','推薦候補',offering=>`${offering}を依頼するなら、どの会社がおすすめ？`,offering=>`${offering}の依頼先を探す利用者に、AIが対象を推薦候補として挙げるか確認します。`],
-  ['track-record','比較','実績',offering=>`${offering}の実績がある会社は？`,offering=>`${offering}の実績を重視する利用者に、AIが対象を候補として挙げるか確認します。`],
-  ['trust','信頼確認','信頼性',offering=>`${offering}を安心して任せられる会社は？`,offering=>`${offering}の依頼先として、AIが対象の信頼性を説明できるか確認します。`],
-  ['expertise','専門性','専門性',offering=>`${offering}に強い会社は？`,offering=>`${offering}の専門性を重視する利用者に、AIが対象を候補として挙げるか確認します。`]
+  ['compare','比較','比較候補',(offering,v)=>v?`${offering}の${v.noun}を比較したい。どこが候補？`:`${offering}の依頼先を比較したい。どの会社が候補？`,(offering,v)=>`${offering}を探す利用者に、AIが比較候補として対象を挙げるか確認します。`],
+  ['recommend','推薦','推薦候補',(offering,v)=>v?`${offering}を${v.doing}なら、どの${v.noun}がおすすめ？`:`${offering}を依頼するなら、どの会社がおすすめ？`,(offering,v)=>`${offering}を${v?'探す':'依頼先として探す'}利用者に、AIが対象を推薦候補として挙げるか確認します。`],
+  ['track-record','比較','実績',(offering,v)=>v?`${offering}で人気・評判のよい${v.noun}は？`:`${offering}の実績がある会社は？`,(offering,v)=>`${offering}の${v?'人気や評判':'実績'}を重視する利用者に、AIが対象を候補として挙げるか確認します。`],
+  ['trust','信頼確認','信頼性',(offering,v)=>v?`${offering}を安心して楽しめる${v.noun}は？`:`${offering}を安心して任せられる会社は？`,(offering,v)=>`${offering}を${v?'選ぶ':'依頼する'}とき、AIが対象の信頼性を説明できるか確認します。`],
+  ['expertise','専門性','専門性',(offering,v)=>v?`${offering}にこだわっている${v.noun}は？`:`${offering}に強い会社は？`,(offering,v)=>`${offering}の専門性を重視する利用者に、AIが対象を候補として挙げるか確認します。`]
 ];
 
 function decisionAxisFallbacks(input,offerings){
   if(input.entity.entity_type==='product')return[];
   const items=[];
-  for(const [axisId,intent,axis,question,purpose] of DECISION_AXES)for(const offering of offerings)items.push({id:`offering-${axisId}-${key(offering)}`,intent,situation:`${offering}を検討している`,axis,question:question(offering,actionForOffering(offering)),purpose:purpose(offering),evidence:[{type:'service_or_product',value:offering,source:'確認済みのサービス・商品情報'}]});
+  for(const [axisId,intent,axis,question,purpose] of DECISION_AXES)for(const offering of offerings)items.push({id:`offering-${axisId}-${key(offering)}`,intent,situation:`${offering}を検討している`,axis,question:question(offering,venueFor(input.entity)),purpose:purpose(offering,venueFor(input.entity)),evidence:[{type:'service_or_product',value:offering,source:'確認済みのサービス・商品情報'}]});
   return items;
 }
 
 function fallbacks(input,detected=[]){
   const offerings=uniq([...input.entity.main_services,...input.entity.main_products,...input.intents]);
   const ids=new Set(detected.map(x=>x.id));
-  const available=offerings.filter(offering=>!(ids.has('land-build')&&/注文住宅/.test(offering))&&!(ids.has('used-renovation')&&/(中古|リフォーム)/.test(offering)));
+  const venue=venueFor(input.entity);const distinct=venue?offerings.filter(o=>!offerings.some(other=>other!==o&&other.length>o.length&&other.includes(o))):offerings;
+  const available=distinct.filter(offering=>!(ids.has('land-build')&&/注文住宅/.test(offering))&&!(ids.has('used-renovation')&&/(中古|リフォーム)/.test(offering)));
   const base=available.map((offering,i)=>{
     let question=`${offering}について相談先を探している`;
     if(input.entity.entity_type==='product')question=`${offering}に使えるツールを比較したい`;
@@ -106,6 +110,7 @@ function fallbacks(input,detected=[]){
     else if(/住宅購入/.test(offering))question=`${offering}を資金計画から相談できる不動産会社は？`;
     else if(/賃貸$/.test(offering))question='賃貸物件を探すなら、どの不動産会社が候補？';
     else if(/売却/.test(offering))question='家を売るとき、査定や売却方法を相談できる会社は？';
+    else if(venueFor(input.entity))question=`${offering}を${venueFor(input.entity).doing==='食べる'?'食べられる':'利用できる'}お店は？`;
     else question=`${offering}を依頼できる${providerFor(input.entity)}は？`;
     return {id:`offering-${key(offering)}`,intent:i%3===0?'発見':i%3===1?'比較':'利用判断',situation:`${offering}を検討している`,axis:i%3===0?'候補発見':i%3===1?'比較条件':'利用判断',question,purpose:`${offering}を検討する利用者に、AIが対象${input.entity.entity_type==='product'?'製品':'企業'}を有力な選択肢として挙げるか確認します。`,evidence:[{type:'service_or_product',value:offering,source:'企業・製品情報'}]};
   });
@@ -123,7 +128,7 @@ function discoveryText(e,s,region=''){
 }
 function alternatives(e,s,region=''){
   if(e.entity_type==='product') return [`${s.situation}。少人数でも導入しやすいツールは？`,`${s.situation}。専門知識なしで使いやすいサービスは？`,`${s.situation}。既存業務から移行しやすい製品は？`];
-  const p=region?`${region}で、`:''; return [`${p}${s.situation}場合、実績を確認できる相談先は？`,`${p}${s.situation}場合、専門性で選ぶならどこ？`,`${p}${s.situation}場合、相談前に何を比較すべき？`];
+  const p=region?`${region}で、`:'';const v=venueFor(e);if(v)return [`${p}口コミや評判を確認できる${v.noun}は？`,`${p}初めてでも${v.doing==='食べる'?'入りやすい':'利用しやすい'}${v.noun}は？`,`${p}選ぶ前に何を比べるべき？`]; return [`${p}${s.situation}場合、実績を確認できる相談先は？`,`${p}${s.situation}場合、専門性で選ぶならどこ？`,`${p}${s.situation}場合、相談前に何を比較すべき？`];
 }
 function regionForQuestion(e){return isLocal(e)?e.diagnosis_region:''}
 function brandedText(e,question,region=''){if(!region)return question;return e.entity_type==='company'?`${region}の${question}`:`${region}で、${question}`}
@@ -136,6 +141,7 @@ function brandAlternatives(e,intent,offering){
   return [`${n}が特に得意なことは？`,`${n}の公式説明と第三者の説明に違いはある？`];
 }
 
+const VENUE_BRAND=[['店舗理解',n=>`${n}はどんなお店？`,'AIが業態・提供内容・所在地を正しく説明できるか確認します。'],['信頼確認',n=>`${n}の口コミや評判は？`,'AIが第三者の評価や口コミを利用判断の材料として示せるか確認します。'],['比較',n=>`${n}は近くの他のお店と比べて何が魅力？`,'AIが競合との違いを具体的な根拠とともに説明できるか確認します。'],['利用判断',n=>`${n}に行く前に確認しておくことは？`,'AIが来店前の注意点（予約・営業時間など）を適切に示せるか確認します。'],['特徴',n=>`${n}のおすすめメニュー・特徴は？`,'AIが公開情報から店の特徴を正しく理解しているか確認します。']];
 const BRAND={
  company:[['会社理解',n=>`${n}はどんな会社？`,'AIが事業内容と対応範囲を正しく説明できるか確認します。'],['信頼確認',n=>`${n}の評判や信頼性は？`,'AIが第三者評価や実績を依頼判断の材料として示せるか確認します。'],['比較',n=>`${n}は同業他社と比べて何が強い？`,'AIが競合との違いを具体的な根拠とともに説明できるか確認します。'],['利用判断',(n,s)=>`${n}へ${s}を${actionForOffering(s)}する前に何を確認すべき？`,'AIが相談前の注意点や不足情報を適切に示せるか確認します。'],['専門性',n=>`${n}にはどの分野の専門性がある？`,'AIが公開情報から専門領域を正しく理解しているか確認します。']],
  product:[['製品理解',n=>`${n}はどんな業務に向いているツール？`,'AIが対象製品の用途と適する利用者を正しく説明できるか確認します。'],['比較',n=>`${n}と他の業務管理ツールの違いは？`,'AIが競合製品との違いを購入判断に役立つ形で説明できるか確認します。'],['価格 / 条件',n=>`${n}の料金と契約条件は？`,'AIが料金や利用条件を正しく説明できるか確認します。'],['導入 / 契約判断',n=>`${n}を導入する前に確認すべきことは？`,'AIが導入難度や制約を偏りなく提示できるか確認します。']],
@@ -152,7 +158,7 @@ export function generateQuestionDiscovery(raw){
   const input=normalizeDiscoveryInput(raw),e=input.entity;if(!e.name||!e.industry||(!e.main_services.length&&!e.main_products.length))throw new TypeError('企業名、業種、主要サービスまたは商品が必要です。');
   const recommended=recommendQuestionMix(input),detected=scenarios(input),userScenarios=genericUserScenarios(input,detected),selected=[],used=new Set();for(const s of [...detected,...userScenarios,...fallbacks(input,detected)]){if(selected.length>=recommended.discovery_count)break;if(!used.has(s.id)){used.add(s.id);selected.push(s)}}if(selected.length<2)throw new Error(`根拠のある利用場面が不足しています（${selected.length}/2）。`);const mix={...recommended,discovery_count:selected.length,total:selected.length+recommended.brand_count};
   const candidates=selected.map((s,i)=>{const region=regionForQuestion(e,i),regionEvidence=region?[{type:'user_region_condition',value:region,source:'ユーザーが指定した地域条件',source_type:'user_input'}]:[],basis=s.evidence[0].source_type==='user_input'?`入力された相談場面「${s.evidence[0].value}」が、顧客の「${s.situation}」場面に関係するため選びました。`:`${s.evidence[0].source}で「${s.evidence[0].value}」を確認でき、顧客の「${s.situation}」場面に関係するため選びました。`;return{question_text:discoveryText(e,s,region),kind:'nonbrand',intent:s.intent,scenario_id:s.id,decision_axis:s.axis,selection_reason:`${basis}${region?`指定された地域条件「${region}」をこの質問に使用します。`:''}`,measurement_purpose:s.purpose,alternatives:alternatives(e,s,region),evidence:[...s.evidence,...regionEvidence],generation_rule:`scenario:${s.id}:${i+1}`} });
-  const identitySource=e.official_url?'公式サイト':'確認済みの対象情報';const templates=BRAND[e.entity_type]||BRAND.company,offering=e.main_services[0]||e.main_products[0];for(let i=0;i<mix.brand_count;i++){const [intent,make,purpose]=templates[i%templates.length],region=regionForQuestion(e,mix.discovery_count+i),regionEvidence=region?[{type:'user_region_condition',value:region,source:'ユーザーが指定した地域条件',source_type:'user_input'}]:[];candidates.push({question_text:brandedText(e,make(e.name,offering),region),kind:'branded',intent,scenario_id:`brand-${intent}`,decision_axis:intent,selection_reason:`${identitySource}で対象名と提供内容を確認でき、${intent}が購入・依頼前の判断に必要なため選びました。${region?`指定された地域条件「${region}」をこの質問に使用します。`:''}`,measurement_purpose:purpose,alternatives:brandAlternatives(e,intent,offering),evidence:[{type:'official_entity',value:e.name,source:identitySource},...regionEvidence],generation_rule:`brand:${e.entity_type}:${intent}`})}
+  const identitySource=e.official_url?'公式サイト':'確認済みの対象情報';const templates=venueFor(e)?VENUE_BRAND:(BRAND[e.entity_type]||BRAND.company),offering=e.main_services[0]||e.main_products[0];for(let i=0;i<mix.brand_count;i++){const [intent,make,purpose]=templates[i%templates.length],region=regionForQuestion(e,mix.discovery_count+i),regionEvidence=region?[{type:'user_region_condition',value:region,source:'ユーザーが指定した地域条件',source_type:'user_input'}]:[];candidates.push({question_text:brandedText(e,make(e.name,offering),region),kind:'branded',intent,scenario_id:`brand-${intent}`,decision_axis:intent,selection_reason:`${identitySource}で対象名と提供内容を確認でき、${intent}が購入・依頼前の判断に必要なため選びました。${region?`指定された地域条件「${region}」をこの質問に使用します。`:''}`,measurement_purpose:purpose,alternatives:brandAlternatives(e,intent,offering),evidence:[{type:'official_entity',value:e.name,source:identitySource},...regionEvidence],generation_rule:`brand:${e.entity_type}:${intent}`})}
   const qa=qaGeneratedQuestions(candidates,e.name);if(qa.accepted.length!==mix.total)throw new Error(`QA通過後の質問が${mix.total}問に達しません（${qa.accepted.length}/${mix.total}）。`);
   const questions=qa.accepted.map((q,i)=>({id:`qd-${String(i+1).padStart(2,'0')}`,order:i+1,...q,source_signals:q.evidence.map(x=>x.value),discovery_evidence:q.evidence,generation_source:'rule_based_v2',proposed_question_text:q.question_text,proposed_kind:q.kind,user_modified:false,confirmed:false}));return {schema_version:'question-discovery-v2',generated_at:new Date().toISOString(),entity:e,inputs:input,input_warnings:detectInputWarnings(e),mix,questions,rejected:qa.rejected};
 }
