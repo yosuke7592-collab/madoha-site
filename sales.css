@@ -12,3 +12,5 @@
 .mock-banner{background:#8a1c1c;color:#fff;padding:10px 16px;text-align:center;font-weight:700;position:sticky;top:0;z-index:50}
 .admin-share{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;padding:10px 16px;background:#f3f0e8}
 .admin-share input{flex:1 1 260px;min-width:0;padding:6px}
+
+#admin-panel .secret-field{-webkit-text-security:disc;text-security:disc;display:block;width:100%;margin-top:4px;padding:8px;box-sizing:border-box}
