@@ -87,7 +87,7 @@ export async function suggestTargets(env,text,session,deps={}){
  const toItem=c=>({name:c.name,detail:[c.region,c.industry].filter(Boolean).join('・'),candidate:c});
  const items=searchCatalog(text,undefined,2).map(toItem);
  items.push(...auto);
- if(items.length<3){const found=await(deps.search||searchPlaces)(env,text)||[];for(const c of found)if(!items.some(i=>i.name===c.name&&(i.detail||'')===(c.region||'')))items.push({name:c.name,detail:[c.region,c.industry].filter(Boolean).join('・'),candidate:c})}
+ if(items.length<3){const found=await(deps.search||searchPlaces)(env,text)||[];const dom=u=>String(u||'').replace(/^https?:\/\/(www\.)?/i,'').split('/')[0].toLowerCase();for(const c of found)if(!items.some(i=>i.name===c.name&&(!c.region||!i.candidate?.region||i.candidate.region.includes(c.region)||c.region.includes(i.candidate.region)||i.detail===c.region)||(c.official_url&&i.candidate?.official_url&&dom(c.official_url)===dom(i.candidate.official_url))))items.push({name:c.name,detail:[c.region,c.industry].filter(Boolean).join('・'),candidate:c})}
  return{enabled:true,suggestions:items.slice(0,5)}
 }
 export const adminEnabled=env=>typeof env?.MADOHA_ADMIN_TOKEN==='string'&&env.MADOHA_ADMIN_TOKEN.length>=24;
