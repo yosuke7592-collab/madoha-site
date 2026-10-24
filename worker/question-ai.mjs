@@ -89,7 +89,7 @@ export async function refineDiscoveryWithAI(env, discovery, { timeoutMs = 12000 
     ].join('\n');
     const messages = [{ role: 'system', content: SYSTEM }, { role: 'user', content: info }];
     let valid = null;
-    for (const model of [DEFAULT_SUMMARY_MODEL, FALLBACK_SUMMARY_MODEL]) {
+    for (const model of [DEFAULT_SUMMARY_MODEL, DEFAULT_SUMMARY_MODEL, FALLBACK_SUMMARY_MODEL]) {
       try {
         valid = validateAiQuestions(parseJsonLoose(await withTimeout(runModel(env, model, messages), timeoutMs)), { entityName: e.name, count: nonbrand.length, region });
       } catch (error) { console.warn('question ai failed', model, error?.message || error); }
