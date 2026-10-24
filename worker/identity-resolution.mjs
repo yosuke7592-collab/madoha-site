@@ -146,6 +146,19 @@ export function dedupeCandidates(list = []) {
   return out;
 }
 
+// Typing-time lookup in the built-in catalog. "zeal 船橋" matches ZEAL entries whose region/industry contain 船橋.
+export function searchCatalog(query, catalog = KNOWN_IDENTITIES, limit = 3) {
+  const tokens = clean(query).split(/[\s　]+/).filter(Boolean);
+  if (!tokens.length) return [];
+  const [head, ...rest] = tokens;
+  return catalog.filter(item => {
+    const names = [item.name, ...(item.aliases || [])].map(nameKey);
+    if (!names.some(name => name.includes(nameKey(head)) || nameKey(head).includes(name))) return false;
+    const haystack = nameKey([item.name, item.region, item.industry, item.company_location].join(' '));
+    return rest.every(token => haystack.includes(nameKey(token)));
+  }).slice(0, limit).map(asCandidate);
+}
+
 export async function resolveIdentityInput(input = {}, options = {}) {
   const query = clean(typeof input === 'string' ? input : input.query || input.url || input.name);
   if (!query) throw new TypeError('会社名・店舗名・サービス名・URLを入力してください。');
