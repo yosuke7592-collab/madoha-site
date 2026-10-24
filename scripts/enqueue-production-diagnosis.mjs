@@ -55,8 +55,8 @@ export function transitionSql(id) {
     UPDATE diagnosis_orders SET payment_status='paid',sales_stage='paid',diagnosis_status='queued',pipeline_state='queued',paid_at=datetime('now'),updated_at=datetime('now')\
     WHERE id='${id}' AND payment_status='pending' AND sales_stage='checkout_ready' AND diagnosis_status='locked' AND pipeline_state='pending'\
       AND completed_measurements=0 AND questions_confirmed_at IS NOT NULL\
-      AND (SELECT COUNT(*) FROM diagnosis_questions WHERE diagnosis_id='${id}' AND confirmed=1)=10\
-      AND (SELECT COUNT(*) FROM diagnosis_questions WHERE diagnosis_id='${id}')=10\
+      AND (SELECT COUNT(*) FROM diagnosis_questions WHERE diagnosis_id='${id}')BETWEEN 1 AND 10\
+      AND (SELECT COUNT(*) FROM diagnosis_questions WHERE diagnosis_id='${id}' AND confirmed=1)=(SELECT COUNT(*) FROM diagnosis_questions WHERE diagnosis_id='${id}')\
       AND NOT EXISTS(SELECT 1 FROM diagnosis_outbox WHERE diagnosis_id='${id}');\
     INSERT INTO diagnosis_outbox(diagnosis_id,stage,created_at,sent_at)\
       SELECT id,'admin_live_run',datetime('now'),NULL FROM diagnosis_orders\

@@ -303,3 +303,21 @@ export async function resendCompletedResult(env, email) {
 }
 
 export const RESULT_RESEND_MESSAGE = '該当する診断結果がある場合はメールを送信しました';
+
+// Admin-only: mint a read-only result link for a diagnosis that was run without payment.
+// No buyer email exists, so a non-deliverable placeholder keeps the delivery row valid; no email is ever sent.
+export async function createAdminShareLink(env, diagnosisId) {
+  const existing = await env.DB.prepare('SELECT result_token_nonce FROM diagnosis_delivery WHERE diagnosis_id=?').bind(diagnosisId).first();
+  let nonce = existing?.result_token_nonce;
+  if (!existing) await storeBuyerEmail(env, diagnosisId, `admin-free-${diagnosisId}@madoha.invalid`);
+  if (!nonce) {
+    nonce = randomValue();
+    const token = await resultTokenFromNonce(env, diagnosisId, nonce);
+    await env.DB.prepare(`UPDATE diagnosis_delivery SET result_token_hash=?,result_token_nonce=?,
+      completion_email_status='sent',completion_email_sent_at=datetime('now'),updated_at=datetime('now')
+      WHERE diagnosis_id=? AND result_token_hash IS NULL`).bind(await hashResultToken(token), nonce, diagnosisId).run();
+    const row = await env.DB.prepare('SELECT result_token_nonce FROM diagnosis_delivery WHERE diagnosis_id=?').bind(diagnosisId).first();
+    nonce = row?.result_token_nonce || nonce;
+  }
+  return resultUrl(env, diagnosisId, await resultTokenFromNonce(env, diagnosisId, nonce));
+}
